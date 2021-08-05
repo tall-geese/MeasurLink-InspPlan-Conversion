@@ -1,0 +1,83 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet1"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+
+
+Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
+    If Target.Areas.Count = 1 Then
+        If Target.Column = 22 And Target.Row > 3 Then
+            Set fso = New FileSystemObject
+            Path = Replace(ThisWorkbook.Path, fso.GetFileName(ThisWorkbook.Path), "Attachments")
+10
+            If Not (fso.FolderExists(Path)) Then
+                result = MsgBox("There doesn't seem to be an 'Attachments' directory for this project" & vbCrLf & "Would you like to create one?", vbYesNo)
+                If result = vbYes Then
+                    fso.CreateFolder (Path)
+                    GoTo 10
+                Else
+                    Exit Sub
+                End If
+            End If
+            
+            'After we check to see if the "Attachments" folder exists
+            Target.Value = ""
+            
+            With Application.FileDialog(msoFileDialogFilePicker)
+                .InitialFileName = Path
+                .Show
+                For i = 1 To .SelectedItems.Count
+                    arr = Split(.SelectedItems.Item(i), "\")
+                    Target.Value = Target.Value & arr(UBound(arr))
+                    'If there's more than one file, then w eneed to delimit it by a character that can't appear in the file name
+                    If i <> .SelectedItems.Count Then
+                        Target.Value = Target.Value & "|"
+                    End If
+                Next i
+            End With
+            Target.Offset(1, 0).Select
+        End If
+    End If
+End Sub
+
+Sub testDirOutput()
+    
+'    Debug.Print (ThisWorkbook.Path)
+'    Debug.Print (Dir(ThisWorkbook.Path & "\vdfvsdf"))
+''    Debug.Print (Dir())
+
+    Set fso = New FileSystemObject
+    Debug.Print (fso.GetFileName(ThisWorkbook.Path))
+'    Debug.Print (ThisWorkbook.Path)
+    
+
+End Sub
+
+Sub test()
+    arr = Split(Range("V10"), "\")
+    Debug.Print (arr(UBound(arr)))
+
+End Sub
+
+'xlDialogFindFile
+
+'Sub updateVal()
+'    For i = 2 To 400
+'        Dim rngNum As String
+'        rngNum = Trim(Str(i + 7))
+'        Set Rng = Range("M" & rngNum)
+'        With Rng.Validation
+'            .Delete
+'            .Add Type:=xlValidateList, Formula1:="=INDIRECT(" & Chr(34) _
+'            & "[RoutineMapDataValidations.xlsm]StandardComments!C" & Trim(Str(i)) & "#" & Chr(34) & ")"
+'            .ShowError = False
+'        End With
+'    Next i
+'End Sub
+
+
