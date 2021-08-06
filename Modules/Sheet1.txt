@@ -30,41 +30,22 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
             
             With Application.FileDialog(msoFileDialogFilePicker)
                 .InitialFileName = Path
+                .Title = "Select Feature Attachment(s)"
                 .Show
                 For i = 1 To .SelectedItems.Count
                     arr = Split(.SelectedItems.Item(i), "\")
                     Target.Value = Target.Value & arr(UBound(arr))
-                    'If there's more than one file, then w eneed to delimit it by a character that can't appear in the file name
+                    'If there's more than one file, then we need to delimit it by a character that can't appear in the file name
                     If i <> .SelectedItems.Count Then
                         Target.Value = Target.Value & "|"
                     End If
                 Next i
             End With
-            Target.Offset(1, 0).Select
+            Target.offset(1, 0).Select
         End If
     End If
 End Sub
 
-Sub testDirOutput()
-    
-'    Debug.Print (ThisWorkbook.Path)
-'    Debug.Print (Dir(ThisWorkbook.Path & "\vdfvsdf"))
-''    Debug.Print (Dir())
-
-    Set fso = New FileSystemObject
-    Debug.Print (fso.GetFileName(ThisWorkbook.Path))
-'    Debug.Print (ThisWorkbook.Path)
-    
-
-End Sub
-
-Sub test()
-    arr = Split(Range("V10"), "\")
-    Debug.Print (arr(UBound(arr)))
-
-End Sub
-
-'xlDialogFindFile
 
 'Sub updateVal()
 '    For i = 2 To 400

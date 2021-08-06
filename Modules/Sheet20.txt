@@ -1,0 +1,339 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet20"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+'TODO: If we are taking out the FAI truncation, then we prob dont need to set this up for recursive calls, unless we use that for something else
+Sub CleanData()
+
+
+    Dim balloonRange As Range
+
+    Set balloonRange = Range("A2:A" & Range("A2").End(xlDown) + 1)
+'    If balloon Is Nothing Then
+'        Set balloonRange = Range("A2:A" & Range("A2").End(xlDown) + 1)
+'    Else
+'        Set balloonRange = balloon
+'    End If
+
+    Dim resultValue As String
+    Dim cell As Range
+    Dim gdecimalPlaces As Integer
+    Dim ghashFormat As String
+    Dim unitFormat As String
+    Dim unitChars As String
+
+    'we either have empty optional arguements "", in which case we will set these later, or we do have optional arguements in which case we
+    'should be using those values
+    Dim lowerValue As String
+    Dim upperValue As String
+'    lowerValue = lowLimit
+'    upperValue = uppLimit
+
+
+    Dim delimiter As String
+    Dim featureKeyword As String
+
+    Application.EnableEvents = False
+    Me.Unprotect ("3063bqa")
+
+    On Error GoTo 20
+
+    'We might be dealing with one cell or an entire column of cells
+    For Each cell In balloonRange
+        'Skip over the manually edited fields
+        If cell.offset(0, 9).Font.Color <> 0 Then
+            GoTo 20
+        End If
+        
+'        If cell.offset(0,9).Font.Color <> 0 And truncation = False Then
+'            cell.offset(0, 10).Value = cell.offset(0,9).Value
+'            cell.offset(0, 10).Font.Color = RGB(0, 0, 0)
+'            GoTo 20
+'        End If
+
+        If (cell.offset(0, 4).Value = "Geometric Tolerance") Then
+            'Need to cross-reference our unicode values to the AMGDT font
+            'TODO: this function on the sheet needs to be adjusted slightly so we will VLOOKUP on the next column (ML Applicable text)
+            resultValue = ThisWorkbook.Worksheets("GDT-Lexicon").TranslateCharacters(cell.offset(0, 7).Value)
+
+        Else
+            'for non-angles we need to see if units is mm or in and determine if the dimension will have a leading 0 or not respectively
+            unitChars = cell.offset(0, 6).Value
+            unitFormat = getLeadingCharacters(unitChars)
+
+            'find how many decimal places we should have for our result, determined by the greatest number of places in the value, lower lim and upper lim columns
+            gdecimalPlaces = Application.WorksheetFunction.Max(getDecimalPlaces(cell.offset(0, 1).Value, unitChars), getDecimalPlaces(cell.offset(0, 2).Value, unitChars), _
+            getDecimalPlaces(cell.offset(0, 3).Value, unitChars))
+
+            'create the text formatting as a function of # of decimal places
+            ghashFormat = getFormatHashes(gdecimalPlaces)
+
+
+            Call SetDimensionalRange(cell, upperValue, lowerValue, delimiter, featureKeyword)
+
+            Select Case (cell.offset(0, 5).Value)
+                Case "Diameter"
+                    resultValue = Diameter(cell, ghashFormat, unitFormat, , lowerValue, upperValue, delimiter, featureKeyword)
+                Case "Counterbore Diameter"
+                    resultValue = Diameter(cell, ghashFormat, unitFormat, "v", lowerValue, upperValue, delimiter, featureKeyword)
+                Case "Countersink Diameter"
+                    resultValue = Diameter(cell, ghashFormat, unitFormat, "w", lowerValue, upperValue, delimiter, featureKeyword)
+                Case "Radius"
+                    resultValue = Radius(cell, ghashFormat, unitFormat, lowerValue, upperValue, delimiter, featureKeyword)
+                Case "Bend Radius"
+                    resultValue = Radius(cell, ghashFormat, unitFormat, lowerValue, upperValue, delimiter, featureKeyword)
+                Case "Edge Radius"
+                    resultValue = Radius(cell, ghashFormat, unitFormat, lowerValue, upperValue, delimiter, featureKeyword)
+                Case "Angle"
+                    resultValue = Angle(cell, gdecimalPlaces, lowerValue, upperValue, delimiter, featureKeyword)
+                Case "Countersink Angle"
+                    resultValue = Angle(cell, gdecimalPlaces, lowerValue, upperValue, delimiter, featureKeyword)
+                Case "Chamfer Angle"
+                    resultValue = Angle(cell, gdecimalPlaces, lowerValue, upperValue, delimiter, featureKeyword)
+                Case Else
+                    resultValue = Default(cell, ghashFormat, unitFormat, lowerValue, upperValue, delimiter, featureKeyword)
+                End Select
+
+'            Dim numInstances As String
+            'find out if we have a 3X or 6X value
+'            numInstances = getNumberInstances(cell)
+'
+            'if it has multiple instances, like 3X then add that to the beginning of our result string
+'            resultValue = numInstances & resultValue
+        End If
+        cell.offset(0, 8).Value = getNumberInstances(cell)
+        With cell.offset(0, 9)
+            .Value = resultValue
+            .Font.Color = RGB(0, 0, 0)
+        End With
+
+20
+        lowerValue = vbNullString
+        upperValue = vbNullString
+        delimiter = vbNullString
+        featureKeyword = vbNullString
+
+    Next cell
+10
+
+    Application.EnableEvents = True
+    Me.Protect ("3063bqa")
+
+End Sub
+
+'************************************************************
+'*********   Dimension Formatting Functions   ***************
+'************************************************************
+
+Function getDecimalPlaces(cellValue As String, units As String) As Integer
+    Dim decimalIndex As Integer
+    Dim maxDecimals As Integer
+
+    Select Case units
+        Case "mm"
+            maxDecimals = 3
+        Case "in"
+            maxDecimals = 4
+        Case Else
+            maxDecimals = 5
+
+    End Select
+
+    decimalIndex = InStr(CStr(cellValue), ".")
+
+    If decimalIndex > 0 Then
+        getDecimalPlaces = Len(CStr(cellValue)) - decimalIndex
+
+        If getDecimalPlaces > maxDecimals Then getDecimalPlaces = maxDecimals
+    End If
+
+End Function
+
+Function getFormatHashes(decimalPlaces As Integer) As String
+    Dim hash As String
+    Dim i As Integer
+    i = 1
+
+    While i < decimalPlaces
+        hash = hash & "#"
+        i = i + 1
+    Wend
+
+    getFormatHashes = hash & "0"
+
+End Function
+
+Function getLeadingCharacters(units As String) As String
+    Select Case (units)
+        Case "in"
+            getLeadingCharacters = "#"
+        Case "mm"
+            getLeadingCharacters = "0"
+        Case Else
+            getLeadingCharacters = "#"
+    End Select
+
+End Function
+
+Function getNumberInstances(indexCell As Range) As String
+    Dim returnString As String
+    Dim posistion As Integer
+    posistion = InStr(indexCell.offset(0, 7).Value, "X")
+
+    'if it has multiple instances, like 3X then add that to the beginning of our result string
+    If posistion > 0 Then
+        'TODO: for our feature building purposes, we need to take our instance value here, like "12" and call a function on our PartLib
+        'so that we are grouping and setting formulas for multiple instance repeating features
+        'TODO: ALSO we shouldn't be adding this to our characteristic description anymore becuase we actually have a feautre for each instance
+        'so don't return a string or anything anymore
+        returnString = Left(indexCell.offset(0, 7), posistion - 1)
+        getNumberInstances = returnString
+    End If
+
+End Function
+
+Function SetDimensionalRange(indexCell As Range, ByRef upperValue As String, ByRef lowerValue As String, ByRef delimiter As String, ByRef featureKeyword As String)
+
+    If lowerValue = "" Then lowerValue = CStr(indexCell.offset(0, 2))
+    If upperValue = "" Then upperValue = CStr(indexCell.offset(0, 3))
+    delimiter = " / "
+    featureKeyword = vbNullString
+
+    If InStr(indexCell.offset(0, 7).Value, "MIN") > 0 Then
+        upperValue = vbNullString
+        delimiter = vbNullString
+        featureKeyword = " MIN"
+    End If
+
+    If InStr(indexCell.offset(0, 7).Value, "MAX") > 0 Then
+        lowerValue = vbNullString
+        delimiter = vbNullString
+        featureKeyword = " MAX"
+    End If
+
+
+End Function
+
+'************************************************************
+'*********   Feature Type Formatting Functions   ************
+'************************************************************
+
+
+Function Diameter(indexCell As Range, decimalFormat As String, unitsChar As String, Optional prefixChar As String, _
+    Optional lowerValue As String, Optional upperValue As String, Optional delimiter As String, Optional featureKeyword As String) As String
+
+    Dim lowerSpec As String
+    Dim upperSpec As String
+
+    If lowerValue <> vbNullString Then
+        lowerSpec = "Ø" & prefixChar & Format(lowerValue, unitsChar & "." & decimalFormat)
+    End If
+
+    If upperValue <> vbNullString Then
+        upperSpec = "Ø" & prefixChar & Format(upperValue, unitsChar & "." & decimalFormat)
+    End If
+
+    Diameter = lowerSpec & delimiter & upperSpec & featureKeyword
+
+End Function
+
+Function Radius(indexCell As Range, decimalFormat As String, unitsChar As String, _
+    Optional lowerValue As String, Optional upperValue As String, Optional delimiter As String, Optional featureKeyword As String) As String
+
+    Dim lowerSpec As String
+    Dim upperSpec As String
+
+    If lowerValue <> vbNullString Then
+        lowerSpec = "R" & Format(lowerValue, unitsChar & "." & decimalFormat)
+    End If
+
+    If upperValue <> vbNullString Then
+        upperSpec = "R" & Format(upperValue, unitsChar & "." & decimalFormat)
+    End If
+
+    Radius = lowerSpec & delimiter & upperSpec & featureKeyword
+
+
+End Function
+
+Function Angle(indexCell As Range, decimalPlaces As Integer, _
+Optional lowerValue As String, Optional upperValue As String, Optional delimiter As String, Optional featureKeyword As String) As String
+    Dim decimalFormat As String
+    If decimalPlaces > 0 Then
+        decimalFormat = "." & getFormatHashes(decimalPlaces)
+    End If
+
+    Dim lowerSpec As String
+    Dim upperSpec As String
+
+    If lowerValue <> vbNullString Then
+        lowerSpec = Format(lowerValue, "#" & decimalFormat) & "°"
+    End If
+
+    If upperValue <> vbNullString Then
+        upperSpec = Format(upperValue, "#" & decimalFormat) & "°"
+    End If
+
+    Angle = lowerSpec & delimiter & upperSpec & featureKeyword
+
+
+End Function
+
+
+
+Function Default(indexCell As Range, decimalFormat As String, unitsChar As String, _
+    Optional lowerValue As String, Optional upperValue As String, Optional delimiter As String, Optional featureKeyword As String) As String
+
+    Dim lowerSpec As String
+    Dim upperSpec As String
+
+    If lowerValue <> vbNullString Then
+        lowerSpec = Format(lowerValue, unitsChar & "." & decimalFormat)
+    End If
+
+    If upperValue <> vbNullString Then
+        upperSpec = Format(upperValue, unitsChar & "." & decimalFormat)
+    End If
+
+    Default = lowerSpec & delimiter & upperSpec & featureKeyword
+
+
+End Function
+
+'************************************************************
+'****************   Callback Functions   ********************
+'************************************************************
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    On Error GoTo 20
+
+    Application.EnableEvents = False
+    Me.Unprotect ("3063bqa")
+
+    'change the font color only if our change occurs in the Results Column, indicates that user came up with their own feature
+    If (Target.Cells.Count = 1 And Target.Column = 10 And Target.Value <> vbNullString) Then
+        Target.Font.ColorIndex = 46  'Turn the text orange
+        'Call CleanData 'TODO: I believe we only call Clean data here becuase we by extension will re-evaluate the truncation after the change
+        
+    ElseIf (Target.Cells.Count = 1 And Target.Column = 10 And Target.Value = vbNullString) Then
+        Target.Font.Color = RGB(0, 0, 0)
+    End If
+
+20
+
+    Application.EnableEvents = True
+    Me.Protect ("3063bqa")
+
+End Sub
+
+
+
+
+
