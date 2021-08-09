@@ -8,7 +8,7 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 Sub test()
-    Debug.Print (ThisWorkbook.Name)
+    MsgBox (ThisWorkbook.Name)
 
 
 End Sub

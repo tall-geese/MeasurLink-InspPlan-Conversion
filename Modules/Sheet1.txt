@@ -7,58 +7,104 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
+Option Explicit
 
-
-Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
-    If Target.Areas.Count = 1 Then
-        If Target.Column = 22 And Target.Row > 3 Then
-            Set fso = New FileSystemObject
-            Path = Replace(ThisWorkbook.Path, fso.GetFileName(ThisWorkbook.Path), "Attachments")
-10
-            If Not (fso.FolderExists(Path)) Then
-                result = MsgBox("There doesn't seem to be an 'Attachments' directory for this project" & vbCrLf & "Would you like to create one?", vbYesNo)
-                If result = vbYes Then
-                    fso.CreateFolder (Path)
-                    GoTo 10
-                Else
-                    Exit Sub
-                End If
+Public Sub ApplyGroupings()
+    On Error Resume Next
+    Outline.ShowLevels RowLevels:=2
+    Rows("1:400").Ungroup
+    On Error GoTo 0
+    
+    Dim instanceGroup As Boolean
+    Dim groupStart As Integer
+    Dim cell As Range
+    Dim rangeEnd As Integer
+    rangeEnd = Range("C9").End(xlDown).Row
+    
+    For Each cell In Range("C9:C" & rangeEnd)
+        If (cell.Font.Color = RGB(128, 128, 128) And instanceGroup = False) Then
+            instanceGroup = True
+            groupStart = cell.Row
+            If (cell.Row = rangeEnd) Then
+                Rows(cell.Row).Group
             End If
-            
-            'After we check to see if the "Attachments" folder exists
-            Target.Value = ""
-            
-            With Application.FileDialog(msoFileDialogFilePicker)
-                .InitialFileName = Path
-                .Title = "Select Feature Attachment(s)"
-                .Show
-                For i = 1 To .SelectedItems.Count
-                    arr = Split(.SelectedItems.Item(i), "\")
-                    Target.Value = Target.Value & arr(UBound(arr))
-                    'If there's more than one file, then we need to delimit it by a character that can't appear in the file name
-                    If i <> .SelectedItems.Count Then
-                        Target.Value = Target.Value & "|"
-                    End If
-                Next i
-            End With
-            Target.offset(1, 0).Select
+        
+        ElseIf (cell.Font.Color <> RGB(128, 128, 128) And instanceGroup = True) Then
+            instanceGroup = False
+            Rows(groupStart & ":" & cell.Row - 1).Group
+            groupStart = 0
+        ElseIf (instanceGroup = True And cell.Row = rangeEnd) Then
+            Rows(groupStart & ":" & cell.Row - 1).Group
+        Else
+            'Next iteration
+        End If
+    Next cell
+    
+    Outline.ShowLevels RowLevels:=1
+
+End Sub
+
+
+
+Private Sub Worksheet_BeforeDoubleClick(ByVal target As Range, Cancel As Boolean)
+    If target.Areas.Count = 1 Then
+        If target.column = 22 And target.Row > 3 Then
+            SetAttachment target:=target
+        ElseIf target.column = 3 And target.Font.Color = RGB(0, 176, 240) Then
+            ExpandGroup target:=target
         End If
     End If
 End Sub
 
+Private Sub SetAttachment(target As Range)
+    Dim fso As FileSystemObject
+    Dim path As String
+    Set fso = New FileSystemObject
+    path = Replace(ThisWorkbook.path, fso.GetFileName(ThisWorkbook.path), "Attachments")
+10
+    If Not (fso.FolderExists(path)) Then
+        Dim result As Integer
+        result = MsgBox("There doesn't seem to be an 'Attachments' directory for this project" & vbCrLf & "Would you like to create one?", vbYesNo)
+        If result = vbYes Then
+            fso.CreateFolder (path)
+            GoTo 10
+        Else
+            Exit Sub
+        End If
+    End If
+    
+    'After we check to see if the "Attachments" folder exists
+    target.Value = ""
+    
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .InitialFileName = path
+        .Title = "Select Feature Attachment(s)"
+        .Show
+        Dim i As Integer
+        For i = 1 To .SelectedItems.Count
+            Dim arr() As Variant
+            arr = Split(.SelectedItems.Item(i), "\")
+            target.Value = target.Value & arr(UBound(arr))
+            'If there's more than one file, then we need to delimit it by a character that can't appear in the file name
+            If i <> .SelectedItems.Count Then
+                target.Value = target.Value & "|"
+            End If
+        Next i
+    End With
+    target.offset(1, 0).Select
 
-'Sub updateVal()
-'    For i = 2 To 400
-'        Dim rngNum As String
-'        rngNum = Trim(Str(i + 7))
-'        Set Rng = Range("M" & rngNum)
-'        With Rng.Validation
-'            .Delete
-'            .Add Type:=xlValidateList, Formula1:="=INDIRECT(" & Chr(34) _
-'            & "[RoutineMapDataValidations.xlsm]StandardComments!C" & Trim(Str(i)) & "#" & Chr(34) & ")"
-'            .ShowError = False
-'        End With
-'    Next i
-'End Sub
+End Sub
+
+Sub ExpandGroup(target As Range)
+    Dim child As Range
+    Set child = target.offset(1, 0)
+    Dim switch As Boolean
+    switch = Not (Rows(child.Row).ShowDetail)
+'    MsgBox (Rows(child.Row).ShowDetail)
+'    Rows(child.Row).ShowDetail = Not (Rows(child.Row).ShowDetail)
+    child.Activate
+    
+End Sub
+
 
 
