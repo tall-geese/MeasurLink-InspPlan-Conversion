@@ -9,6 +9,12 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 Option Explicit
 
+
+'************************************************************
+'***************   Exposed Routines   ***********************
+'************************************************************
+
+
 Public Sub ApplyGroupings()
     On Error Resume Next
     Outline.ShowLevels RowLevels:=2
@@ -21,6 +27,7 @@ Public Sub ApplyGroupings()
     Dim rangeEnd As Integer
     rangeEnd = Range("C9").End(xlDown).Row
     
+    'Begin keeping track of cells once we hit a certain color, when we switch color, group the rows that we tracked
     For Each cell In Range("C9:C" & rangeEnd)
         If (cell.Font.Color = RGB(128, 128, 128) And instanceGroup = False) Then
             instanceGroup = True
@@ -43,6 +50,27 @@ Public Sub ApplyGroupings()
     Outline.ShowLevels RowLevels:=1
 
 End Sub
+
+Public Sub IgnoreErrors()
+    'Characteristic values are inconsistently formatted, suppress the meaningless errors
+    Dim workingRange As Range
+    Set workingRange = Range("L9:L" & Range("L9").End(xlDown).Row)
+    Dim charCell As Range
+    
+    For Each charCell In workingRange
+        charCell.Errors.Item(xlInconsistentFormula).Ignore = True
+        charCell.Errors.Item(xlUnlockedFormulaCells).Ignore = True
+    Next charCell
+End Sub
+
+
+
+
+'-----------------------------------------------------------------------------------------------------------------------------------------
+
+'************************************************************
+'****************   Event Callbacks   ***********************
+'************************************************************
 
 
 
@@ -82,7 +110,7 @@ Private Sub SetAttachment(target As Range)
         .Show
         Dim i As Integer
         For i = 1 To .SelectedItems.Count
-            Dim arr() As Variant
+            Dim arr() As String
             arr = Split(.SelectedItems.Item(i), "\")
             target.Value = target.Value & arr(UBound(arr))
             'If there's more than one file, then we need to delimit it by a character that can't appear in the file name
@@ -95,16 +123,17 @@ Private Sub SetAttachment(target As Range)
 
 End Sub
 
-Sub ExpandGroup(target As Range)
+Private Sub ExpandGroup(target As Range)
+    'Show/Hide children of multiple instance features when user double-clicks
     Dim child As Range
     Set child = target.offset(1, 0)
-    Dim switch As Boolean
-    switch = Not (Rows(child.Row).ShowDetail)
-'    MsgBox (Rows(child.Row).ShowDetail)
-'    Rows(child.Row).ShowDetail = Not (Rows(child.Row).ShowDetail)
+    Rows(child.Row).ShowDetail = Rows(child.Row).EntireRow.Hidden
     child.Activate
     
 End Sub
+
+
+
 
 
 

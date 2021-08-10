@@ -112,7 +112,7 @@ Sub CleanData()
             'if it has multiple instances, like 3X then add that to the beginning of our result string
 '            resultValue = numInstances & resultValue
         End If
-        cell.offset(0, 8).Value = getNumberInstances(cell)
+        setNumberInstances indexCell:=cell
         With cell.offset(0, 9)
             .Value = resultValue
             .Font.Color = RGB(0, 0, 0)
@@ -202,6 +202,28 @@ Function getNumberInstances(indexCell As Range) As String
     End If
 
 End Function
+
+Sub setNumberInstances(indexCell As Range)
+    Dim returnString As String
+    Dim posistion As Integer
+    posistion = InStr(indexCell.offset(0, 7).Value, "X")
+
+    'if it has multiple instances, like 3X then we want to inlcude that information in its own cell
+    If posistion > 0 Then
+        returnString = Left(indexCell.offset(0, 7), posistion - 1)
+        With indexCell.offset(0, 8)
+            .Value = returnString
+            .Font.Bold = True
+            .Font.Color = RGB(0, 0, 0)
+        End With
+    ElseIf posistion = 0 Then
+        With indexCell.offset(0, 8)
+            .Value = 1 'if there is only a single instance then set as "1", but gray so it doesnt draw attention
+            .Font.Bold = False
+            .Font.Color = RGB(128, 128, 128)
+        End With
+    End If
+End Sub
 
 Function SetDimensionalRange(indexCell As Range, ByRef upperValue As String, ByRef lowerValue As String, ByRef delimiter As String, ByRef featureKeyword As String)
 
@@ -364,11 +386,13 @@ Sub TransferData()
     Set targetCell = partSheet.Range("C9")
     partSheet.Activate
     
+    Application.ScreenUpdating = False
+    
     For Each indexCell In charRange
         Dim instances As Integer
         Dim minInstance As Integer
         
-        If indexCell.offset(0, 8).Value = "" Then
+        If indexCell.offset(0, 8).Value = "1" Or indexCell.offset(0, 8).Value = "" Then
             instances = 0
             minInstance = 0
         Else
@@ -387,12 +411,14 @@ Sub TransferData()
             
             Select Case minInstance
                 Case Is = 1
+                    targetCell.HorizontalAlignment = xlHAlignRight
                     targetCell.Font.Color = RGB(0, 176, 240)
                 Case Is >= 2
                     targetCell.HorizontalAlignment = xlHAlignCenter
                     targetCell.Font.Color = RGB(128, 128, 128)
                 Case Else
-                    'error?
+                    targetCell.HorizontalAlignment = xlHAlignRight
+                    targetCell.Font.Color = RGB(0, 0, 0)
             End Select
             
             SetInstance refCell:=indexCell, destCell:=targetCell, instance:=minInstance
@@ -403,13 +429,16 @@ Sub TransferData()
         
     Next indexCell
     
-'    Apply Row Groupings
-'    partSheet.Outline.ShowLevels RowLevels:=1
+    Call Worksheets("PartLib Table").ApplyGroupings
+    Call Worksheets("PartLib Table").IgnoreErrors
+
+    Application.ScreenUpdating = True
 
 End Sub
 
 
 Sub SetInstance(refCell As Range, destCell As Range, instance As Integer)
+    'If its a "_00" or "_01" feature then its values refer to the IEX-DATA sheet
     If instance < 2 Then
         With destCell.offset(0, 1)
             .NumberFormat = "General"
@@ -428,6 +457,7 @@ Sub SetInstance(refCell As Range, destCell As Range, instance As Integer)
             .Formula2 = "='IEX-DATA'!" & refCell.offset(0, 9).Address 'Characteristic Description
         End With
     Else
+        'Otherwise we should set the value as refernce to the parent (1st instance)cell
         Dim cell As Range
         Dim tempCell As Range
         Set tempCell = destCell.offset(0, 1)
@@ -451,15 +481,10 @@ Public Function GetAddress(column As Integer) As String
 
 End Function
 
-'
-'Sub FormatTest()
-'    Dim test As String
-'    test = "0_000"
-'    Debug.Print (Format("12", test))
-'    Debug.Print (Format("0", "_00"))
-'
-'
-'End Sub
+
+
+
+
 
 
 
