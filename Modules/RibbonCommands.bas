@@ -22,5 +22,6 @@ Public Sub LoadDataValidations(ByRef control As IRibbonControl)
     Set valWb = Workbooks.Open(Filename:=DataSources.DATA_VALIDATION_PATH, UpdateLinks:=0, ReadOnly:=True)
     valWb.Sheets("Description").SetValReference (ThisWorkbook.Name)
     valWb.Sheets("StandardComments").SetValReference (ThisWorkbook.Name)
+    valWb.Sheets("InspMethods").SetValReference (ThisWorkbook.Name)
 End Sub
 

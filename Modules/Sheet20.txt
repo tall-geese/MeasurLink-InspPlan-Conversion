@@ -20,12 +20,7 @@ Sub CleanData()
 
     Dim balloonRange As Range
     Set balloonRange = Range("A2:A" & Range("A2").End(xlDown) + 1)
-'    If balloon Is Nothing Then
-'        Set balloonRange = Range("A2:A" & Range("A2").End(xlDown) + 1)
-'    Else
-'        Set balloonRange = balloon
-'    End If
-
+    
     Dim resultValue As String
     Dim cell As Range
     Dim gdecimalPlaces As Integer
@@ -79,39 +74,33 @@ Sub CleanData()
             'create the text formatting as a function of # of decimal places
             ghashFormat = getFormatHashes(gdecimalPlaces)
 
-
             Call SetDimensionalRange(cell, upperValue, lowerValue, delimiter, featureKeyword)
 
             Select Case (cell.offset(0, 5).Value)
                 Case "Diameter"
-                    resultValue = Diameter(cell, ghashFormat, unitFormat, , lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Diameter(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
                 Case "Counterbore Diameter"
-                    resultValue = Diameter(cell, ghashFormat, unitFormat, "v", lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Diameter(cell.offset(0, 1).Value, ghashFormat, unitFormat, prefixChar:="v", featureKeyword:=featureKeyword)
                 Case "Countersink Diameter"
-                    resultValue = Diameter(cell, ghashFormat, unitFormat, "w", lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Diameter(cell.offset(0, 1).Value, ghashFormat, unitFormat, prefixChar:="w", featureKeyword:=featureKeyword)
                 Case "Radius"
-                    resultValue = Radius(cell, ghashFormat, unitFormat, lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Radius(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
                 Case "Bend Radius"
-                    resultValue = Radius(cell, ghashFormat, unitFormat, lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Radius(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
                 Case "Edge Radius"
-                    resultValue = Radius(cell, ghashFormat, unitFormat, lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Radius(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
                 Case "Angle"
-                    resultValue = Angle(cell, gdecimalPlaces, lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Angle(cell.offset(0, 1).Value, gdecimalPlaces, featureKeyword:=featureKeyword)
                 Case "Countersink Angle"
-                    resultValue = Angle(cell, gdecimalPlaces, lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Angle(cell.offset(0, 1).Value, gdecimalPlaces, featureKeyword:=featureKeyword)
                 Case "Chamfer Angle"
-                    resultValue = Angle(cell, gdecimalPlaces, lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Angle(cell.offset(0, 1).Value, gdecimalPlaces, featureKeyword:=featureKeyword)
                 Case Else
-                    resultValue = Default(cell, ghashFormat, unitFormat, lowerValue, upperValue, delimiter, featureKeyword)
+                    resultValue = Default(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
                 End Select
-
-'            Dim numInstances As String
-            'find out if we have a 3X or 6X value
-'            numInstances = getNumberInstances(cell)
-'
-            'if it has multiple instances, like 3X then add that to the beginning of our result string
-'            resultValue = numInstances & resultValue
+                
         End If
+        
         setNumberInstances indexCell:=cell
         With cell.offset(0, 9)
             .Value = resultValue
@@ -258,104 +247,49 @@ End Function
 '************************************************************
 
 
-Function Diameter(indexCell As Range, decimalFormat As String, unitsChar As String, Optional prefixChar As String, _
-    Optional lowerValue As String, Optional upperValue As String, Optional delimiter As String, Optional featureKeyword As String) As String
-
-    Dim lowerSpec As String
-    Dim upperSpec As String
-
-    If lowerValue <> vbNullString Then
-        lowerSpec = "Ø" & prefixChar & Format(lowerValue, unitsChar & "." & decimalFormat)
-    End If
-
-    If upperValue <> vbNullString Then
-        upperSpec = "Ø" & prefixChar & Format(upperValue, unitsChar & "." & decimalFormat)
-    End If
-
-    Diameter = lowerSpec & delimiter & upperSpec & featureKeyword
-
+Function Diameter(Target As String, decimalFormat As String, unitsChar As String, Optional prefixChar As String, _
+                Optional featureKeyword As String) As String
+                
+    Diameter = "Ø" & prefixChar & Format(Target, unitsChar & "." & decimalFormat)
 End Function
 
-Function Radius(indexCell As Range, decimalFormat As String, unitsChar As String, _
-    Optional lowerValue As String, Optional upperValue As String, Optional delimiter As String, Optional featureKeyword As String) As String
+Function Radius(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
 
-    Dim lowerSpec As String
-    Dim upperSpec As String
-
-    If lowerValue <> vbNullString Then
-        lowerSpec = "R" & Format(lowerValue, unitsChar & "." & decimalFormat)
-    End If
-
-    If upperValue <> vbNullString Then
-        upperSpec = "R" & Format(upperValue, unitsChar & "." & decimalFormat)
-    End If
-
-    Radius = lowerSpec & delimiter & upperSpec & featureKeyword
-
-
+    Radius = "R" & Format(Target, unitsChar & "." & decimalFormat)
 End Function
 
-Function Angle(indexCell As Range, decimalPlaces As Integer, _
-Optional lowerValue As String, Optional upperValue As String, Optional delimiter As String, Optional featureKeyword As String) As String
+Function Angle(Target As String, decimalPlaces As Integer, Optional featureKeyword As String) As String
+
     Dim decimalFormat As String
     If decimalPlaces > 0 Then
         decimalFormat = "." & getFormatHashes(decimalPlaces)
     End If
-
-    Dim lowerSpec As String
-    Dim upperSpec As String
-
-    If lowerValue <> vbNullString Then
-        lowerSpec = Format(lowerValue, "#" & decimalFormat) & "°"
-    End If
-
-    If upperValue <> vbNullString Then
-        upperSpec = Format(upperValue, "#" & decimalFormat) & "°"
-    End If
-
-    Angle = lowerSpec & delimiter & upperSpec & featureKeyword
-
-
+    Angle = Format(Target, "#" & decimalFormat) & "°"
 End Function
 
 
 
-Function Default(indexCell As Range, decimalFormat As String, unitsChar As String, _
-    Optional lowerValue As String, Optional upperValue As String, Optional delimiter As String, Optional featureKeyword As String) As String
+Function Default(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
 
-    Dim lowerSpec As String
-    Dim upperSpec As String
-
-    If lowerValue <> vbNullString Then
-        lowerSpec = Format(lowerValue, unitsChar & "." & decimalFormat)
-    End If
-
-    If upperValue <> vbNullString Then
-        upperSpec = Format(upperValue, unitsChar & "." & decimalFormat)
-    End If
-
-    Default = lowerSpec & delimiter & upperSpec & featureKeyword
-
-
+    Default = Format(Target, unitsChar & "." & decimalFormat)
 End Function
 
 '************************************************************
 '****************   Callback Functions   ********************
 '************************************************************
 
-Private Sub Worksheet_Change(ByVal target As Range)
+Private Sub Worksheet_Change(ByVal Target As Range)
     On Error GoTo 20
 
     Application.EnableEvents = False
     Me.Unprotect ("3063bqa")
 
     'change the font color only if our change occurs in the Results Column, indicates that user came up with their own feature
-    If (target.Cells.Count = 1 And target.column = 10 And target.Value <> vbNullString) Then
-        target.Font.ColorIndex = 46  'Turn the text orange
-        'Call CleanData 'TODO: I believe we only call Clean data here becuase we by extension will re-evaluate the truncation after the change
+    If (Target.Cells.Count = 1 And Target.column = 10 And Target.Value <> vbNullString) Then
+        Target.Font.ColorIndex = 46  'Turn the text orange
         
-    ElseIf (target.Cells.Count = 1 And target.column = 10 And target.Value = vbNullString) Then
-        target.Font.Color = RGB(0, 0, 0)
+    ElseIf (Target.Cells.Count = 1 And Target.column = 10 And Target.Value = vbNullString) Then
+        Target.Font.Color = RGB(0, 0, 0)
     End If
 
 20
@@ -387,6 +321,8 @@ Sub TransferData()
     partSheet.Activate
     
     Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    On Error GoTo 10
     
     For Each indexCell In charRange
         Dim instances As Integer
@@ -432,7 +368,9 @@ Sub TransferData()
     Call Worksheets("PartLib Table").ApplyGroupings
     Call Worksheets("PartLib Table").IgnoreErrors
 
+10
     Application.ScreenUpdating = True
+    Application.EnableEvents = True
 
 End Sub
 
@@ -466,6 +404,7 @@ Sub SetInstance(refCell As Range, destCell As Range, instance As Integer)
                 Dim parentAddr As String
                 parentAddr = GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
                 .NumberFormat = "General"
+                    '=IF(G14="","",G14)
                 .Formula2 = "=IF(" & parentAddr & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddr & ")"
             End With
         Next cell
@@ -480,6 +419,12 @@ Public Function GetAddress(column As Integer) As String
     GetAddress = vArr(0)
 
 End Function
+
+
+
+
+
+
 
 
 

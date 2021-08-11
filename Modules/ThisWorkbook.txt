@@ -7,8 +7,3 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
-Sub test()
-    MsgBox (ThisWorkbook.Name)
-
-
-End Sub

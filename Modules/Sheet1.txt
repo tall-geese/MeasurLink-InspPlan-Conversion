@@ -66,25 +66,29 @@ End Sub
 
 
 
-'-----------------------------------------------------------------------------------------------------------------------------------------
+
 
 '************************************************************
 '****************   Event Callbacks   ***********************
 '************************************************************
 
 
+'-----------------------------------------------------------------------------------------------------------------------------------------
 
-Private Sub Worksheet_BeforeDoubleClick(ByVal target As Range, Cancel As Boolean)
-    If target.Areas.Count = 1 Then
-        If target.column = 22 And target.Row > 3 Then
-            SetAttachment target:=target
-        ElseIf target.column = 3 And target.Font.Color = RGB(0, 176, 240) Then
-            ExpandGroup target:=target
+'******************   Double Click   ************************
+
+
+Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
+    If Target.Areas.Count = 1 Then
+        If Target.column = 22 And Target.Row > 3 Then
+            SetAttachment Target:=Target
+        ElseIf Target.column = 3 And Target.Font.Color = RGB(0, 176, 240) Then
+            ExpandGroup Target:=Target
         End If
     End If
 End Sub
 
-Private Sub SetAttachment(target As Range)
+Private Sub SetAttachment(Target As Range)
     Dim fso As FileSystemObject
     Dim path As String
     Set fso = New FileSystemObject
@@ -102,7 +106,7 @@ Private Sub SetAttachment(target As Range)
     End If
     
     'After we check to see if the "Attachments" folder exists
-    target.Value = ""
+    Target.Value = ""
     
     With Application.FileDialog(msoFileDialogFilePicker)
         .InitialFileName = path
@@ -112,26 +116,182 @@ Private Sub SetAttachment(target As Range)
         For i = 1 To .SelectedItems.Count
             Dim arr() As String
             arr = Split(.SelectedItems.Item(i), "\")
-            target.Value = target.Value & arr(UBound(arr))
+            Target.Value = Target.Value & arr(UBound(arr))
             'If there's more than one file, then we need to delimit it by a character that can't appear in the file name
             If i <> .SelectedItems.Count Then
-                target.Value = target.Value & "|"
+                Target.Value = Target.Value & "|"
             End If
         Next i
     End With
-    target.offset(1, 0).Select
+    Target.offset(1, 0).Select
 
 End Sub
 
-Private Sub ExpandGroup(target As Range)
+Private Sub ExpandGroup(Target As Range)
     'Show/Hide children of multiple instance features when user double-clicks
     Dim child As Range
-    Set child = target.offset(1, 0)
+    Set child = Target.offset(1, 0)
     Rows(child.Row).ShowDetail = Rows(child.Row).EntireRow.Hidden
     child.Activate
     
 End Sub
 
+
+'******************   On Change   ************************
+
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    If Target.Areas.Count = 1 Then
+        Dim subCell As Range
+        'change to Inspection Type (this should only trigger if the user changed the value manually)
+        If Target.column = 7 Then
+            Application.EnableEvents = False 'prevent recursive looping
+            For Each subCell In Target
+                If subCell.Value = "" Then
+                    subCell.Font.Color = RGB(0, 0, 0) 'revert back to black
+                Else
+                    subCell.Font.Color = RGB(112, 48, 160) 'set purple to designate custom value
+                End If
+            
+            Next subCell
+        End If
+        'change to Inspection Method
+        If Target.column = 14 Then
+            On Error GoTo 10
+            Application.EnableEvents = False 'prevent recursive looping
+            
+            For Each subCell In Target
+                If subCell.Value = "" Then
+                    subCell.offset(0, -7).Value = ""
+                    subCell.offset(0, 2).Value = ""
+                Else
+                    Dim inspType As String
+                    inspType = AssignInspType(subCell.Value) 'is Attribute/Variable?
+                    subCell.offset(0, -7).Value = inspType 'set Attribute/Variable
+                    
+                    SetGaugePinData methodCell:=subCell
+                    
+                    
+'                    If subCell.Value = "Gauge Pins · Go/NoGo" Then
+'                        SetGaugePinData methodCell:=subCell
+'                    End If 'TODO: else if on the Functional Gauge
+                End If
+                subCell.offset(0, -7).Font.Color = RGB(0, 0, 0)
+            Next subCell
+        End If
+    End If
+10
+    Application.EnableEvents = True
+End Sub
+
+Private Function AssignInspType(Method As String) As String
+    Dim valWb As Workbook
+    Dim valSheet As Worksheet
+    On Error GoTo 10
+    Set valWb = Workbooks("RoutineMapDataValidations.xlsm")
+    Set valSheet = valWb.Worksheets("Data Validations")
+    
+    Dim workingRange As Range
+    Set workingRange = valSheet.Range("$E$2:$F$" & valSheet.Range("F2").End(xlDown).Row)
+    Dim inspType As Variant
+    inspType = Application.WorksheetFunction.VLookup(Method, workingRange, 2, False)
+    AssignInspType = inspType
+    
+10
+End Function
+
+Private Sub SetGaugePinData(methodCell As Range)
+    'TODO what to do in the case of a MIN/MAX
+    If methodCell.Value = "Gauge Pins · Go/NoGo" Then
+        Dim ballNum As String
+        Dim iexWS As Worksheet
+        ballNum = Split(methodCell.offset(0, -3).Value, "_")(0)
+        Set iexWS = Worksheets("IEX-Data")
+        
+        Dim units As String
+        units = Application.WorksheetFunction.VLookup(ballNum, iexWS.Range("A2:G" & iexWS.Range("G2").End(xlDown).Row), 7, False)
+        MsgBox (units)
+        
+        Dim trunc As Double
+        Dim nom As Double
+        Dim conv As Double
+        Dim tol As Double
+        Dim setPins As Boolean
+        
+        'What are the dimension units
+        Select Case units
+        Case "deg"
+            methodCell.offset(0, 2).Value = "NA"
+            Exit Sub
+        Case "mm" 'only use Inch pins, so we need to convert
+            conv = 25.4
+        Case "in"
+            conv = 1
+        Case Else
+            MsgBox ("Not a recognized unit type")
+            Exit Sub
+        End Select
+        
+        'What is the tolerance range
+        tol = CDbl(methodCell.offset(0, 4).Value) / conv
+        nom = CDbl(methodCell.offset(0, -9).Value) / conv
+        
+        Select Case tol
+        Case Is >= 0.002 'Needs 50% Truncation
+            trunc = 0.25
+            setPins = True
+        Case Is > 0.001 'Needs 25% Truncation
+            trunc = 0.125
+            setPins = True
+        Case Else 'No Truncation
+            setPins = False
+        End Select
+        
+        Dim setString As String
+        Dim fullString As String
+        
+        If setPins = True Then
+            setString = "(" & Format(nom - (tol * trunc), ".0000") & " " & Format(nom + (tol * trunc), ".0000")
+            setString = setString & " SET)"
+        End If
+        
+        fullString = "(" & Format(nom - (tol * 0.5), ".0000") & " " & Format(nom + (tol * 0.5), ".0000")
+        fullString = fullString & " FULL)"
+        
+        methodCell.offset(0, 2).Value = setString & " " & fullString
+        
+    End If 'TODO: also catch the "Functional Gauge" in the Else IF
+
+End Sub
+
+Sub events()
+    Application.EnableEvents = True
+End Sub
+
+
+
+
+
+
+
+
+
+'Only using this to set that data validations once, can delete this after
+Private Sub TempSetValidtion()
+    Dim sample As Range
+    Set sample = Range("N9:N400")
+    Dim workingCell As Range
+    For Each workingCell In sample
+        With workingCell.Validation
+            .Delete
+            Dim tempstring As String
+            tempstring = "=INDIRECT(" & Chr(34) & "[RoutineMapDataValidations.xlsm]InspMethods!C" & workingCell.Row - 7 & "#" & Chr(34) & ")"
+            .Add Type:=xlValidateList, Formula1:=tempstring
+            .ShowError = False
+        End With
+    Next workingCell
+
+End Sub
 
 
 
