@@ -12,16 +12,19 @@ Attribute VB_Name = "RibbonCommands"
 Dim cusRibbon As IRibbonUI
 
 
+
 Public Sub Ribbon_OnLoad(uiRibbon As IRibbonUI)
     Set cusRibbon = uiRibbon
     cusRibbon.ActivateTab "mlTab"
 End Sub
 
 Public Sub LoadDataValidations(ByRef control As IRibbonControl)
-    Dim valWb As Workbook
-    Set valWb = Workbooks.Open(Filename:=DataSources.DATA_VALIDATION_PATH, UpdateLinks:=0, ReadOnly:=True)
-    valWb.Sheets("Description").SetValReference (ThisWorkbook.Name)
-    valWb.Sheets("StandardComments").SetValReference (ThisWorkbook.Name)
-    valWb.Sheets("InspMethods").SetValReference (ThisWorkbook.Name)
+    If valWB Is Nothing Then Call Validations.OpenDataValidations
+    Call Validations.SetDataValidations
+'    Set valWB = Workbooks.Open(Filename:=DataSources.DATA_VALIDATION_PATH, UpdateLinks:=0, ReadOnly:=True)
+'    valWB.Sheets("Description").SetValReference (ThisWorkbook.Name)
+'    valWB.Sheets("StandardComments").SetValReference (ThisWorkbook.Name)
+'    valWB.Sheets("InspMethods").SetValReference (ThisWorkbook.Name)
 End Sub
+
 

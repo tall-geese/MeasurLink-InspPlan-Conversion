@@ -250,12 +250,12 @@ End Function
 Function Diameter(Target As String, decimalFormat As String, unitsChar As String, Optional prefixChar As String, _
                 Optional featureKeyword As String) As String
                 
-    Diameter = "Ø" & prefixChar & Format(Target, unitsChar & "." & decimalFormat)
+    Diameter = "Ø" & prefixChar & Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
 End Function
 
 Function Radius(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
 
-    Radius = "R" & Format(Target, unitsChar & "." & decimalFormat)
+    Radius = "R" & Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
 End Function
 
 Function Angle(Target As String, decimalPlaces As Integer, Optional featureKeyword As String) As String
@@ -264,14 +264,14 @@ Function Angle(Target As String, decimalPlaces As Integer, Optional featureKeywo
     If decimalPlaces > 0 Then
         decimalFormat = "." & getFormatHashes(decimalPlaces)
     End If
-    Angle = Format(Target, "#" & decimalFormat) & "°"
+    Angle = Format(Target, "#" & decimalFormat) & "°" & featureKeyword
 End Function
 
 
 
 Function Default(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
 
-    Default = Format(Target, unitsChar & "." & decimalFormat)
+    Default = Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
 End Function
 
 '************************************************************
@@ -316,7 +316,7 @@ Sub TransferData()
     Dim partSheet As Worksheet
     Set partSheet = Sheets("PartLib Table")
     
-    Set charRange = Range("A2:A" & Range("A2").End(xlDown))
+    Set charRange = Range("A2:A" & Range("A2").End(xlDown).Row)
     Set targetCell = partSheet.Range("C9")
     partSheet.Activate
     
@@ -419,6 +419,12 @@ Public Function GetAddress(column As Integer) As String
     GetAddress = vArr(0)
 
 End Function
+
+
+
+
+
+
 
 
 

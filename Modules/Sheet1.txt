@@ -10,6 +10,7 @@ Attribute VB_Exposed = True
 Option Explicit
 
 
+
 '************************************************************
 '***************   Exposed Routines   ***********************
 '************************************************************
@@ -80,9 +81,9 @@ End Sub
 
 Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
     If Target.Areas.Count = 1 Then
-        If Target.column = 22 And Target.Row > 3 Then
+        If Target.column = GetCol("Attached Image(s) [Double Click]") And Target.Row > 3 Then
             SetAttachment Target:=Target
-        ElseIf Target.column = 3 And Target.Font.Color = RGB(0, 176, 240) Then
+        ElseIf Target.column = GetCol("Characteristic Name") And Target.Font.Color = RGB(0, 176, 240) Then
             ExpandGroup Target:=Target
         End If
     End If
@@ -141,55 +142,104 @@ End Sub
 
 
 Private Sub Worksheet_Change(ByVal Target As Range)
+    
     If Target.Areas.Count = 1 Then
         Dim subCell As Range
-        'change to Inspection Type (this should only trigger if the user changed the value manually)
-        If Target.column = 7 Then
-            Application.EnableEvents = False 'prevent recursive looping
-            For Each subCell In Target
+        For Each subCell In Target
+            Dim immutable As Range
+            Dim inter As Range
+            Set immutable = Rows(DataSources.VISUALS)
+            On Error GoTo 10
+            Set inter = Application.Intersect(immutable, subCell)
+            
+            'if it intercepts our "Immutable Visuals Range", dont do anything
+            If Not (inter Is Nothing) Then Exit Sub
+            
+            On Error GoTo errmsg
+            'change to Inspection Type (this should only trigger if the user changed the value manually)
+            If subCell.column = GetCol("Inspection Type") Then
+                Application.EnableEvents = False 'prevent recursive looping
                 If subCell.Value = "" Then
                     subCell.Font.Color = RGB(0, 0, 0) 'revert back to black
                 Else
                     subCell.Font.Color = RGB(112, 48, 160) 'set purple to designate custom value
                 End If
-            
-            Next subCell
-        End If
-        'change to Inspection Method
-        If Target.column = 14 Then
-            On Error GoTo 10
-            Application.EnableEvents = False 'prevent recursive looping
-            
-            For Each subCell In Target
+            'change to Inspection Method
+            ElseIf subCell.column = GetCol("Inspection Method") Then
+                On Error GoTo 10
+                Application.EnableEvents = False 'prevent recursive looping
+                
+                Call SetInspMethodValidation(cell:=subCell) 'Reset the validation in case of copy/paste
+                
                 If subCell.Value = "" Then
-                    subCell.offset(0, -7).Value = ""
-                    subCell.offset(0, 2).Value = ""
+                    subCell.offset(0, -7).Value = "" 'set Insp Type to nothing
+                    subCell.offset(0, 2).Value = "" 'set Pins/Gauges to nothing
                 Else
                     Dim inspType As String
-                    inspType = AssignInspType(subCell.Value) 'is Attribute/Variable?
+                    
+                    inspType = AssignInspType(subCell.Value) 'is Attribute/Variable type of Inspection Method?
+                    
+                    Dim minIndex As Integer
+                    Dim maxIndex As Integer
+                    minIndex = InStr(subCell.offset(0, -2).Value, "MIN")
+                    maxIndex = InStr(subCell.offset(0, -2).Value, "MAX")
+                    If inspType = "Variable" And (minIndex > 0 Or maxIndex > 0) Then
+                        If (InStr(subCell.offset(0, -2).Value, "MINOR") = 0) Then
+                            If Not (subCell.offset(0, -9).Font.Color = RGB(112, 48, 160)) Then 'if the text is purple already, we should not call this
+                            
+                                Dim result As Integer
+                                result = MsgBox("When using an Inpsection Method of a Variable Inspection Type to check a MAX/MIN dimension" _
+                                                & " it is STRONGLY recommended that you set a Mfg. Tolerance." & vbCrLf & vbCrLf _
+                                                & "Set Mfg Tolernace?", vbYesNoCancel, "Variable Insp. on a Min/Max Dimension")
+                                If result = vbCancel Then
+                                    subCell.Value = ""
+                                    GoTo 10
+                                ElseIf result = vbYes Then
+                                    Call LoadMfgTol(inspMethodCell:=subCell, minIndex:=minIndex, maxIndex:=maxIndex)
+                                Else
+                                    'User doesnt care, do nothing
+                                End If
+                            End If
+                        End If
+                    End If
+                    
                     subCell.offset(0, -7).Value = inspType 'set Attribute/Variable
+                    subCell.offset(0, 2).Value = SetGaugePinData(methodCell:=subCell) 'Set Gauge Pin data if applicable
                     
-                    SetGaugePinData methodCell:=subCell
-                    
-                    
-'                    If subCell.Value = "Gauge Pins � Go/NoGo" Then
-'                        SetGaugePinData methodCell:=subCell
-'                    End If 'TODO: else if on the Functional Gauge
                 End If
                 subCell.offset(0, -7).Font.Color = RGB(0, 0, 0)
-            Next subCell
-        End If
+            ElseIf Target.column = GetCol("Ltol") Or Target.column = GetCol("Nominal") Or Target.column = GetCol("Utol") Then
+                'TODO: if these cells were manually changed, we should set the color and maybe even prompt the user to add a mfg tol note
+            ElseIf Target.column = GetCol("Primary Control") Or Target.column = GetCol("Secondary Control") Then
+                'Somebody changed the control, either manually typed or perhaps set with a drop-down choice
+                Call ValidateControl(controlCell:=Target)
+            ElseIf Target.column = GetCol("Comments") Then
+                Call SetCommentsValidation(cell:=subCell) 'Reset the validation in case of copy/paste
+            End If
+        Next subCell
     End If
-10
+20
     Application.EnableEvents = True
+10
+    Exit Sub
+errmsg:
+    MsgBox (Err.Number & vbCrLf & Err.Description)
+    GoTo 20
 End Sub
 
+
+'************************************************************
+'***************   Support Functions   **********************
+'************************************************************
+
+
+
 Private Function AssignInspType(Method As String) As String
-    Dim valWb As Workbook
+    Dim valWB As Workbook
     Dim valSheet As Worksheet
     On Error GoTo 10
-    Set valWb = Workbooks("RoutineMapDataValidations.xlsm")
-    Set valSheet = valWb.Worksheets("Data Validations")
+    Set valWB = Workbooks("RoutineMapDataValidations.xlsm")
+    Set valSheet = valWB.Worksheets("Data Validations")
     
     Dim workingRange As Range
     Set workingRange = valSheet.Range("$E$2:$F$" & valSheet.Range("F2").End(xlDown).Row)
@@ -200,72 +250,207 @@ Private Function AssignInspType(Method As String) As String
 10
 End Function
 
-Private Sub SetGaugePinData(methodCell As Range)
-    'TODO what to do in the case of a MIN/MAX
-    If methodCell.Value = "Gauge Pins � Go/NoGo" Then
+Private Function SetGaugePinData(methodCell As Range) As String
+
+    'Gauge Pins method called out
+    If InStr(methodCell.Value, "Gauge Pins") > 0 Then
         Dim ballNum As String
         Dim iexWS As Worksheet
-        ballNum = Split(methodCell.offset(0, -3).Value, "_")(0)
-        Set iexWS = Worksheets("IEX-Data")
+        ballNum = Split(methodCell.offset(0, -3).Value, "_")(0) 'error handling here in event that it isnt a balloon number [(iv)]
         
+        Set iexWS = Worksheets("IEX-Data")
+        Dim workingRange As Range
+        Set workingRange = iexWS.Range("A2:G" & iexWS.Range("G2").End(xlDown).Row)
+        
+        'Error handling in the event we can't find the balloon
         Dim units As String
-        units = Application.WorksheetFunction.VLookup(ballNum, iexWS.Range("A2:G" & iexWS.Range("G2").End(xlDown).Row), 7, False)
-        MsgBox (units)
+        units = Application.WorksheetFunction.VLookup(ballNum, workingRange, 7, False)
+        Dim featureType As String
+        featureType = Application.WorksheetFunction.VLookup(ballNum, workingRange, 5, False)
         
         Dim trunc As Double
         Dim nom As Double
         Dim conv As Double
         Dim tol As Double
+        Dim lTol As Double
+        Dim uTol As Double
         Dim setPins As Boolean
+        Dim userInput As String
         
         'What are the dimension units
         Select Case units
         Case "deg"
-            methodCell.offset(0, 2).Value = "NA"
-            Exit Sub
+            GoTo 80
         Case "mm" 'only use Inch pins, so we need to convert
             conv = 25.4
         Case "in"
             conv = 1
         Case Else
-            MsgBox ("Not a recognized unit type")
-            Exit Sub
+            MsgBox ("Dimension does not have a recognized unit type")
+            GoTo 80
         End Select
         
         'What is the tolerance range
         tol = CDbl(methodCell.offset(0, 4).Value) / conv
-        nom = CDbl(methodCell.offset(0, -9).Value) / conv
+        nom = ((CDbl(methodCell.offset(0, -8).Value) + CDbl(methodCell.offset(0, -10).Value)) / conv) / 2
         
-        Select Case tol
-        Case Is >= 0.002 'Needs 50% Truncation
-            trunc = 0.25
-            setPins = True
-        Case Is > 0.001 'Needs 25% Truncation
-            trunc = 0.125
-            setPins = True
-        Case Else 'No Truncation
-            setPins = False
-        End Select
         
-        Dim setString As String
-        Dim fullString As String
-        
-        If setPins = True Then
-            setString = "(" & Format(nom - (tol * trunc), ".0000") & " " & Format(nom + (tol * trunc), ".0000")
-            setString = setString & " SET)"
+        'GDT features have a 'target' value set, but nothing for low/high values. Therefore
+        'we should be handling the nominal differently by converting just that target value
+        If featureType = "Geometric Tolerance" Then
+            nom = CDbl(methodCell.offset(0, -9).Value) / conv
         End If
+            
+        If methodCell.Value = "Gauge Pins � Go" Then
+            If featureType = "Geometric Tolerance" Then GoTo 80
+            lTol = CDbl(methodCell.offset(0, -10).Value) / conv
+            SetGaugePinData = "(" & Format(lTol, ".0000") & " FULL)"
+            
+        ElseIf methodCell.Value = "Gauge Pins � NoGo" Then
+            If featureType = "Geometric Tolerance" Then GoTo 80
+            uTol = CDbl(methodCell.offset(0, -8).Value) / conv
+            SetGaugePinData = "(" & Format(uTol, ".0000") & " FULL)"
+            
+        ElseIf methodCell.Value = "Gauge Pins � Var.Best.Fit." Then
+            uTol = nom + (tol / 2)
+            lTol = nom - (tol / 2)
+            userInput = InputBox("Enter gauge pin size to step by" & vbCrLf & "(Must be in Inches)", , ".0002")
+            
+            If featureType = "Geometric Tolerance" Then
+                SetGaugePinData = "(.0000" & " through " & Format(nom, ".0000") & ")" & " by " & userInput
+            Else
+                SetGaugePinData = "(" & Format(lTol, ".0000") & " through " & Format(uTol, ".0000") & ")" & " by " & userInput
+            End If
+            
+            
+        ElseIf methodCell.Value = "Gauge Pins � Go/NoGo" Then
+            If featureType = "Geometric Tolerance" Then GoTo FullFMT
+            
+        'If we donthave a MIN/MAX keyword present
+            If Not (InStr(methodCell.offset(0, -2), "MAX") > 0) And Not (InStr(methodCell.offset(0, -2), "MIN") > 0) Then
+                Select Case tol
+                Case Is >= 0.002 'Needs 50% Truncation
+                    trunc = 0.25
+                    setPins = True
+                Case Is > 0.001  'Needs 25% Truncation
+                    trunc = 0.125
+                    setPins = True
+                Case Else        'No Truncation
+                    setPins = False
+                End Select
+                
+                Dim setString As String
+                Dim fullString As String
+                
+                If setPins = True Then
+                    setString = "(" & Format(nom - (tol * trunc), ".0000") & " " & Format(nom + (tol * trunc), ".0000")
+                    setString = setString & " SET)"
+                End If
+                
+                fullString = "(" & Format(nom - (tol * 0.5), ".0000") & " " & Format(nom + (tol * 0.5), ".0000")
+                fullString = fullString & " FULL)"
+            Else
+                'otherwise it is a MIN/MAX/GDT, only use a FULL here
+                'we have to switch to using the nominal cell value
+                nom = CDbl(methodCell.offset(0, -9).Value) / conv
+FullFMT:
+                fullString = "(" & Format(nom, ".0000") & " FULL)"
+            End If
+            
+            Dim resultString As String
+            If setPins = True Then resultString = setString & " "
+            SetGaugePinData = resultString & fullString
+        End If
+           
+    'Thread Guage(s) is chosen
+    ElseIf InStr(methodCell.Value, "Thread") > 0 And InStr(methodCell.Value, "Gauge") > 0 Then
+        'if we are calling out a thread gauge to be used, then set this value as equal to the description most likely
+        SetGaugePinData = methodCell.offset(0, -2).Value
         
-        fullString = "(" & Format(nom - (tol * 0.5), ".0000") & " " & Format(nom + (tol * 0.5), ".0000")
-        fullString = fullString & " FULL)"
+    'Most Likely, Functional Gauge is chosen
+    ElseIf InStr(methodCell.Value, "Gauge") > 0 Then
+        Dim displayMsg As String
+        Dim collectedGauges As String
+        displayMsg = "Add a JPMC Gauge Number?"
         
-        methodCell.offset(0, 2).Value = setString & " " & fullString
+        Do
+            userInput = InputBox(displayMsg, "Enter Gauge ID")
+            userInput = Trim(userInput)
+            displayMsg = "Add another JPMC Gauge Number?"
+            If userInput <> vbNullString And collectedGauges <> vbNullString Then
+                collectedGauges = collectedGauges & ", "
+            End If
+            
+            collectedGauges = collectedGauges & userInput
         
-    End If 'TODO: also catch the "Functional Gauge" in the Else IF
+        Loop While userInput <> vbNullString
+        
+        If collectedGauges = vbNullString Then collectedGauges = "????"
+        SetGaugePinData = "(JPMC " & collectedGauges & ")"
+    Else
+80
+        SetGaugePinData = "NA"
+    End If
+End Function
+
+Private Sub LoadMfgTol(inspMethodCell As Range, minIndex As Integer, maxIndex As Integer)
+    Load CreateMfgTolerance
+    If maxIndex > 0 Then
+        CreateMfgTolerance.UTolTextBox = inspMethodCell.offset(0, -8).Value
+        CreateMfgTolerance.UTolTextBox.Enabled = False
+    Else
+        CreateMfgTolerance.LTolTextBox = inspMethodCell.offset(0, -10).Value
+        CreateMfgTolerance.LTolTextBox.Enabled = False
+    End If
+    CreateMfgTolerance.Tag = inspMethodCell.offset(0, -11).Address
+    CreateMfgTolerance.Show
 
 End Sub
 
-Sub events()
-    Application.EnableEvents = True
+'TODO: maybe this method can be called from a ribbon function to set a new mfg tolerance
+Sub SetMfgTol(charAddress As String, inputs() As Variant)
+    Dim charRange As Range
+    Set charRange = Range(charAddress) 'Address of e.g. 0_008_01
+    Dim i As Integer
+    
+    For i = 1 To 3
+        Dim offsetRange As Range
+        Set offsetRange = charRange.offset(0, i)
+        
+        'If we want to skip overriding of already mfg tol values
+        'If offsetRange.Font.Color = RGB(112, 48, 160) Then GoTo continue
+        
+        If offsetRange.Value = "" Then offsetRange.Value = 0
+        
+        If (offsetRange.CommentThreaded Is Nothing) Then
+            offsetRange.AddCommentThreaded ("Original Value: " & offsetRange.Value)
+        Else
+            offsetRange.CommentThreaded.AddReply ("Prev Value: " & offsetRange.Value)
+        End If
+        offsetRange.Value = inputs(i - 1)
+        offsetRange.Font.Color = RGB(112, 48, 160)
+        
+continue:
+    Next i
+    
+    Dim commentRange As Range
+    Set commentRange = charRange.offset(0, 10)
+    If Not (InStr(commentRange.Value, "Mfg. Tol") > 0) Then
+        commentRange.Value = commentRange.Value & "Mfg. Tol."
+    End If
+    
+End Sub
+
+'Values in the given cell should either be from the selectable drop-down list or (#XXX or DXXX) format
+Sub ValidateControl(controlCell As Range)
+    If RibbonCommands.valWB Is Nothing Then
+        MsgBox ("The data val workbook not open yet")
+    End If
+    
+    'TODO: everything else
+    
+    
+    
 End Sub
 
 
@@ -276,22 +461,29 @@ End Sub
 
 
 
-'Only using this to set that data validations once, can delete this after
-Private Sub TempSetValidtion()
-    Dim sample As Range
-    Set sample = Range("N9:N400")
-    Dim workingCell As Range
-    For Each workingCell In sample
-        With workingCell.Validation
-            .Delete
-            Dim tempstring As String
-            tempstring = "=INDIRECT(" & Chr(34) & "[RoutineMapDataValidations.xlsm]InspMethods!C" & workingCell.Row - 7 & "#" & Chr(34) & ")"
-            .Add Type:=xlValidateList, Formula1:=tempstring
-            .ShowError = False
-        End With
-    Next workingCell
 
-End Sub
+
+
+
+
+'Return column # of the header
+Private Function GetCol(colName As String) As Integer
+    Dim colRange As Range
+    Set colRange = Range("A3:Y3") 'I
+    Dim retRange As Range
+    Set retRange = colRange.Find(What:=colName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
+'    Debug.Print (VarType(retRange.column))
+    GetCol = retRange.column
+End Function
+
+
+
+
+
+
+
+
+
 
 
 
