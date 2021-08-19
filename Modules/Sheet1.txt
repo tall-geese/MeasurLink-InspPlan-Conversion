@@ -67,8 +67,6 @@ End Sub
 
 
 
-
-
 '************************************************************
 '****************   Event Callbacks   ***********************
 '************************************************************
@@ -210,9 +208,23 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                 subCell.offset(0, -7).Font.Color = RGB(0, 0, 0)
             ElseIf Target.column = GetCol("Ltol") Or Target.column = GetCol("Nominal") Or Target.column = GetCol("Utol") Then
                 'TODO: if these cells were manually changed, we should set the color and maybe even prompt the user to add a mfg tol note
-            ElseIf Target.column = GetCol("Primary Control") Or Target.column = GetCol("Secondary Control") Then
+            ElseIf Target.column >= GetCol("2 DIGIT Primary Tool") And Target.column <= GetCol("Secondary Head") Then
+                On Error GoTo 20
+                Application.EnableEvents = False
+                Target.Value = UCase(Target.Value)
+                    'TODO: check that this is not in the immutable rnage
+                    'TODO: check that this is not an empty string
+                
+                If Target.column = GetCol("Primary Control") Or Target.column = GetCol("Secondary Control") Then
+                    'TODO: if the user manually entered a value for the controls, we should hand-validate the entry
+                    'TODO: likely should turn off events before setting this value
+                    Call ValidateControl(controlCell:=Target)
+                    
+                End If
+                'If we made a chang to one of our TOOL Controls, we should re-evaluate the TOOL AXIS OFFSET
+                Call OffsetCommentFormat(offsetRange:=Target.offset(0, GetCol("TOOL AXIS OFFSET") - Target.column))
+                
                 'Somebody changed the control, either manually typed or perhaps set with a drop-down choice
-                Call ValidateControl(controlCell:=Target)
             ElseIf Target.column = GetCol("Comments") Then
                 Call SetCommentsValidation(cell:=subCell) 'Reset the validation in case of copy/paste
             End If
@@ -232,7 +244,7 @@ End Sub
 '***************   Support Functions   **********************
 '************************************************************
 
-
+'***************   Inspection Methods   *********************
 
 Private Function AssignInspType(Method As String) As String
     Dim valWB As Workbook
@@ -393,12 +405,16 @@ FullFMT:
     End If
 End Function
 
+
+'***************   Mfg Tolerances   *********************
+
+'Display the mfg tol Userform
 Private Sub LoadMfgTol(inspMethodCell As Range, minIndex As Integer, maxIndex As Integer)
     Load CreateMfgTolerance
-    If maxIndex > 0 Then
+    If maxIndex > 0 Then 'If this is a MAX dimension, disable the Utol Input field
         CreateMfgTolerance.UTolTextBox = inspMethodCell.offset(0, -8).Value
         CreateMfgTolerance.UTolTextBox.Enabled = False
-    Else
+    Else 'If this is a MIN dimension, disable the Ltol Input field
         CreateMfgTolerance.LTolTextBox = inspMethodCell.offset(0, -10).Value
         CreateMfgTolerance.LTolTextBox.Enabled = False
     End If
@@ -407,6 +423,7 @@ Private Sub LoadMfgTol(inspMethodCell As Range, minIndex As Integer, maxIndex As
 
 End Sub
 
+'Called by mfg Tol userform
 'TODO: maybe this method can be called from a ribbon function to set a new mfg tolerance
 Sub SetMfgTol(charAddress As String, inputs() As Variant)
     Dim charRange As Range
@@ -441,17 +458,139 @@ continue:
     
 End Sub
 
+'***************   Tool Axis Offset   *********************
+
+
+
 'Values in the given cell should either be from the selectable drop-down list or (#XXX or DXXX) format
 Sub ValidateControl(controlCell As Range)
-    If RibbonCommands.valWB Is Nothing Then
-        MsgBox ("The data val workbook not open yet")
+    Dim cellInput As String
+    Dim validInput As Boolean
+    Dim i As Integer
+    Application.EnableEvents = False
+    On Error GoTo 10
+    
+'    controlCell.Value = UCase(controlCell.Value)
+    If Len(controlCell.Value = 3) And IsNumeric(controlCell.Value) Then
+        controlCell.Value = "#" & controlCell.Value
     End If
     
-    'TODO: everything else
+    For i = 1 To Len(controlCell.Value)
+        If IsNumeric(Mid(controlCell.Value, i, 1)) Then
+            cellInput = cellInput & "?"
+        Else
+            cellInput = cellInput & Mid(controlCell.Value, i, 1)
+        End If
+    Next i
     
+    Call OpenDataValidations
+    validInput = valWB.IsInValidationRange(cellInput)
     
-    
+    If Not validInput Then
+        controlCell.Value = ""
+    End If
+
+10
+    Application.EnableEvents = True
+        
 End Sub
+
+'Recalculate the 'Tool Axis Offset' Field
+'We should also evaluate that both sets of columns are not just duplicates of each other
+Private Sub OffsetCommentFormat(offsetRange As Range) 'TODO: add parameter here to take an input field
+
+    offsetRange.Value = ""
+    
+    Dim expandedFormat As Boolean
+    Dim Tpr As String
+    Dim Tse As String
+    Dim Cpr As String
+    Dim Cse As String
+    Dim Hpr As String
+    Dim Hse As String
+    
+    Tpr = ParseToolValue(Trim(offsetRange.offset(0, 2).Value))
+    Tse = ParseToolValue(Trim(offsetRange.offset(0, 5).Value))
+    Cpr = offsetRange.offset(0, 3).Value
+    Cse = offsetRange.offset(0, 6).Value
+    Hpr = " " & offsetRange.offset(0, 4).Value
+    Hse = " " & offsetRange.offset(0, 7).Value
+    
+    'If data is missing from the primary columns, then dont do anything
+    If Tpr = vbNullString Or Cpr = vbNullString Or Trim(Hpr) = vbNullString Then
+        Exit Sub
+    End If
+    'If all of the values in the second set are nothing, then that is fin
+    If Tse = vbNullString And Cse = vbNullString And Trim(Hse) = vbNullString Then
+    
+    'If all of the values in the second set have something filled in then that is fine too
+    ElseIf Tse <> vbNullString And Cse <> vbNullString And Trim(Hse) <> vbNullString Then
+    
+    Else 'Otherwise we have a partial fillout, the result should remain ""
+        Exit Sub
+    End If
+    
+    Tpr = "T" & Format(Tpr, "00")
+    If Tse <> vbNullString Then Tse = "T" & Format(Tse, "00")
+    
+    
+    'We should also just escape I guess if both sets of columns are the same
+    
+    
+    'if the secondary column is incomplete then we should set all the secondary stuff to ""
+    If Tse = vbNullString Or Cse = vbNullString Or Hse = vbNullString Then
+        'if even one value is missing, set them all to nothing
+        Tse = vbNullString
+        Cse = vbNullString
+        Hse = vbNullString
+    
+    ElseIf StrComp(Hpr, Hse, vbTextCompare) = 0 And StrComp(Tpr, Tse, vbTextCompare) = 0 Then
+        Tse = ""
+        Hpr = ""
+    ElseIf StrComp(Hpr, Hse, vbTextCompare) = 0 Then
+        Hpr = " "
+    ElseIf Trim(Hse) <> "" Then
+        expandedFormat = True
+    End If
+    
+    If expandedFormat = False Then
+        offsetRange.Value = (Tpr & GetControlDelimiter(Cpr) & Cpr & Hpr & Tse & GetControlDelimiter(Cse) & Cse & Hse)
+    Else
+        offsetRange.Value = (Tpr & GetControlDelimiter(Cpr) & Cpr & Hpr & " & " & Tse & GetControlDelimiter(Cse) & Cse & Hse)
+    End If
+
+End Sub
+
+
+Private Function GetControlDelimiter(control As String) As String
+    Select Case control
+        Case "TOOL"
+            GetControlDelimiter = " "
+        Case "PROG"
+            GetControlDelimiter = " "
+        Case vbNullString
+            GetControlDelimiter = ""
+        Case Else
+            GetControlDelimiter = ","
+    End Select
+
+End Function
+
+Private Function ParseToolValue(tool As String) As String
+    If Left(tool, 1) = "T" And Len(tool) > 1 Then
+        If Right(tool, Len(tool) - 1) Then
+            ParseToolValue = Right(tool, Len(tool) - 1)
+        Else
+            GoTo 10
+        End If
+    ElseIf IsNumeric(tool) Then
+        ParseToolValue = tool
+    Else
+10
+        'We can't parse this, doesn't makes sense
+    End If
+
+End Function
 
 
 
@@ -475,6 +614,8 @@ Private Function GetCol(colName As String) As Integer
 '    Debug.Print (VarType(retRange.column))
     GetCol = retRange.column
 End Function
+
+
 
 
 

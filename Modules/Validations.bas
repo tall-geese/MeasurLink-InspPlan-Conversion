@@ -3,7 +3,9 @@ Public valWB As Workbook
 
 
 Public Sub OpenDataValidations()
-    Set valWB = Workbooks.Open(Filename:=DataSources.DATA_VALIDATION_PATH, UpdateLinks:=0, ReadOnly:=True)
+    If valWB Is Nothing Then
+        Set valWB = Workbooks.Open(Filename:=DataSources.DATA_VALIDATION_PATH, UpdateLinks:=0, ReadOnly:=True)
+    End If
 '    valWB.Sheets("Description").SetValReference (ThisWorkbook.Name)
     
 
