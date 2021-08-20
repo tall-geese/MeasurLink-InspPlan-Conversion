@@ -6,9 +6,6 @@ Public Sub OpenDataValidations()
     If valWB Is Nothing Then
         Set valWB = Workbooks.Open(Filename:=DataSources.DATA_VALIDATION_PATH, UpdateLinks:=0, ReadOnly:=True)
     End If
-'    valWB.Sheets("Description").SetValReference (ThisWorkbook.Name)
-    
-
 End Sub
 
 Public Sub SetDataValidations()
@@ -42,15 +39,15 @@ Public Sub SetCommentsValidation(cell As Range)
 End Sub
 
 Sub test()
-    Set cell = Range("N9")
-    With cell.Validation
-        '"=INDIRECT(" & chr(34) & "[RoutineMapDataValidations.xlsm]InspMethods!C2#" & chr(34) & ")"
-        .Delete
-        .Add Type:=xlValidateList, Formula1:="=INDIRECT(" & Chr(34) & "[RoutineMapDataValidations.xlsm]InspMethods!C2#" & Chr(34) & ")"
-        .ShowError = False
-    End With
-
-
+    Set workingRange = Range("X4:X400")
+    For Each cell In workingRange
+        With cell.Validation
+            '"=INDIRECT(" & chr(34) & "[RoutineMapDataValidations.xlsm]InspMethods!C2#" & chr(34) & ")"
+            .Delete
+            .Add Type:=xlValidateList, Formula1:="=MachineHead"
+            .ShowError = False
+        End With
+    Next cell
 End Sub
 
 

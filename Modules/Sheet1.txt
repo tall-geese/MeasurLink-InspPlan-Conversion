@@ -147,7 +147,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
             Dim immutable As Range
             Dim inter As Range
             Set immutable = Rows(DataSources.VISUALS)
-            On Error GoTo 10
+            On Error GoTo 20
             Set inter = Application.Intersect(immutable, subCell)
             
             'if it intercepts our "Immutable Visuals Range", dont do anything
@@ -164,7 +164,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                 End If
             'change to Inspection Method
             ElseIf subCell.column = GetCol("Inspection Method") Then
-                On Error GoTo 10
+                On Error GoTo 20
                 Application.EnableEvents = False 'prevent recursive looping
                 
                 Call SetInspMethodValidation(cell:=subCell) 'Reset the validation in case of copy/paste
@@ -220,6 +220,8 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                     'TODO: likely should turn off events before setting this value
                     Call ValidateControl(controlCell:=Target)
                     
+                ElseIf Target.column = GetCol("Primary Head") Or Target.column = GetCol("Secondary Head") Then
+                    Call ValidateHead(controlCell:=Target)
                 End If
                 'If we made a chang to one of our TOOL Controls, we should re-evaluate the TOOL AXIS OFFSET
                 Call OffsetCommentFormat(offsetRange:=Target.offset(0, GetCol("TOOL AXIS OFFSET") - Target.column))
@@ -484,7 +486,7 @@ Sub ValidateControl(controlCell As Range)
     Next i
     
     Call OpenDataValidations
-    validInput = valWB.IsInValidationRange(cellInput)
+    validInput = valWB.ControlIsInValidationRange(cellInput)
     
     If Not validInput Then
         controlCell.Value = ""
@@ -493,6 +495,26 @@ Sub ValidateControl(controlCell As Range)
 10
     Application.EnableEvents = True
         
+End Sub
+
+Sub ValidateHead(controlCell As Range)
+    Dim headInput As String
+    headInput = controlCell.Value
+    Call OpenDataValidations
+    
+    If IsNumeric(headInput) Then
+        If CInt(headInput) <= 3 And CInt(headInput) >= 1 Then
+            controlCell.Value = "HD" & headInput
+        Else
+            GoTo 10
+        End If
+    ElseIf valWB.HeadIsInValidationRange(headInput) Then
+        
+    Else
+10
+        controlCell.Value = ""
+    End If
+
 End Sub
 
 'Recalculate the 'Tool Axis Offset' Field
@@ -608,11 +630,16 @@ End Function
 'Return column # of the header
 Private Function GetCol(colName As String) As Integer
     Dim colRange As Range
-    Set colRange = Range("A3:Y3") 'I
-    Dim retRange As Range
-    Set retRange = colRange.Find(What:=colName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
-'    Debug.Print (VarType(retRange.column))
-    GetCol = retRange.column
+    Set colRange = Range("A3:Y3")
+'    Dim retRange As Range
+'    Set retRange = colRange.Find(What:=colName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
+'    GetCol = retRange.column
+    On Error Resume Next
+    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
+    If Err.Number <> 0 Then
+        GetCol = 0
+    End If
+    On Error GoTo 0
 End Function
 
 
