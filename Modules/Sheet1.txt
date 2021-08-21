@@ -64,6 +64,23 @@ Public Sub IgnoreErrors()
     Next charCell
 End Sub
 
+Public Function IsInImmutableRange(targetCell As Range) As Boolean
+    'We don't want to apply certain changes to the top 5 rows of visual criteria
+    Dim immutable As Range
+    Dim intersection As Range
+    Set immutable = Rows(DataSources.VISUALS)
+    On Error GoTo 10
+    Set intersection = Application.Intersect(immutable, targetCell)
+    If Not intersection Is Nothing Then
+        IsInImmutableRange = True
+    End If
+    
+    Exit Function
+10
+    Err.Raise vbObjectError + 1000, Description:="Problem with verifying immutable range" & vbCrLf & Err.Description
+
+End Function
+
 
 
 
@@ -144,18 +161,12 @@ Private Sub Worksheet_Change(ByVal Target As Range)
     If Target.Areas.Count = 1 Then
         Dim subCell As Range
         For Each subCell In Target
-            Dim immutable As Range
-            Dim inter As Range
-            Set immutable = Rows(DataSources.VISUALS)
-            On Error GoTo 20
-            Set inter = Application.Intersect(immutable, subCell)
-            
-            'if it intercepts our "Immutable Visuals Range", dont do anything
-            If Not (inter Is Nothing) Then Exit Sub
+            If IsInImmutableRange(targetCell:=subCell) Then Exit Sub
             
             On Error GoTo errmsg
             'change to Inspection Type (this should only trigger if the user changed the value manually)
             If subCell.column = GetCol("Inspection Type") Then
+                On Error GoTo 20
                 Application.EnableEvents = False 'prevent recursive looping
                 If subCell.Value = "" Then
                     subCell.Font.Color = RGB(0, 0, 0) 'revert back to black
@@ -183,7 +194,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                     maxIndex = InStr(subCell.offset(0, -2).Value, "MAX")
                     If inspType = "Variable" And (minIndex > 0 Or maxIndex > 0) Then
                         If (InStr(subCell.offset(0, -2).Value, "MINOR") = 0) Then
-                            If Not (subCell.offset(0, -9).Font.Color = RGB(112, 48, 160)) Then 'if the text is purple already, we should not call this
+                            If Not (subCell.offset(0, -9).Font.Color = RGB(112, 48, 160)) Then 'if the text is purple already, we should not prompt for mfg tol
                             
                                 Dim result As Integer
                                 result = MsgBox("When using an Inpsection Method of a Variable Inspection Type to check a MAX/MIN dimension" _
@@ -205,7 +216,7 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                     subCell.offset(0, 2).Value = SetGaugePinData(methodCell:=subCell) 'Set Gauge Pin data if applicable
                     
                 End If
-                subCell.offset(0, -7).Font.Color = RGB(0, 0, 0)
+                subCell.offset(0, -7).Font.Color = RGB(0, 0, 0) 'set Attr/Variable text to black
             ElseIf Target.column = GetCol("Ltol") Or Target.column = GetCol("Nominal") Or Target.column = GetCol("Utol") Then
                 'TODO: if these cells were manually changed, we should set the color and maybe even prompt the user to add a mfg tol note
             ElseIf Target.column >= GetCol("2 DIGIT Primary Tool") And Target.column <= GetCol("Secondary Head") Then
@@ -382,7 +393,7 @@ FullFMT:
         SetGaugePinData = methodCell.offset(0, -2).Value
         
     'Most Likely, Functional Gauge is chosen
-    ElseIf InStr(methodCell.Value, "Gauge") > 0 Then
+    ElseIf InStr(methodCell.Value, "Gauge") > 0 Or InStr(methodCell.Value, "Inspection Fixture") > 0 Then
         Dim displayMsg As String
         Dim collectedGauges As String
         displayMsg = "Add a JPMC Gauge Number?"
@@ -411,16 +422,16 @@ End Function
 '***************   Mfg Tolerances   *********************
 
 'Display the mfg tol Userform
-Private Sub LoadMfgTol(inspMethodCell As Range, minIndex As Integer, maxIndex As Integer)
+Public Sub LoadMfgTol(inspMethodCell As Range, minIndex As Integer, maxIndex As Integer)
     Load CreateMfgTolerance
     If maxIndex > 0 Then 'If this is a MAX dimension, disable the Utol Input field
         CreateMfgTolerance.UTolTextBox = inspMethodCell.offset(0, -8).Value
         CreateMfgTolerance.UTolTextBox.Enabled = False
-    Else 'If this is a MIN dimension, disable the Ltol Input field
+    ElseIf minIndex > 0 Then 'If this is a MIN dimension, disable the Ltol Input field
         CreateMfgTolerance.LTolTextBox = inspMethodCell.offset(0, -10).Value
         CreateMfgTolerance.LTolTextBox.Enabled = False
     End If
-    CreateMfgTolerance.Tag = inspMethodCell.offset(0, -11).Address
+    CreateMfgTolerance.Tag = inspMethodCell.offset(0, -11).Address 'Userform needs to know what cells to change
     CreateMfgTolerance.Show
 
 End Sub
@@ -628,7 +639,7 @@ End Function
 
 
 'Return column # of the header
-Private Function GetCol(colName As String) As Integer
+Public Function GetCol(colName As String) As Integer
     Dim colRange As Range
     Set colRange = Range("A3:Y3")
 '    Dim retRange As Range
@@ -641,9 +652,6 @@ Private Function GetCol(colName As String) As Integer
     End If
     On Error GoTo 0
 End Function
-
-
-
 
 
 

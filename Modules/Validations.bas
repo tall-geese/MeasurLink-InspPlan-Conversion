@@ -2,17 +2,66 @@ Attribute VB_Name = "Validations"
 Public valWB As Workbook
 
 
-Public Sub OpenDataValidations()
+Public Sub OpenDataValidations(Optional pass As Variant, Optional readMode As Variant)
     If valWB Is Nothing Then
-        Set valWB = Workbooks.Open(Filename:=DataSources.DATA_VALIDATION_PATH, UpdateLinks:=0, ReadOnly:=True)
+        On Error GoTo wbOpenErr
+        If Not (IsMissing(pass) And IsMissing(readMode)) Then 'Called in this manner by InsertNewValidation
+            Set valWB = Workbooks.Open(Filename:=DataSources.DATA_VALIDATION_PATH, UpdateLinks:=0, ReadOnly:=readMode, Password:=pass, WriteResPassword:=pass)
+        Else
+            Set valWB = Workbooks.Open(Filename:=DataSources.DATA_VALIDATION_PATH, UpdateLinks:=0, ReadOnly:=True)
+        End If
     End If
+    
+    Exit Sub
+    
+wbOpenErr:
+    result = MsgBox("Unable to Open Validations Workbook" & vbCrLf & "if you supplied a write Password, the password may be incorrect" & vbCrLf & "Otherwise the Routine" _
+            & "MapDataValidations workbook may not exist anymore or the network may be down", vbCritical)
+    Err.Clear
+    Exit Sub
 End Sub
+
+Public Sub CloseDataValidations(Optional saveWB As Boolean)
+    On Error Resume Next
+    Workbooks("RoutineMapDataValidations.xlsm").Close SaveChanges:=saveWB
+    Set valWB = Nothing
+End Sub
+
+'*************   Called by SetValidations Button  *******************
 
 Public Sub SetDataValidations()
+    Call OpenDataValidations
     valWB.Sheets("StandardComments").SetValReference (ThisWorkbook.Name)
     valWB.Sheets("InspMethods").SetValReference (ThisWorkbook.Name)
-
 End Sub
+
+'***********   Called by Insert Validations Button  ******************
+
+Public Function ValidationValueExists(inputVal As String, targetCol As Integer) As Boolean
+    'Check if this Comment or Inspection Method already exists
+    If targetCol = 13 Then
+        ValidationValueExists = valWB.Sheets("StandardComments").ValueExists(inputVal)
+    ElseIf targetCol = 14 Then
+        ValidationValueExists = valWB.Sheets("InspMethods").ValueExists(inputVal)
+    End If
+End Function
+
+Public Sub InsertNewValidation(newVal As String, targetCol As Integer, userPass As String)
+    'Add a new inspection mehtod to the Write version of the Validations Workbook
+    Call CloseDataValidations
+    Call OpenDataValidations(pass:=userPass, readMode:=False)
+    If valWB Is Nothing Then Exit Sub
+    If targetCol = 13 Then
+        valWB.Sheets("StandardComments").InsertNewValue (newVal)
+    ElseIf targetCol = 14 Then
+        valWB.Sheets("InspMethods").InsertNewValue (newVal)
+    End If
+    
+    
+End Sub
+
+
+'***********   Called by PartLib On_Change  ******************
 
 
 Public Sub SetInspMethodValidation(cell As Range)
@@ -38,6 +87,18 @@ Public Sub SetCommentsValidation(cell As Range)
 
 End Sub
 
+
+
+
+
+
+
+
+
+
+
+
+
 Sub test()
     Set workingRange = Range("X4:X400")
     For Each cell In workingRange
@@ -49,12 +110,6 @@ Sub test()
         End With
     Next cell
 End Sub
-
-
-
-
-
-
 
 
 

@@ -9,8 +9,10 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
-    On Error Resume Next
-    Workbooks("RoutineMapDataValidations.xlsm").Close SaveChanges:=False
+    Call Validations.CloseDataValidations
+
+'    On Error Resume Next
+'    Workbooks("RoutineMapDataValidations.xlsm").Close SaveChanges:=False
 End Sub
 
 Private Sub Workbook_Open()
