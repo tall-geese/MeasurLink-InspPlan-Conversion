@@ -82,6 +82,23 @@ Public Function IsInImmutableRange(targetCell As Range) As Boolean
 End Function
 
 
+'Return column # of the header
+Public Function GetCol(colName As String) As Integer
+    Dim colRange As Range
+    Set colRange = Range("A3:Y3")
+'    Dim retRange As Range
+'    Set retRange = colRange.Find(What:=colName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
+'    GetCol = retRange.column
+    On Error Resume Next
+    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
+    If Err.Number <> 0 Then
+        GetCol = 0
+    End If
+    On Error GoTo 0
+End Function
+
+
+
 
 
 '************************************************************
@@ -638,20 +655,6 @@ End Function
 
 
 
-'Return column # of the header
-Public Function GetCol(colName As String) As Integer
-    Dim colRange As Range
-    Set colRange = Range("A3:Y3")
-'    Dim retRange As Range
-'    Set retRange = colRange.Find(What:=colName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
-'    GetCol = retRange.column
-    On Error Resume Next
-    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
-    If Err.Number <> 0 Then
-        GetCol = 0
-    End If
-    On Error GoTo 0
-End Function
 
 
 

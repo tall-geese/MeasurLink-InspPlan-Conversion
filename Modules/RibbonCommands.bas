@@ -72,3 +72,41 @@ Public Sub SetMfgTolerance(ByRef control As IRibbonControl)
     End If
 End Sub
 
+
+'******************   Build Variable Formula Btn  ***********************
+
+Public Sub BuildVariableFeatureForm(ByRef control As IRibbonControl)
+    Set partWS = Worksheets("PartLib Table")
+    
+    'set a mfg tolerance for the feature in the given row
+    If ActiveSheet.Name = partWS.Name Then
+        If Not partWS.IsInImmutableRange(ActiveCell) Then
+        
+            Load ConditionalFeature
+            
+            Set inspCell = ActiveCell.offset(0, partWS.GetCol("Characteristic Name") - ActiveCell.column)
+            If inspCell.Value = "" Then Exit Sub
+            ConditionalFeature.FeatureLabel.Caption = inspCell.Value
+            
+            Dim varColumns As Range
+            Set varColumns = Worksheets("Variables").GetVariableColumns()
+            
+            For i = 1 To 8
+                For Each colCell In varColumns
+                    ConditionalFeature.OutputFrame.Controls("ComboBox" & i).AddItem (colCell)
+                Next colCell
+            Next i
+            For i = 9 To 10
+                For Each colCell In varColumns
+                    ConditionalFeature.ToleranceFrame.Controls("ComboBox" & i).AddItem (colCell)
+                Next colCell
+            Next i
+            
+            ConditionalFeature.Show
+        End If
+    End If
+
+
+End Sub
+
+
