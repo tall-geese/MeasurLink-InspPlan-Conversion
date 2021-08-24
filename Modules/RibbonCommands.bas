@@ -96,7 +96,7 @@ Public Sub BuildVariableFeatureForm(ByRef control As IRibbonControl)
                     ConditionalFeature.OutputFrame.Controls("ComboBox" & i).AddItem (colCell)
                 Next colCell
             Next i
-            For i = 9 To 10
+            For i = 9 To 11
                 For Each colCell In varColumns
                     ConditionalFeature.ToleranceFrame.Controls("ComboBox" & i).AddItem (colCell)
                 Next colCell
@@ -108,5 +108,77 @@ Public Sub BuildVariableFeatureForm(ByRef control As IRibbonControl)
 
 
 End Sub
+
+'******************   Hide Features Conditionally Btn  ***********************
+
+Public Sub HideFeaturesCondForm(ByRef control As IRibbonControl)
+    Set partWS = Worksheets("PartLib Table")
+    
+    'set a mfg tolerance for the feature in the given row
+    If ActiveSheet.Name = partWS.Name Then
+        If TypeName(Selection) = "Range" Then
+            Dim label As String
+            Dim featureCol As Collection
+            Set featureCol = New Collection
+            Dim subCell As Range
+            For Each subCell In Selection
+                If Not partWS.IsInImmutableRange(subCell) Then
+                    Dim featureCell As Range
+                    'We're going to index from the Characteristic Cell
+                    Set featureCell = subCell.offset(0, partWS.GetCol("Characteristic Name") - subCell.column)
+                    'Ignore cells w/o Characteristic Names
+                    If featureCell.Value = "" Then GoTo cont
+                    
+                    'If the user did a horizontal collection, we only want to set one feature ONCE
+                    If Not ThisWorkbook.IsInColl(featureCol, featureCell) Then
+                        featureCol.Add featureCell
+                    End If
+                End If
+cont:
+            Next subCell
+            
+            If featureCol.Count = 0 Then Exit Sub
+            If featureCol.Count = 1 Then
+                label = featureCol.Item(1).Value
+            Else
+                label = "*Multiple*"
+            End If
+            
+            Load HideFeatureCond
+            HideFeatureCond.FeatureLabel.Caption = label
+            
+            'Store the address of each applicable cell in the userform
+            Dim feature As Range
+            For Each feature In featureCol
+                HideFeatureCond.Tag = HideFeatureCond.Tag & feature.Address & ","
+            Next feature
+            HideFeatureCond.Tag = Mid(HideFeatureCond.Tag, 1, Len(HideFeatureCond.Tag) - 1) 'erase the last comma
+            
+            Dim varColumns As Range
+            'Set our ComboBox values with the list of the Variable types
+            Set varColumns = Worksheets("Variables").GetVariableColumns()
+            For Each colCell In varColumns
+                HideFeatureCond.Controls("VariableComboBox").AddItem (colCell)
+            Next colCell
+            
+            HideFeatureCond.Show
+        End If
+    End If
+
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

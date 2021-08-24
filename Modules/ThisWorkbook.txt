@@ -19,6 +19,13 @@ Private Sub Workbook_Open()
     Call Validations.OpenDataValidations
 End Sub
 
+Public Function IsInColl(col As Collection, val As Range) As Boolean
+    For Each subitem In col
+        If subitem = val Then
+            IsInColl = True
+        End If
+    Next subitem
+End Function
 
 
 Sub events()
@@ -26,4 +33,12 @@ Sub events()
 End Sub
 
 
+Sub test()
+    Dim a As Collection
+    Set a = New Collection
+    a.Add ("hello")
+    MsgBox (a.Item(1))
+
+
+End Sub
 

@@ -97,6 +97,134 @@ Public Function GetCol(colName As String) As Integer
     On Error GoTo 0
 End Function
 
+'Set a variable formula, called by our ConditionalFeature form
+Public Sub ApplyFormula(targetCol As String, Optional limit As Variant, Optional varCol As Variant)
+    On Error GoTo formErr
+    
+    Dim colNum As Integer
+    
+    Select Case targetCol
+    Case "Variable/Attribute"
+        colNum = GetCol("Inspection Type")
+    Case "Characteristic Desc."
+        colNum = GetCol("Characteristic Description")
+    Case "Comments"
+        colNum = GetCol("COMMENTS")
+    Case "Inspection Method"
+        colNum = GetCol("INSPECTION METHOD")
+    Case "Frequency"
+        colNum = GetCol("IN-PROCESS, INSPECTION FREQUENCY")
+    Case "Pins / Gauges"
+        colNum = GetCol("PINS / GAUGES")
+    Case "Tool Axis Offset"
+        colNum = GetCol("TOOL AXIS OFFSET")
+    Case "Attached Images"
+        colNum = GetCol("Attached Image(s) [Double Click]")
+    Case "Lower"
+        colNum = GetCol("Ltol")
+    Case "Nominal"
+        colNum = GetCol("Nominal")
+    Case "Upper"
+        colNum = GetCol("Utol")
+    Case Else
+    
+    End Select
+    
+    Application.EnableEvents = False
+    
+    Dim targetCell As Range
+    Set targetCell = Cells(ActiveCell.Row, colNum)
+    targetCell.Value = ""
+    Dim prefix As String
+    
+    If targetCol = "Lower" Then
+        If IsMissing(varCol) Then
+            'form = the nom cell - the hard limit
+            targetCell.formula = "=$E$" & ActiveCell.Row & " - " & limit
+        Else
+            'for = the nom cell - the vlookup
+            prefix = "$E$" & ActiveCell.Row & " - "
+            GoTo 10
+        End If
+    ElseIf targetCol = "Upper" Then
+        If IsMissing(varCol) Then
+            'form = the nom cell + the hard limit
+            targetCell.formula = "=$E$" & ActiveCell.Row & " + " & limit
+        Else
+            'for = the nom cell + the vlookup
+            prefix = "$E$" & ActiveCell.Row & " + "
+            GoTo 10
+        End If
+    ElseIf targetCol = "Nominal" And IsMissing(varCol) Then
+        targetCell.Value = limit
+    Else
+    
+10
+        Dim formulaCol As Integer
+        formulaCol = Worksheets("Variables").GetCol(varCol)
+        targetCell.NumberFormat = "General"
+        targetCell.formula = "=" & prefix & "VLOOKUP('START HERE'!$C$8,Variables!$A$2:$AZ$500," & formulaCol & ",FALSE)"
+    End If
+    
+    Rows(ActiveCell.Row).Interior.ColorIndex = 33
+20
+    Application.EnableEvents = True
+    
+    Exit Sub
+    
+formErr:
+    MsgBox ("Error when setting formula for:" & targetCol)
+    GoTo 20
+    
+End Sub
+
+'Called by HideFeatureCond userform, apply hiding based on certain part numbers or variable lookups
+Public Sub SetHiding(features As String, hideForm As String)
+    Dim cellAdd() As String
+    
+    If InStr(features, ",") > 0 Then
+        cellAdd = Split(features, ",")
+    Else
+        ReDim Preserve cellAdd(0)
+        cellAdd(0) = features
+    End If
+
+    Dim tolerRows As Range
+    Dim toolRows As Range
+    Set tolerRows = Range("H1:K1").EntireColumn
+    Set toolRows = Range("R1:X1").EntireColumn
+    
+    Application.EnableEvents = False
+
+    Dim i As Integer
+    Dim j As Integer
+    For i = 0 To UBound(cellAdd)
+        Dim charCell As Range
+        Set charCell = Range(cellAdd(i))
+        For j = 0 To 22
+            Dim tempCell As Range
+            Set tempCell = charCell.offset(0, j)
+            If (Application.Intersect(tolerRows, tempCell) Is Nothing) And (Application.Intersect(toolRows, tempCell) Is Nothing) Then
+                If InStr(tempCell.formula, "=") > 0 Then
+                    If InStr(tempCell.formula, "IF(") > 0 Then GoTo 10  'if the formula already has the IF conditoin set on it then we don't
+                                                                            'want to change anything
+                    tempCell.formula = hideForm & Replace(tempCell.formula, "=", "") & ")"
+                Else
+                    tempCell.formula = hideForm & Chr(34) & tempCell.Value & Chr(34) & ")"
+                End If
+            End If
+10
+        Next j
+    Next i
+20
+    Application.EnableEvents = True
+    Exit Sub
+    
+hideErr:
+    MsgBox "Could not set the formula" & vbCrLf & hideForm & vbCrLf & "For features:" & vbCrLf & features, vbCritical
+    GoTo 20
+End Sub
+
 
 
 
@@ -641,6 +769,7 @@ Private Function ParseToolValue(tool As String) As String
     End If
 
 End Function
+
 
 
 
