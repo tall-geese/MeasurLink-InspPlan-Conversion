@@ -32,13 +32,9 @@ Sub events()
     Application.EnableEvents = True
 End Sub
 
-
-Sub test()
-    Dim a As Collection
-    Set a = New Collection
-    a.Add ("hello")
-    MsgBox (a.Item(1))
-
-
+Public Sub SetBorders(target As Range)
+    target.Borders(xlEdgeBottom).Weight = xlThin
+    target.Borders(xlEdgeLeft).Weight = xlThin
+    target.Borders(xlEdgeRight).Weight = xlThin
 End Sub
 

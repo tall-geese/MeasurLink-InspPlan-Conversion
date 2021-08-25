@@ -1,0 +1,58 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet9"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Private Sub Worksheet_Deactivate()
+    'Return rows to the collapsed state
+    Me.Unprotect Password:="3063bqa"
+    If Not (Rows(3).EntireRow.Hidden) Then
+        Rows(3).ShowDetail = False
+    End If
+    If Not (Rows(8).EntireRow.Hidden) Then
+        Rows(8).ShowDetail = False
+    End If
+    If Not (Rows(18).EntireRow.Hidden) Then
+        Rows(18).ShowDetail = False
+    End If
+    Me.Visible = xlSheetHidden
+    Me.Protect Password:="3063bqa"
+End Sub
+
+Public Sub Cleanup()
+    Range("C1:U1").EntireColumn.Value = vbNullString
+
+    With Range("A26:B100")
+        .Value = ""
+        .Interior.ColorIndex = 0
+        .Borders(xlInsideHorizontal).LineStyle = xlNone
+        .Borders(xlEdgeRight).LineStyle = xlNone
+        .Borders(xlInsideVertical).LineStyle = xlNone
+        .Borders(xlEdgeLeft).LineStyle = xlNone
+        .Borders(xlEdgeBottom).LineStyle = xlNone
+    End With
+End Sub
+
+
+Public Sub SetCharacteristic(feature As Range, lastCol As Integer)
+    'TODO:, if we end up setting  multiple cells, then we need to add in the logic to move to the next column
+    Range("C1").Value = feature.Value
+    Range("C2").Value = feature.offset(0, -2).Value
+    Range("C3").Value = feature.offset(0, -1).Value
+    
+    Dim targetCell As Range
+    Set targetCell = Range("C4")
+    For i = 1 To lastCol - 2
+        Dim temp As Range
+        Set temp = feature.offset(0, i)
+        targetCell.Value = temp.Value
+        Set targetCell = targetCell.offset(1, 0)
+    
+    Next i
+    
+End Sub
+

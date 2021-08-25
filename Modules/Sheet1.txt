@@ -140,19 +140,19 @@ Public Sub ApplyFormula(targetCol As String, Optional limit As Variant, Optional
     If targetCol = "Lower" Then
         If IsMissing(varCol) Then
             'form = the nom cell - the hard limit
-            targetCell.formula = "=$E$" & ActiveCell.Row & " - " & limit
+            targetCell.formula = "=$E" & ActiveCell.Row & " - " & limit
         Else
             'for = the nom cell - the vlookup
-            prefix = "$E$" & ActiveCell.Row & " - "
+            prefix = "$E" & ActiveCell.Row & " - "
             GoTo 10
         End If
     ElseIf targetCol = "Upper" Then
         If IsMissing(varCol) Then
             'form = the nom cell + the hard limit
-            targetCell.formula = "=$E$" & ActiveCell.Row & " + " & limit
+            targetCell.formula = "=$E" & ActiveCell.Row & " + " & limit
         Else
             'for = the nom cell + the vlookup
-            prefix = "$E$" & ActiveCell.Row & " + "
+            prefix = "$E" & ActiveCell.Row & " + "
             GoTo 10
         End If
     ElseIf targetCol = "Nominal" And IsMissing(varCol) Then
@@ -178,7 +178,7 @@ formErr:
     
 End Sub
 
-'Called by HideFeatureCond userform, apply hiding based on certain part numbers or variable lookups
+'apply hiding based on certain part numbers or variable lookups, called by HideFeatureCond userform,
 Public Sub SetHiding(features As String, hideForm As String)
     Dim cellAdd() As String
     
@@ -205,7 +205,7 @@ Public Sub SetHiding(features As String, hideForm As String)
             Dim tempCell As Range
             Set tempCell = charCell.offset(0, j)
             If (Application.Intersect(tolerRows, tempCell) Is Nothing) And (Application.Intersect(toolRows, tempCell) Is Nothing) Then
-                If InStr(tempCell.formula, "=") > 0 Then
+                If InStr(tempCell.formula, "=") > 0 Then 'Don't break formulas, just make their result the ELSE condition
                     If InStr(tempCell.formula, "IF(") > 0 Then GoTo 10  'if the formula already has the IF conditoin set on it then we don't
                                                                             'want to change anything
                     tempCell.formula = hideForm & Replace(tempCell.formula, "=", "") & ")"
@@ -239,17 +239,17 @@ End Sub
 '******************   Double Click   ************************
 
 
-Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
-    If Target.Areas.Count = 1 Then
-        If Target.column = GetCol("Attached Image(s) [Double Click]") And Target.Row > 3 Then
-            SetAttachment Target:=Target
-        ElseIf Target.column = GetCol("Characteristic Name") And Target.Font.Color = RGB(0, 176, 240) Then
-            ExpandGroup Target:=Target
+Private Sub Worksheet_BeforeDoubleClick(ByVal target As Range, Cancel As Boolean)
+    If target.Areas.Count = 1 Then
+        If target.column = GetCol("Attached Image(s) [Double Click]") And target.Row > 3 Then
+            SetAttachment target:=target
+        ElseIf target.column = GetCol("Characteristic Name") And target.Font.Color = RGB(0, 176, 240) Then
+            ExpandGroup target:=target
         End If
     End If
 End Sub
 
-Private Sub SetAttachment(Target As Range)
+Private Sub SetAttachment(target As Range)
     Dim fso As FileSystemObject
     Dim path As String
     Set fso = New FileSystemObject
@@ -267,7 +267,7 @@ Private Sub SetAttachment(Target As Range)
     End If
     
     'After we check to see if the "Attachments" folder exists
-    Target.Value = ""
+    target.Value = ""
     
     With Application.FileDialog(msoFileDialogFilePicker)
         .InitialFileName = path
@@ -277,21 +277,21 @@ Private Sub SetAttachment(Target As Range)
         For i = 1 To .SelectedItems.Count
             Dim arr() As String
             arr = Split(.SelectedItems.Item(i), "\")
-            Target.Value = Target.Value & arr(UBound(arr))
+            target.Value = target.Value & arr(UBound(arr))
             'If there's more than one file, then we need to delimit it by a character that can't appear in the file name
             If i <> .SelectedItems.Count Then
-                Target.Value = Target.Value & "|"
+                target.Value = target.Value & "|"
             End If
         Next i
     End With
-    Target.offset(1, 0).Select
+    target.offset(1, 0).Select
 
 End Sub
 
-Private Sub ExpandGroup(Target As Range)
+Private Sub ExpandGroup(target As Range)
     'Show/Hide children of multiple instance features when user double-clicks
     Dim child As Range
-    Set child = Target.offset(1, 0)
+    Set child = target.offset(1, 0)
     Rows(child.Row).ShowDetail = Rows(child.Row).EntireRow.Hidden
     child.Activate
     
@@ -301,11 +301,11 @@ End Sub
 '******************   On Change   ************************
 
 
-Private Sub Worksheet_Change(ByVal Target As Range)
+Private Sub Worksheet_Change(ByVal target As Range)
     
-    If Target.Areas.Count = 1 Then
+    If target.Areas.Count = 1 Then
         Dim subCell As Range
-        For Each subCell In Target
+        For Each subCell In target
             If IsInImmutableRange(targetCell:=subCell) Then Exit Sub
             
             On Error GoTo errmsg
@@ -362,28 +362,28 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                     
                 End If
                 subCell.offset(0, -7).Font.Color = RGB(0, 0, 0) 'set Attr/Variable text to black
-            ElseIf Target.column = GetCol("Ltol") Or Target.column = GetCol("Nominal") Or Target.column = GetCol("Utol") Then
+            ElseIf target.column = GetCol("Ltol") Or target.column = GetCol("Nominal") Or target.column = GetCol("Utol") Then
                 'TODO: if these cells were manually changed, we should set the color and maybe even prompt the user to add a mfg tol note
-            ElseIf Target.column >= GetCol("2 DIGIT Primary Tool") And Target.column <= GetCol("Secondary Head") Then
+            ElseIf target.column >= GetCol("2 DIGIT Primary Tool") And target.column <= GetCol("Secondary Head") Then
                 On Error GoTo 20
                 Application.EnableEvents = False
-                Target.Value = UCase(Target.Value)
+                target.Value = UCase(target.Value)
                     'TODO: check that this is not in the immutable rnage
                     'TODO: check that this is not an empty string
                 
-                If Target.column = GetCol("Primary Control") Or Target.column = GetCol("Secondary Control") Then
+                If target.column = GetCol("Primary Control") Or target.column = GetCol("Secondary Control") Then
                     'TODO: if the user manually entered a value for the controls, we should hand-validate the entry
                     'TODO: likely should turn off events before setting this value
-                    Call ValidateControl(controlCell:=Target)
+                    Call ValidateControl(controlCell:=target)
                     
-                ElseIf Target.column = GetCol("Primary Head") Or Target.column = GetCol("Secondary Head") Then
-                    Call ValidateHead(controlCell:=Target)
+                ElseIf target.column = GetCol("Primary Head") Or target.column = GetCol("Secondary Head") Then
+                    Call ValidateHead(controlCell:=target)
                 End If
                 'If we made a chang to one of our TOOL Controls, we should re-evaluate the TOOL AXIS OFFSET
-                Call OffsetCommentFormat(offsetRange:=Target.offset(0, GetCol("TOOL AXIS OFFSET") - Target.column))
+                Call OffsetCommentFormat(offsetRange:=target.offset(0, GetCol("TOOL AXIS OFFSET") - target.column))
                 
                 'Somebody changed the control, either manually typed or perhaps set with a drop-down choice
-            ElseIf Target.column = GetCol("Comments") Then
+            ElseIf target.column = GetCol("Comments") Then
                 Call SetCommentsValidation(cell:=subCell) 'Reset the validation in case of copy/paste
             End If
         Next subCell

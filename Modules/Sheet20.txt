@@ -247,49 +247,49 @@ End Function
 '************************************************************
 
 
-Function Diameter(Target As String, decimalFormat As String, unitsChar As String, Optional prefixChar As String, _
+Function Diameter(target As String, decimalFormat As String, unitsChar As String, Optional prefixChar As String, _
                 Optional featureKeyword As String) As String
                 
-    Diameter = "Ø" & prefixChar & Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
+    Diameter = "Ø" & prefixChar & Format(target, unitsChar & "." & decimalFormat) & featureKeyword
 End Function
 
-Function Radius(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
+Function Radius(target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
 
-    Radius = "R" & Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
+    Radius = "R" & Format(target, unitsChar & "." & decimalFormat) & featureKeyword
 End Function
 
-Function Angle(Target As String, decimalPlaces As Integer, Optional featureKeyword As String) As String
+Function Angle(target As String, decimalPlaces As Integer, Optional featureKeyword As String) As String
 
     Dim decimalFormat As String
     If decimalPlaces > 0 Then
         decimalFormat = "." & getFormatHashes(decimalPlaces)
     End If
-    Angle = Format(Target, "#" & decimalFormat) & "°" & featureKeyword
+    Angle = Format(target, "#" & decimalFormat) & "°" & featureKeyword
 End Function
 
 
 
-Function Default(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
+Function Default(target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
 
-    Default = Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
+    Default = Format(target, unitsChar & "." & decimalFormat) & featureKeyword
 End Function
 
 '************************************************************
 '****************   Callback Functions   ********************
 '************************************************************
 
-Private Sub Worksheet_Change(ByVal Target As Range)
+Private Sub Worksheet_Change(ByVal target As Range)
     On Error GoTo 20
 
     Application.EnableEvents = False
     Me.Unprotect ("3063bqa")
 
     'change the font color only if our change occurs in the Results Column, indicates that user came up with their own feature
-    If (Target.Cells.Count = 1 And Target.column = 10 And Target.Value <> vbNullString) Then
-        Target.Font.ColorIndex = 46  'Turn the text orange
+    If (target.Cells.Count = 1 And target.column = 10 And target.Value <> vbNullString) Then
+        target.Font.ColorIndex = 46  'Turn the text orange
         
-    ElseIf (Target.Cells.Count = 1 And Target.column = 10 And Target.Value = vbNullString) Then
-        Target.Font.Color = RGB(0, 0, 0)
+    ElseIf (target.Cells.Count = 1 And target.column = 10 And target.Value = vbNullString) Then
+        target.Font.Color = RGB(0, 0, 0)
     End If
 
 20

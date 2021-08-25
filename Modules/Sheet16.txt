@@ -1,0 +1,29 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet16"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Public Function GetVariableColumns() As Range
+    Set tempRange = Range("$B$1:" & Range("B1").End(xlToRight).Address)
+    Set GetVariableColumns = tempRange
+    
+End Function
+
+'Return column # of the header
+Public Function GetCol(colName As Variant) As Integer
+    Dim colRange As Range
+    Set colRange = Range("$A$1:" & Range("A1").End(xlToRight).Address)
+    On Error Resume Next
+    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
+    If Err.Number <> 0 Then
+        GetCol = 0
+    End If
+    On Error GoTo 0
+End Function
+
+
+
