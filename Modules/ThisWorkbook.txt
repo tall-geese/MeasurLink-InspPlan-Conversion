@@ -7,6 +7,13 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
+'*************************************************************
+'*************************************************************
+'*                  ThisWorkbook
+'*
+'*************************************************************
+'*************************************************************
+
 
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
     Call Validations.CloseDataValidations
@@ -32,9 +39,12 @@ Sub events()
     Application.EnableEvents = True
 End Sub
 
+'Called by PartLib and PivotFeature
 Public Sub SetBorders(target As Range)
+    target.Borders(xlEdgeTop).Weight = xlThin
     target.Borders(xlEdgeBottom).Weight = xlThin
     target.Borders(xlEdgeLeft).Weight = xlThin
     target.Borders(xlEdgeRight).Weight = xlThin
 End Sub
+
 

@@ -85,7 +85,7 @@ Public Sub PivotFeature(ByRef control As IRibbonControl)
                 pvtWS.Unprotect Password:="3063bqa"
                 Call Worksheets("PivotFeature").Cleanup
                 
-                'Hide/Show our grouped rows, if they are hidden or not on the PartLib Table
+                'Hide/Show our grouped rows, if they are hidden or not on the PartLib Table and vice-versa
                 If Not (partWS.Columns(4).EntireColumn.Hidden) Then
                     pvtWS.Rows(3).EntireRow.ShowDetail = True
                 End If
@@ -113,6 +113,10 @@ Public Sub PivotFeature(ByRef control As IRibbonControl)
                 
                 Dim sample As Integer
                 sample = partWS.Range("D3").End(xlToRight).column
+                
+                'TODO: we're prob going to have to come up with a way of chaning the colors and setting borders, depending on the amount of cells
+                'we prob need to ask the left neighbor cell what it's color and border is when we got to set a value
+                Set charCell = Worksheets("PartLib Table").GetCharOrFamily(charCell)
                 Worksheets("PivotFeature").SetCharacteristic feature:=charCell, lastCol:=sample
                 
                 pvtWS.Visible = xlSheetVisible
@@ -242,6 +246,7 @@ Public Sub SetMfgTolerance(ByRef control As IRibbonControl)
         End If
     End If
 End Sub
+
 
 
 

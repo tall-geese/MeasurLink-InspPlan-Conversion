@@ -8,7 +8,12 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 Option Explicit
-
+'*************************************************************
+'*************************************************************
+'*                  PartLib Table
+'*
+'*************************************************************
+'*************************************************************
 
 
 '************************************************************
@@ -224,6 +229,34 @@ hideErr:
     MsgBox "Could not set the formula" & vbCrLf & hideForm & vbCrLf & "For features:" & vbCrLf & features, vbCritical
     GoTo 20
 End Sub
+
+'Called by RibbonCommands.PivotFeature
+Public Function GetCharOrFamily(charCell As Range) As Range
+    'If a cell is a parent and theres a parent below it, do nothing
+    If charCell.EntireRow.OutlineLevel = 1 And charCell.offset(1, 0).EntireRow.OutlineLevel = 1 Then
+        Set GetCharOrFamily = charCell
+        Exit Function
+    End If
+    
+    'If we're in a child feature, we want to propogate up until we find the parent
+    If charCell.EntireRow.OutlineLevel = 2 Then
+        Do
+            Set charCell = charCell.offset(-1, 0)
+        Loop While charCell.EntireRow.OutlineLevel = 2
+    End If
+    
+    'Extend our range down until we have the parent and all child cells
+    Dim ogRange As Range
+    Set ogRange = Range(charCell.Address)
+    Do
+        Set charCell = Application.Union(charCell, charCell.offset(1, 0))
+    Loop While ogRange.offset(charCell.Count, 0).EntireRow.OutlineLevel = 2
+
+    'Then pass them back
+    Set GetCharOrFamily = charCell
+
+
+End Function
 
 
 
@@ -769,6 +802,8 @@ Private Function ParseToolValue(tool As String) As String
     End If
 
 End Function
+
+
 
 
 
