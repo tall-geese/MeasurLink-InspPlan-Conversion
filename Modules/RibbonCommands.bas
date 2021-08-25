@@ -248,8 +248,17 @@ Public Sub SetMfgTolerance(ByRef control As IRibbonControl)
 End Sub
 
 
+'****************************************************
+'***************   Routines   ***********************
+'****************************************************
 
+'******************   Insert Machining Operation Btn  ***********************
+Public Sub InsertOperation(ByRef control As IRibbonControl)
+    Load CreateRoutinesForm
 
+    CreateRoutinesForm.Show
+
+End Sub
 
 
 

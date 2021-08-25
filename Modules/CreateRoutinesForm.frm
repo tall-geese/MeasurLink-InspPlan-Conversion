@@ -1,0 +1,302 @@
+VERSION 5.00
+Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} CreateRoutinesForm 
+   Caption         =   "Create Routines"
+   ClientHeight    =   9570.001
+   ClientLeft      =   120
+   ClientTop       =   450
+   ClientWidth     =   8190
+   OleObjectBlob   =   "CreateRoutinesForm.frx":0000
+   StartUpPosition =   1  'CenterOwner
+End
+Attribute VB_Name = "CreateRoutinesForm"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = False
+'************************************************************
+'****************   Helper Routines   ***********************
+'************************************************************
+
+Dim swsMllFrame As Frame
+Dim receivFrame As Frame
+Dim assemFrame As Frame
+Dim finFrame As Frame
+
+Public Sub DeactivateOthers(ctrlFrame As Frame)
+    For Each ctrl In ctrlFrame.Controls
+        ctrl.Enabled = False
+    Next ctrl
+End Sub
+Public Sub ActivateMe(ctrlFrame As Frame)
+    For Each ctrl In ctrlFrame.Controls
+        If ctrl.Name <> "FA_FIRSTCheckbox" And ctrl.Name <> "FA_VISCheckbox" And _
+            ctrl.Name <> "FI_OPXX_RECINSPCheckbox" And ctrl.Name <> "FI_DIMCheckbox" Then
+            ctrl.Enabled = True
+        End If
+    Next ctrl
+
+End Sub
+
+
+
+
+
+
+Private Sub SpinButton1_SpinDown()
+    If CInt(Me.OperationTextBox) > 1 Then
+        Me.OperationTextBox = CInt(Me.OperationTextBox) - 1
+    End If
+End Sub
+
+Private Sub SpinButton1_SpinUp()
+    If CInt(Me.OperationTextBox) < 4 Then
+        Me.OperationTextBox = CInt(Me.OperationTextBox) + 1
+    End If
+End Sub
+
+
+Private Sub UserForm_Activate()
+    Call SwissOptionButton_Click
+End Sub
+
+Private Sub UserForm_Initialize()
+    Set swsMllFrame = Me.SwissMillFrame
+    Set receivFrame = Me.ReceivingFrame
+    Set assemFrame = Me.AssemblyFrame
+    Set finFrame = Me.FinalFrame
+    
+    
+End Sub
+
+
+
+'---------------Option Buttons-----------------
+Private Sub SwissOptionButton_Click()
+    Call Me.ActivateMe(swsMllFrame)
+    
+    Call Me.DeactivateOthers(receivFrame)
+    Call Me.DeactivateOthers(assemFrame)
+    Call Me.DeactivateOthers(finFrame)
+End Sub
+
+Private Sub MillingOptionButton_Click()
+
+    Call Me.ActivateMe(swsMllFrame)
+    
+    Call Me.DeactivateOthers(receivFrame)
+    Call Me.DeactivateOthers(assemFrame)
+    Call Me.DeactivateOthers(finFrame)
+End Sub
+Private Sub ReceivingOptionButton_Click()
+    Call Me.ActivateMe(receivFrame)
+    
+    Call Me.DeactivateOthers(swsMllFrame)
+    Call Me.DeactivateOthers(assemFrame)
+    Call Me.DeactivateOthers(finFrame)
+
+End Sub
+Private Sub AssemblyOptionButton_Click()
+    Call Me.ActivateMe(assemFrame)
+    
+    Call Me.DeactivateOthers(receivFrame)
+    Call Me.DeactivateOthers(swsMllFrame)
+    Call Me.DeactivateOthers(finFrame)
+
+End Sub
+Private Sub FinalOptionButton_Click()
+    Call Me.ActivateMe(finFrame)
+    
+    Call Me.DeactivateOthers(receivFrame)
+    Call Me.DeactivateOthers(assemFrame)
+    Call Me.DeactivateOthers(swsMllFrame)
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'-------------------Buttons-----------------
+    'Don't worry about em, they work
+Private Sub CommandButton1_Click()
+    Me.CommandButton1.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton1.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton2_Click()
+    Me.CommandButton2.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton2.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton3_Click()
+    Me.CommandButton3.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton3.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton4_Click()
+    Me.CommandButton4.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton4.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton5_Click()
+    Me.CommandButton5.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton5.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton6_Click()
+    Me.CommandButton6.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton6.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton7_Click()
+    Me.CommandButton7.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton7.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton8_Click()
+    Me.CommandButton8.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton8.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton9_Click()
+    Me.CommandButton9.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton9.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton10_Click()
+    Me.CommandButton10.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton10.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton11_Click()
+    Me.CommandButton11.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton11.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton12_Click()
+    Me.CommandButton12.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton12.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton13_Click()
+    Me.CommandButton13.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton13.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton14_Click()
+    Me.CommandButton14.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton14.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton15_Click()
+    Me.CommandButton15.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton15.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton16_Click()
+    Me.CommandButton16.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton16.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton17_Click()
+    Me.CommandButton17.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton17.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton18_Click()
+    Me.CommandButton18.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton18.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton19_Click()
+    Me.CommandButton19.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton19.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton20_Click()
+    Me.CommandButton20.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton20.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+Private Sub CommandButton21_Click()
+    Me.CommandButton21.Locked = True
+    For Each ctrl In Me.PaletteFrame.Controls
+        If ctrl.Name <> Me.CommandButton21.Name Then
+            ctrl.Locked = Falsed
+        End If
+    Next ctrl
+End Sub
+
+
