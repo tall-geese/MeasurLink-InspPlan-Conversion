@@ -57,6 +57,12 @@ Sub test()
 
 End Sub
 
+Sub teste2()
+    MsgBox (ThisWorkbook.path & "\Output\New_Test.qif")
+
+
+End Sub
+
 
 
 

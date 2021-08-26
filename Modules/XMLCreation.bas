@@ -225,12 +225,13 @@ Sub CreateXMLTest()
     Set output = New MSXML2.DOMDocument60
     styles.async = False
     Dim stylesText As String
-    stylesText = fso.GetFile("C:\Users\mdieckman\Desktop\styles.xml").OpenAsTextStream.ReadAll
+    'TODO: change this up to the absolute directory, pull from DataSources
+    stylesText = fso.GetFile(ThisWorkbook.path & "\styles.xml").OpenAsTextStream.ReadAll
 
 '    styles.LoadXML bstrXML:=stylesText
 '    doc.transformNodeToObject styles, output
     
-    Set ts = fso.CreateTextFile("C:\Users\mdieckman\Desktop\New_Test.QIF")
+    Set ts = fso.CreateTextFile(ThisWorkbook.path & "\Output\New_Test.QIF")
     Dim writer As MSXML2.MXXMLWriter60
     Set writer = New MSXML2.MXXMLWriter60
     Dim reader As MSXML2.SAXXMLReader60
@@ -243,11 +244,6 @@ Sub CreateXMLTest()
     ts.Write (writer.output)
     ts.Close
     
-'    writer.output = doc
-    
-
-    'Output
-'    output.Save ("C:\Users\mdieckman\Desktop\XMLTest.QIF")
 
 End Sub
 
