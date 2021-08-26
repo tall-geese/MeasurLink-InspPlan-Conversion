@@ -35,14 +35,14 @@ Public Sub ApplyGroupings()
     
     'Begin keeping track of cells once we hit a certain color, when we switch color, group the rows that we tracked
     For Each cell In Range("C9:C" & rangeEnd)
-        If (cell.Font.Color = RGB(128, 128, 128) And instanceGroup = False) Then
+        If (cell.Font.color = RGB(128, 128, 128) And instanceGroup = False) Then
             instanceGroup = True
             groupStart = cell.Row
             If (cell.Row = rangeEnd) Then
                 Rows(cell.Row).Group
             End If
         
-        ElseIf (cell.Font.Color <> RGB(128, 128, 128) And instanceGroup = True) Then
+        ElseIf (cell.Font.color <> RGB(128, 128, 128) And instanceGroup = True) Then
             instanceGroup = False
             Rows(groupStart & ":" & cell.Row - 1).Group
             groupStart = 0
@@ -258,6 +258,104 @@ Public Function GetCharOrFamily(charCell As Range) As Range
 
 End Function
 
+'Called by CreateRoutinesForm
+Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As String, machOp As String)
+    On Error GoTo rtSetErr
+
+    If (Not routineArr) = -1 Then Exit Sub
+    'If machOp Is missing Then machOp = 1  'TODO: replace with the logic that keeps track of added machining ops
+    'TODO: there needs to be something that captures the name of the operation set like Receiving, Milling, etc.
+    
+    Dim nextCol As Range
+    Set nextCol = Range(Range("C3").End(xlToRight).Address).offset(0, 1)
+    
+    Dim sequence As String
+    If opTag = "SWISS" Or opTag = "MILL" Then
+        If CInt(machOp) > 1 Then
+            sequence = machOp
+        End If
+    End If
+    
+    Dim i As Integer
+    Dim suffix As String
+    If opTag = "MILL" Then suffix = "_MILL"
+    
+    Application.EnableEvents = False
+    
+    Call AppendOperationNames(opTag & sequence)
+    
+    For i = 0 To UBound(routineArr)
+        nextCol.Value = routineArr(i) & sequence & suffix
+        nextCol.offset(-1, 0).Value = "QE"
+        Range(nextCol.offset(-1, 0).Address & ":" & Replace(nextCol.offset(-1, 0).Address, "2", "400")).Interior.color = selectedColor
+        
+        Set nextCol = nextCol.offset(0, 1)
+    Next i
+    
+    
+20
+    Application.EnableEvents = True
+    Exit Sub
+    
+rtSetErr:
+    MsgBox "Encountered a problem when setting Routines", vbCritical
+    On Error GoTo 0
+    GoTo 20
+End Sub
+
+
+'Called by SetRoutines
+Public Sub AppendOperationNames(opName As String)
+    Dim charRange As Range
+    Dim i As Integer
+    On Error GoTo 10
+    Cells(9, 3).Activate
+    Set charRange = Application.InputBox("Select Characteristics the OP(s) are Applicable to", "Select Characteristics", Type:=8)
+    If charRange Is Nothing Then Exit Sub
+    If charRange.Worksheet.Name <> "PartLib Table" Then GoTo 10
+    
+    Dim addys() As String
+    If InStr(charRange.Address, ",") > 0 Then 'If multiple areas are chosen, split them up
+        addys = Split(charRange.Address, ",")
+    Else
+        ReDim Preserve addys(0) 'Otherwise just set the one area
+        addys(0) = charRange.Address
+    End If
+    
+    'Address validation
+    For i = 0 To UBound(addys)
+        If InStr(addys(i), ":") > 0 Then
+            If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 6 Then GoTo 10 'If $C$X:$C$X, not all in the C Column
+        Else
+            If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 3 Then GoTo 10 'IF $C$6, not in the C column
+        End If
+    Next i
+    
+    'TODO: iterate through the cells and set their Operation values
+    For i = 0 To UBound(addys)
+        Dim tempRange As Range
+        Set tempRange = Range(addys(i))
+        Dim subCell As Range
+        For Each subCell In tempRange
+            If subCell.Value <> vbNullString Then
+                subCell.offset(0, 23).Value = opName 'TODO: replace the placeholder text
+            End If
+        Next subCell
+    Next i
+    
+    Call Worksheets("MachineOps").InsertNewOp(opName)
+    
+    
+    Exit Sub
+
+10
+    'TODO: might want to raise an error here instead, to propogate to the calling sub in case we don't want to do anything
+        'In the result of an error
+    MsgBox "You did not choose a valid Characteristic Name Range" & vbCrLf & "Choose ONLY values from Column C", vbCritical
+    Err.Raise Number:=vbObjectError + 1000, Description:="Incorrect Range"
+    
+End Sub
+
 
 
 
@@ -276,7 +374,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal target As Range, Cancel As Boolean
     If target.Areas.Count = 1 Then
         If target.column = GetCol("Attached Image(s) [Double Click]") And target.Row > 3 Then
             SetAttachment target:=target
-        ElseIf target.column = GetCol("Characteristic Name") And target.Font.Color = RGB(0, 176, 240) Then
+        ElseIf target.column = GetCol("Characteristic Name") And target.Font.color = RGB(0, 176, 240) Then
             ExpandGroup target:=target
         End If
     End If
@@ -347,9 +445,9 @@ Private Sub Worksheet_Change(ByVal target As Range)
                 On Error GoTo 20
                 Application.EnableEvents = False 'prevent recursive looping
                 If subCell.Value = "" Then
-                    subCell.Font.Color = RGB(0, 0, 0) 'revert back to black
+                    subCell.Font.color = RGB(0, 0, 0) 'revert back to black
                 Else
-                    subCell.Font.Color = RGB(112, 48, 160) 'set purple to designate custom value
+                    subCell.Font.color = RGB(112, 48, 160) 'set purple to designate custom value
                 End If
             'change to Inspection Method
             ElseIf subCell.column = GetCol("Inspection Method") Then
@@ -372,7 +470,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
                     maxIndex = InStr(subCell.offset(0, -2).Value, "MAX")
                     If inspType = "Variable" And (minIndex > 0 Or maxIndex > 0) Then
                         If (InStr(subCell.offset(0, -2).Value, "MINOR") = 0) Then
-                            If Not (subCell.offset(0, -9).Font.Color = RGB(112, 48, 160)) Then 'if the text is purple already, we should not prompt for mfg tol
+                            If Not (subCell.offset(0, -9).Font.color = RGB(112, 48, 160)) Then 'if the text is purple already, we should not prompt for mfg tol
                             
                                 Dim result As Integer
                                 result = MsgBox("When using an Inpsection Method of a Variable Inspection Type to check a MAX/MIN dimension" _
@@ -394,7 +492,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
                     subCell.offset(0, 2).Value = SetGaugePinData(methodCell:=subCell) 'Set Gauge Pin data if applicable
                     
                 End If
-                subCell.offset(0, -7).Font.Color = RGB(0, 0, 0) 'set Attr/Variable text to black
+                subCell.offset(0, -7).Font.color = RGB(0, 0, 0) 'set Attr/Variable text to black
             ElseIf target.column = GetCol("Ltol") Or target.column = GetCol("Nominal") Or target.column = GetCol("Utol") Then
                 'TODO: if these cells were manually changed, we should set the color and maybe even prompt the user to add a mfg tol note
             ElseIf target.column >= GetCol("2 DIGIT Primary Tool") And target.column <= GetCol("Secondary Head") Then
@@ -636,7 +734,7 @@ Sub SetMfgTol(charAddress As String, inputs() As Variant)
             offsetRange.CommentThreaded.AddReply ("Prev Value: " & offsetRange.Value)
         End If
         offsetRange.Value = inputs(i - 1)
-        offsetRange.Font.Color = RGB(112, 48, 160)
+        offsetRange.Font.color = RGB(112, 48, 160)
         
 continue:
     Next i

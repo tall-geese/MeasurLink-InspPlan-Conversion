@@ -1,5 +1,5 @@
 Attribute VB_Name = "XMLCreation"
-'Testing the ability to Create XML files that MeaurLink can read for us.
+'Testing the ability to Create XML files that MeasurLink can read for us.
 Public Const XML_SCHEMA_ATTR = "xmlns:xsd"
 Const XML_SCHEMA_VALUE = "http://www.w3.org/2001/XMLSchema"
 Const XML_SCHEMA_INST_ATTR = "xmlns:xsi"

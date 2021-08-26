@@ -9,6 +9,13 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 Option Explicit
 
+'*************************************************************
+'*************************************************************
+'*                  IEX-DATA
+'*
+'*************************************************************
+'*************************************************************
+
 '************************************************************
 '*******************   Clean Data   *************************
 '************************************************************
@@ -47,7 +54,7 @@ Sub CleanData()
     'We might be dealing with one cell or an entire column of cells
     For Each cell In balloonRange
         'Skip over the manually edited fields
-        If cell.offset(0, 9).Font.Color <> 0 Then
+        If cell.offset(0, 9).Font.color <> 0 Then
             GoTo 20
         End If
         
@@ -104,7 +111,7 @@ Sub CleanData()
         setNumberInstances indexCell:=cell
         With cell.offset(0, 9)
             .Value = resultValue
-            .Font.Color = RGB(0, 0, 0)
+            .Font.color = RGB(0, 0, 0)
         End With
 
 20
@@ -203,13 +210,13 @@ Sub setNumberInstances(indexCell As Range)
         With indexCell.offset(0, 8)
             .Value = returnString
             .Font.Bold = True
-            .Font.Color = RGB(0, 0, 0)
+            .Font.color = RGB(0, 0, 0)
         End With
     ElseIf posistion = 0 Then
         With indexCell.offset(0, 8)
             .Value = 1 'if there is only a single instance then set as "1", but gray so it doesnt draw attention
             .Font.Bold = False
-            .Font.Color = RGB(128, 128, 128)
+            .Font.color = RGB(128, 128, 128)
         End With
     End If
 End Sub
@@ -289,7 +296,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
         target.Font.ColorIndex = 46  'Turn the text orange
         
     ElseIf (target.Cells.Count = 1 And target.column = 10 And target.Value = vbNullString) Then
-        target.Font.Color = RGB(0, 0, 0)
+        target.Font.color = RGB(0, 0, 0)
     End If
 
 20
@@ -315,7 +322,9 @@ Sub TransferData()
     Dim indexCell As Range
     Dim partSheet As Worksheet
     Set partSheet = Sheets("PartLib Table")
+    Dim indexNo As Integer
     
+    indexNo = 6
     Set charRange = Range("A2:A" & Range("A2").End(xlDown).Row)
     Set targetCell = partSheet.Range("C9")
     partSheet.Activate
@@ -343,24 +352,27 @@ Sub TransferData()
             ballFormat = Format(indexCell.Value, "0_000")
             ballFormat = ballFormat & Format(minInstance, "_00")
             
+            'Set the Balloon Number and the Index Number
             targetCell.Value = ballFormat
+            targetCell.offset(0, -2).Value = indexNo
             
             Select Case minInstance
                 Case Is = 1
                     targetCell.HorizontalAlignment = xlHAlignRight
-                    targetCell.Font.Color = RGB(0, 176, 240)
+                    targetCell.Font.color = RGB(0, 176, 240)
                 Case Is >= 2
                     targetCell.HorizontalAlignment = xlHAlignCenter
-                    targetCell.Font.Color = RGB(128, 128, 128)
+                    targetCell.Font.color = RGB(128, 128, 128)
                 Case Else
                     targetCell.HorizontalAlignment = xlHAlignRight
-                    targetCell.Font.Color = RGB(0, 0, 0)
+                    targetCell.Font.color = RGB(0, 0, 0)
             End Select
             
             SetInstance refCell:=indexCell, destCell:=targetCell, instance:=minInstance
             
             Set targetCell = targetCell.offset(1, 0)
             minInstance = minInstance + 1
+            indexNo = indexNo + 1
         Loop While (minInstance < instances + 1)
         
     Next indexCell
@@ -419,45 +431,6 @@ Public Function GetAddress(column As Integer) As String
     GetAddress = vArr(0)
 
 End Function
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

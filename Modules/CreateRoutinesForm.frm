@@ -22,6 +22,81 @@ Dim receivFrame As Frame
 Dim assemFrame As Frame
 Dim finFrame As Frame
 
+'---------------Option Buttons-----------------
+'   The main event
+Private Sub CreateRoutinesButton_Click()
+    Dim opTag As String
+    Dim routineArr() As Variant
+    Dim selectedColor As Long
+    Dim machiningOp As String
+    selectedColor = RGB(255, 192, 192)
+
+    If Me.MillingOptionButton.Value = True Then
+        opTag = "MILL"
+        GoTo 10
+    ElseIf Me.SwissOptionButton.Value = True Then
+        opTag = "SWISS"
+10
+        routineArr = Me.BuildRoutineArray(Me.SwissMillFrame, routineArr)
+    
+    ElseIf Me.AssemblyOptionButton.Value = True Then
+        opTag = "ASSEM"
+        routineArr = Me.BuildRoutineArray(Me.AssemblyFrame, routineArr)
+    
+    ElseIf Me.FinalOptionButton.Value = True Then
+        opTag = "FINAL"
+        routineArr = Me.BuildRoutineArray(Me.FinalFrame, routineArr)
+    
+    ElseIf Me.ReceivingOptionButton.Value = True Then
+        opTag = "RECEIVE"
+        'This is the only one that is different, it needs to be built
+        If Trim(Me.OPTextBox.Value) = vbNullString Then GoTo 20
+        If Not IsNumeric(Me.OPTextBox.Value) Then GoTo 20
+        
+        ReDim Preserve routineArr(0)
+        routineArr(0) = Replace(Me.FI_OPXX_RECINSPCheckbox.Caption, "XXX", Me.OPTextBox.Value)
+    Else
+        'Shouldnt be possible
+        Exit Sub
+    
+    End If
+    
+    'Grab the color if one is selected, if not we always have the default
+    For Each colorCtrl In Me.PaletteFrame.Controls
+        If colorCtrl.Locked = True Then
+            selectedColor = colorCtrl.BackColor
+        End If
+    Next colorCtrl
+    
+    'TODO: dont forget to grab teh machining operation as well
+    machiningOp = Me.OperationTextBox.Value
+    Unload Me
+    Call Worksheets("PartLib Table").SetRoutines(routineArr, selectedColor, opTag, machiningOp)
+    
+20
+   Unload Me
+End Sub
+
+Public Function BuildRoutineArray(ctrFrame As Frame, varArr() As Variant) As Variant()
+    For Each ctrl In ctrFrame.Controls
+        If ctrl.Value = True Then
+            If (Not varArr) = -1 Then
+                ReDim Preserve varArr(0)
+                varArr(0) = ctrl.Caption
+            Else
+                ReDim Preserve varArr(UBound(varArr) + 1)
+                varArr(UBound(varArr)) = ctrl.Caption
+            End If
+        End If
+    Next ctrl
+    
+    BuildRoutineArray = varArr
+
+
+End Function
+
+
+
 Public Sub DeactivateOthers(ctrlFrame As Frame)
     For Each ctrl In ctrlFrame.Controls
         ctrl.Enabled = False
@@ -38,9 +113,9 @@ Public Sub ActivateMe(ctrlFrame As Frame)
 End Sub
 
 
+Private Sub OperationTextBox_Change()
 
-
-
+End Sub
 
 Private Sub SpinButton1_SpinDown()
     If CInt(Me.OperationTextBox) > 1 Then

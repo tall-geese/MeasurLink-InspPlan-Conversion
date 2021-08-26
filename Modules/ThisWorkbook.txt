@@ -47,4 +47,17 @@ Public Sub SetBorders(target As Range)
     target.Borders(xlEdgeRight).Weight = xlThin
 End Sub
 
+Sub test()
+    Dim a As String
+    a = "$A$2:$A$9"
+    
+    Debug.Print (a)
+    Debug.Print (Len(a) - Len(Replace(a, "$A$", "")))
+
+
+End Sub
+
+
+
+
 

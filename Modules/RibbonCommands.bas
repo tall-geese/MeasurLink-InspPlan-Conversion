@@ -101,9 +101,9 @@ Public Sub PivotFeature(ByRef control As IRibbonControl)
                 For Each headerCell In headerRange
                     If toRange.Value = "" Then
                         toRange.Value = headerCell.Value
-                        toRange.Interior.Color = headerCell.Interior.Color
+                        toRange.Interior.color = headerCell.Interior.color
                         toRange.offset(0, -1).Value = "QE"
-                        toRange.offset(0, -1).Interior.Color = headerCell.Interior.Color
+                        toRange.offset(0, -1).Interior.color = headerCell.Interior.color
                         
                         ThisWorkbook.SetBorders target:=toRange
                         ThisWorkbook.SetBorders target:=toRange.offset(0, -1)
@@ -254,6 +254,7 @@ End Sub
 
 '******************   Insert Machining Operation Btn  ***********************
 Public Sub InsertOperation(ByRef control As IRibbonControl)
+    Worksheets("PartLib Table").Activate
     Load CreateRoutinesForm
 
     CreateRoutinesForm.Show

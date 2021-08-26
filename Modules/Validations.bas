@@ -117,7 +117,7 @@ End Sub
 'Only using this to set that data validations once, can delete this after
 Private Sub TempSetValidtion()
     Dim sample As Range
-    Set sample = Range("W9:W400") 'Change this row here
+    Set sample = Worksheets("PartLib Table").Range("Z9:Z400") 'Change this row here
     Dim workingCell As Range
     For Each workingCell In sample
         With workingCell.Validation
@@ -125,7 +125,7 @@ Private Sub TempSetValidtion()
             Dim tempstring As String
             'Change formula1 here
 '            tempstring = "=INDIRECT(" & Chr(34) & "[RoutineMapDataValidations.xlsm]InspMethods!C" & workingCell.Row - 7 & "#" & Chr(34) & ")"
-            .Add Type:=xlValidateList, Formula1:="=AxisOffset"
+            .Add Type:=xlValidateList, Formula1:="=MachOps"
             .ShowError = False 'Change as needed if you need to set an erorr or not
         End With
     Next workingCell
