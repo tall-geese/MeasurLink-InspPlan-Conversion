@@ -333,10 +333,29 @@ Public Sub InsertOperation(ByRef control As IRibbonControl)
 End Sub
 
 
+Public Sub DeleteRoutines(ByRef control As IRibbonControl)
+    Dim routineArr() As String
+    routineArr = Worksheets("PartLib Table").GetRoutineListing()
+    If (Not routineArr) = -1 Then 'If there are no routines yet, exit sub
+        Exit Sub
+    End If
+    
+    Load DeleteRoutineForm
+    For i = 0 To UBound(routineArr)
+        DeleteRoutineForm.RoutineComboBox.AddItem routineArr(i)
+    Next i
+    DeleteRoutineForm.Show
+End Sub
 
 
 
+'****************************************************
+'**************   Dev Tools   ***********************
+'****************************************************
 
+Public Sub DisableEvents_Toggle(ByRef control As Office.IRibbonControl, ByRef isPressed As Boolean)
+    Application.EnableEvents = Not (isPressed)
+End Sub
 
 
 

@@ -442,6 +442,18 @@ Public Function GetRoutineListing() As String()
 
 End Function
 
+'TODO: temp placeholder
+Public Sub DeleteRoutine(routineName As String)
+    Dim colNum As Integer
+    Dim routineRng As Range
+    colNum = GetCol(routineName)
+    Set routineRng = Cells(1, colNum).EntireColumn
+    
+    Application.EnableEvents = False
+    routineRng.Delete
+    Application.EnableEvents = True
+End Sub
+
 
 
 

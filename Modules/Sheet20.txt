@@ -353,7 +353,16 @@ Sub TransferData()
             ballFormat = ballFormat & Format(minInstance, "_00")
             
             'Set the Balloon Number and the Index Number
-            targetCell.Value = ballFormat
+            'EDITS HERE
+            If minInstance >= 2 Then
+                With targetCell
+                    .NumberFormat = "General"
+                    .Formula2 = "=IF(" & .offset(1 - minInstance).Address & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & .offset(1 - minInstance).Address & ")"
+                    '=IF($C$14="","",$C$14)
+                End With
+            Else
+                targetCell.Value = ballFormat
+            End If
             targetCell.offset(0, -2).Value = indexNo
             
             Select Case minInstance
@@ -431,6 +440,8 @@ Public Function GetAddress(column As Integer) As String
     GetAddress = vArr(0)
 
 End Function
+
+
 
 
 
