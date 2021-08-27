@@ -7,6 +7,13 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
+'*************************************************************
+'*************************************************************
+'*                  Variables
+'*
+'*************************************************************
+'*************************************************************
+
 Public Function GetVariableColumns() As Range
     Set tempRange = Range("$B$1:" & Range("B1").End(xlToRight).Address)
     Set GetVariableColumns = tempRange
@@ -23,6 +30,99 @@ Public Function GetCol(colName As Variant) As Integer
         GetCol = 0
     End If
     On Error GoTo 0
+End Function
+
+
+'Called by RibbonCommands.ExportQIF
+Public Function GetPartNumberOrNumbers() As String()
+    Dim firstNum As Range
+    Set firstNum = Range("A2")
+    Dim partNums() As String
+    
+    'If the first cell is missing a part number, grab from Start Here
+    If firstNum.Value = "" Then
+        If Worksheets("START HERE").Range("$C$8").Value <> "" Then
+            firstNum.Value = Worksheets("START HERE").Range("$C$8").Value
+        Else 'If that didnt exist, warn the user
+            MsgBox "There are no Part Number set", vbCritical
+            GetPartNumberOrNumbers = partNums
+            Exit Function
+        End If
+    End If
+    
+    'If the row below A2 has nothing, then assume there is no part family table
+    If firstNum.offset(1, 0).Value = "" Then
+        ReDim Preserve partNums(0)
+        partNums(0) = firstNum.Value
+        GoTo 20
+    End If
+    
+    result = MsgBox("Multiple Part Numbers detected" & vbCrLf & "Do you want to Create Routines for every Part Number?", vbYesNoCancel)
+    If result = vbCancel Then 'User wants to back out
+        GetPartNumberOrNumbers = partNums
+    ElseIf result = vbYes Then 'User wants every part number
+        Set firstNum = Range("A2:A" & Range("A2").End(xlDown).Row)
+        For Each subCell In firstNum
+            If (Not partNums) = -1 Then
+                ReDim Preserve partNums(0)
+                partNums(0) = subCell.Value
+            Else
+                ReDim Preserve partNums(UBound(partNums) + 1)
+                partNums(UBound(partNums)) = subCell.Value
+            End If
+        Next subCell
+    Else 'Otherwise the user wants to use a subset of all part Numbers
+        'This is an equivalent to how we verified on PartLib
+        Me.Activate
+        Dim partRange As Range
+        Dim i As Integer
+        On Error GoTo 10
+        Cells(2, 1).Activate
+        Set partRange = Application.InputBox("Select Part Numbers for Output", "Select Part Numbers", Type:=8)
+        If partRange Is Nothing Then Exit Function
+        If partRange.Worksheet.Name <> "Variables" Then GoTo 10
+        
+        Dim addys() As String
+        If InStr(partRange.Address, ",") > 0 Then 'If multiple areas are chosen, split them up
+            addys = Split(partRange.Address, ",")
+        Else
+            ReDim Preserve addys(0) 'Otherwise just set the one area
+            addys(0) = partRange.Address
+        End If
+        
+        'Address validation
+        For i = 0 To UBound(addys)
+            If InStr(addys(i), ":") > 0 Then
+                If Len(addys(i)) - Len(Replace(addys(i), "$A$", "")) <> 6 Then GoTo 10 'If $A$X:$A$X, not all in the A Column
+            Else
+                If Len(addys(i)) - Len(Replace(addys(i), "$A$", "")) <> 3 Then GoTo 10 'IF $A$6, not in the A column
+            End If
+        Next i
+        
+        'Array Creation
+        For i = 0 To UBound(addys)
+            Dim tempRange As Range
+            Set tempRange = Range(addys(i))
+            Dim partCell As Range
+            For Each partCell In tempRange
+                If partCell.Value <> vbNullString Then
+                    If (Not partNums) = -1 Then
+                        ReDim Preserve partNums(0)
+                        partNums(0) = partCell.Value
+                    Else
+                        ReDim Preserve partNums(UBound(partNums) + 1)
+                        partNums(UBound(partNums)) = partCell.Value
+                    End If
+                End If
+            Next partCell
+        Next i
+    End If
+20
+    
+    GetPartNumberOrNumbers = partNums
+
+10
+
 End Function
 
 

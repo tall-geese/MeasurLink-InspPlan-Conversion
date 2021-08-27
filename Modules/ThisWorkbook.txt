@@ -64,6 +64,21 @@ Sub teste2()
 End Sub
 
 
+Sub arrTest()
+    Dim arr() As Variant
+    For i = 0 To 3
+        If (Not arr) = -1 Then
+            ReDim Preserve arr(0 To 4, 0)
+        Else
+            ReDim Preserve arr(0 To 4, 0 To UBound(arr, 2) + 1)
+        End If
+        Debug.Print (UBound(arr, 2))
+    Next i
+
+
+End Sub
+
+
 
 
 

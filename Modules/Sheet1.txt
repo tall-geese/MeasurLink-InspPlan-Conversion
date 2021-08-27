@@ -90,7 +90,7 @@ End Function
 'Return column # of the header
 Public Function GetCol(colName As String) As Integer
     Dim colRange As Range
-    Set colRange = Range("A3:Y3")
+    Set colRange = Range("A3:BZ3")
 '    Dim retRange As Range
 '    Set retRange = colRange.Find(What:=colName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
 '    GetCol = retRange.column
@@ -331,14 +331,14 @@ Public Sub AppendOperationNames(opName As String)
         End If
     Next i
     
-    'TODO: iterate through the cells and set their Operation values
+    'iterate through the cells and set their Operation values
     For i = 0 To UBound(addys)
         Dim tempRange As Range
         Set tempRange = Range(addys(i))
         Dim subCell As Range
         For Each subCell In tempRange
             If subCell.Value <> vbNullString Then
-                subCell.offset(0, 23).Value = opName 'TODO: replace the placeholder text
+                subCell.offset(0, 23).Value = opName
             End If
         Next subCell
     Next i
@@ -355,6 +355,92 @@ Public Sub AppendOperationNames(opName As String)
     Err.Raise Number:=vbObjectError + 1000, Description:="Incorrect Range"
     
 End Sub
+
+'Called by RibbonCommands.ExportQIF
+Public Function CollectFeaturesForExport(routineName As String) As Variant()
+    'TODO: this maybe has to be passed a Routine Name, so we can cross-examine that the
+    'characteristic that we come across does in fact have occur in that routine
+    Me.Outline.ShowLevels RowLevels:=2
+    Dim workingRng As Range
+    Set workingRng = Range("A4:A" & Range("A4").End(xlDown).Row)
+    Dim featureArr() As Variant
+    Dim rtCol As Integer
+    rtCol = GetCol(routineName)
+    Dim indexCell As Range
+    
+    For Each indexCell In workingRng
+        If indexCell.offset(0, 2).Value <> "" Then 'Passover Empty Characteristics, they could be conditionally hidden
+            If indexCell.offset(0, 6).Value = "" Then   'Characteristic set, but InspectionType NOT set
+                MsgBox ("Error here: " & indexCell.offset(0, 2).Value & vbCrLf & "No Inspection Type (Variable/Attribute) was set")
+                GoTo 10
+            ElseIf indexCell.offset(0, rtCol - indexCell.column).Value = "" Then 'If there is no X or O or anything for the routine, skip this
+                GoTo cont
+            Else
+                If (Not featureArr) = -1 Then
+                    ReDim Preserve featureArr(0 To 4, 1 To 1)
+                Else
+                    ReDim Preserve featureArr(0 To 4, 1 To UBound(featureArr, 2) + 1)
+                End If
+                
+                Dim ulim As Integer
+                ulim = UBound(featureArr, 2)
+                featureArr(0, ulim) = indexCell.offset(0, 2).Value '0_001_00
+                featureArr(1, ulim) = indexCell.offset(0, 6).Value 'Attribute / Varible
+                
+                If featureArr(1, ulim) = "Variable" Then
+                    'TODO: check for discrepencies in setting the low/nom/high lim
+                    'Prob just need to check if the nom is there or not
+                    If indexCell.offset(0, 4).Value = "" Then
+                        MsgBox ("Error here: " & indexCell.offset(0, 2).Value & vbCrLf & "No Nominal was set")
+                        GoTo 10
+                    Else
+                        featureArr(2, ulim) = indexCell.offset(0, 3).Value 'LowLim
+                        featureArr(3, ulim) = indexCell.offset(0, 4).Value 'Nominal
+                        featureArr(4, ulim) = indexCell.offset(0, 5).Value 'HighLim
+                    End If
+                    
+                ElseIf featureArr(1, ulim) = "Attribute" Then
+                    featureArr(2, ulim) = "" 'Set nothing for Low/Nom/High Lims
+                    featureArr(3, ulim) = ""
+                    featureArr(4, ulim) = ""
+                End If
+            End If
+        End If
+cont:
+    Next indexCell
+    
+    CollectFeaturesForExport = featureArr
+    Exit Function
+      
+ftReadErr:
+    MsgBox "Encountered an issue with reading a feature" & vbCrLf & "index: " & indexCell.offset(0, 2).Value, vbCritical
+10
+    Err.Raise Number:=vbObjectError + 1100, Description:="Missing Information"
+
+End Function
+
+'Called by RibbonComands.ExportQIF
+Public Function GetRoutineListing() As String()
+    Dim rtRange As Range
+    Dim routineArr() As String
+    Set rtRange = Range("AA3:BZ3")
+    Dim subCell As Range
+    
+    For Each subCell In rtRange
+        If subCell.Value <> "" Then
+            If (Not routineArr) = -1 Then
+                ReDim Preserve routineArr(0)
+                routineArr(0) = subCell.Value
+            Else
+                ReDim Preserve routineArr(UBound(routineArr) + 1)
+                routineArr(UBound(routineArr)) = subCell.Value
+            End If
+        End If
+    Next subCell
+    
+    GetRoutineListing = routineArr
+
+End Function
 
 
 
@@ -900,6 +986,10 @@ Private Function ParseToolValue(tool As String) As String
     End If
 
 End Function
+
+
+
+
 
 
 

@@ -18,6 +18,77 @@ Public Sub Ribbon_OnLoad(uiRibbon As IRibbonUI)
     cusRibbon.ActivateTab "mlTab"
 End Sub
 
+'****************************************************
+'******************   PartLib   *********************
+'****************************************************
+
+Public Sub ExportQIF(ByRef control As IRibbonControl)
+    On Error GoTo 20
+    Dim featureArr() As Variant
+    Dim routineArr() As String
+    Dim partArr() As String
+    Dim rev As String
+    
+    routineArr = Worksheets("PartLib Table").GetRoutineListing()
+    If (Not routineArr) = -1 Then
+        MsgBox "No Routines Exist"
+        Exit Sub
+    End If
+    
+    partArr = Worksheets("Variables").GetPartNumberOrNumbers()
+    If (Not partArr) = -1 Then
+        MsgBox "No Part Numbers Entered"
+        Exit Sub
+    End If
+    
+'    partNum = Worksheets("START HERE").Range("C8").Value 'TODO: we need the logic for multiple part numbers
+    rev = Worksheets("START HERE").Range("C10").Value
+    If rev = "" Then
+        MsgBox "Nothing was set in the Revision field in the START HERE page"
+        Exit Sub
+    End If
+    
+    For i = 0 To UBound(routineArr)
+        For j = 0 To UBound(partArr)
+            'Setting the part number in the START HERE page, deliberately not turning off events
+            'The reason is becuase some features will be conditionally hidden when we have certain part Numbers set
+            'When they are hidden, CollectFeaturesForExport should pass over them
+            Worksheets("START HERE").Range("C8").Value = partArr(j)
+            
+            featureArr = Worksheets("PartLib Table").CollectFeaturesForExport(routineArr(i))
+            If (Not featureArr) = -1 Then
+                MsgBox ("Didnt find any characteristics for " & vbCrLf & routineArr(i) & vbCrLf & "No Output")
+                GoTo cont
+            End If
+            
+            'TODO: change to include in teh routine name
+            Call XMLCreation.CreateXML(featureArr, partArr(j), rev, routineArr(i))
+cont:
+        Next j
+    Next i
+    
+    
+    
+    'TODO: put in the logic for iteration through our part numbers in the variables tab or
+    'allowing the user to enter in either a range or select the applicable part numbers
+    
+    'TODO: need the logic for grabbing the desired routines as well
+    'User should be able to choose one or all of them
+    
+    'When we creating a routine, we should be iterating through each feature
+    'if if they have Anything in the cell that intersects our routine, then it belongs in there
+    
+      
+20
+End Sub
+
+
+
+'****************************************************
+'********************   Data   **********************
+'****************************************************
+
+
 
 '***************   Set Data Validations Btn  *********************
 
@@ -260,6 +331,7 @@ Public Sub InsertOperation(ByRef control As IRibbonControl)
     CreateRoutinesForm.Show
 
 End Sub
+
 
 
 

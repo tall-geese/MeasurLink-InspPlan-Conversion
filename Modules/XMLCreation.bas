@@ -10,7 +10,7 @@ Const XML_SCHEMA_VERSION_ATTR = "versionQIF"
 Const XML_SCHEMA_VERSION_VALUE = "3.0.0"
 Const XML_SCHEMA_NAMESPACE_VALUE = "http://qifstandards.org/xsd/qif3"
 
-Sub CreateXMLTest()
+Public Sub CreateXML(featureArr() As Variant, partNum As String, rev As String, routineName As String)
 
     Dim doc As MSXML2.DOMDocument60
     Dim styles As MSXML2.DOMDocument60
@@ -25,26 +25,28 @@ Sub CreateXMLTest()
 
     'idMax Value???? is this really necessary??
     
-    'Setup Test Example array
-    Dim testArr(0 To 4, 1 To 3) As Variant
-    testArr(0, 1) = "0_008_00"
-    testArr(1, 1) = "Variable"
-    testArr(2, 1) = "0.139"
-    testArr(3, 1) = "0.141"
-    testArr(4, 1) = "0.143"
+'    'Setup Test Example array
+'    Dim testArr(0 To 4, 1 To 3) As Variant
+'    testArr(0, 1) = "0_008_00"
+'    testArr(1, 1) = "Variable"
+'    testArr(2, 1) = "0.139"
+'    testArr(3, 1) = "0.141"
+'    testArr(4, 1) = "0.143"
+'
+'    testArr(0, 2) = "0_021_00"
+'    testArr(1, 2) = "Variable"
+'    testArr(2, 2) = "0.036"
+'    testArr(3, 2) = "0.038"
+'    testArr(4, 2) = "0.040"
+'
+'    testArr(0, 3) = "0_023_00"
+'    testArr(1, 3) = "Attribute"
+'    testArr(2, 3) = ""
+'    testArr(3, 3) = ""
+'    testArr(4, 3) = ""
     
-    testArr(0, 2) = "0_021_00"
-    testArr(1, 2) = "Variable"
-    testArr(2, 2) = "0.036"
-    testArr(3, 2) = "0.038"
-    testArr(4, 2) = "0.040"
-    
-    testArr(0, 3) = "0_023_00"
-    testArr(1, 3) = "Attribute"
-    testArr(2, 3) = ""
-    testArr(3, 3) = ""
-    testArr(4, 3) = ""
-    
+'       Setting processing Intructions Explicitly did not work, when we transform with the XLST
+'       It resets the UTF encoding anyways
 '    Set xmlVersion = doc.createNode(NODE_PROCESSING_INSTRUCTION, "xml", XML_SCHEMA_NAMESPACE_VALUE)
 '    xmlVersion1 = doc.createAttribute("version")
 '    xmlVersion1.Value = Chr(34) & "1.0" & Chr(34)
@@ -88,7 +90,7 @@ Sub CreateXMLTest()
     
         'Level-3 (Header,PartSet) -> Name, Part
     Set nameNode = doc.createNode(MSXML2.NODE_ELEMENT, "Name", XML_SCHEMA_NAMESPACE_VALUE)
-    nameNode.Text = "DRW-00717-02_RAJ_FA_SYLVAC_TEST8"
+    nameNode.Text = partNum & "_" & rev & "_" & routineName
     Set partNode = doc.createNode(MSXML2.NODE_ELEMENT, "Part", XML_SCHEMA_NAMESPACE_VALUE)
     partNode.setAttribute "id", "0"   '<--unique ID
     headerNode.appendChild nameNode
@@ -103,10 +105,9 @@ Sub CreateXMLTest()
     
         'Level-5 (Header, CharacteristicNominalIDs) -> Name, IDs
     Set partHeaderNameNode = doc.createNode(MSXML2.NODE_ELEMENT, "Name", XML_SCHEMA_NAMESPACE_VALUE)
-    partHeaderNameNode.Text = "DRW-00717-10_RAJ"
+    partHeaderNameNode.Text = partNum & "_" & rev
     partHeaderNode.appendChild partHeaderNameNode
     
-    'TODO: This should probably be done when we are creating the Characteristic noms so we dont have to solve for or remember the IDs
 '    For i = 0 To 2 '<-- need to iterate throught the IDs of our features, leaving this placeholder loop here
 '        Set partCharsIDNode = doc.createNode(MSXML2.NODE_ELEMENT, "ID", XML_SCHEMA_NAMESPACE_VALUE)
 '        partCharsIDNode.Text = i
@@ -118,18 +119,18 @@ Sub CreateXMLTest()
     Set charDefsNode = doc.createNode(MSXML2.NODE_ELEMENT, "CharacteristicDefinitions", XML_SCHEMA_NAMESPACE_VALUE)
     Set charNomsNode = doc.createNode(MSXML2.NODE_ELEMENT, "CharacteristicNominals", XML_SCHEMA_NAMESPACE_VALUE)
     Set charItemsNode = doc.createNode(MSXML2.NODE_ELEMENT, "CharacteristicItems", XML_SCHEMA_NAMESPACE_VALUE)
-    charDefsNode.setAttribute "n", "3" '<-- number of features
-    charNomsNode.setAttribute "n", "3" '<-- number of features
-    charItemsNode.setAttribute "n", "3" '<-- number of features
+    charDefsNode.setAttribute "n", CStr(UBound(featureArr, 2)) '<-- number of features
+    charNomsNode.setAttribute "n", CStr(UBound(featureArr, 2)) '<-- number of features
+    charItemsNode.setAttribute "n", CStr(UBound(featureArr, 2)) '<-- number of features
     characteristics.appendChild charDefsNode
     characteristics.appendChild charNomsNode
     characteristics.appendChild charItemsNode
     
-        
-    For i = 1 To 3 '<--- iterate through our list of features
+    'i=1 to (ubound(testArr, 2)
+    For i = 1 To UBound(featureArr, 2) '<--- iterate through our list of features
         'CharacteristicDefinitions
         Dim style As String
-        If testArr(1, i) = "Variable" Then
+        If featureArr(1, i) = "Variable" Then
             style = "Linear"
         Else
             style = "Attribute"
@@ -142,9 +143,9 @@ Sub CreateXMLTest()
         charDefsNode.appendChild charDef
         
         Set charDefName = doc.createNode(MSXML2.NODE_ELEMENT, "Name", XML_SCHEMA_NAMESPACE_VALUE)
-        charDefName.Text = testArr(0, i) '<--feature name
+        charDefName.Text = featureArr(0, i) '<--feature name
         Set charDefMeas = doc.createNode(MSXML2.NODE_ELEMENT, "WhatToMeasure", XML_SCHEMA_NAMESPACE_VALUE)
-        charDefMeas.Text = testArr(0, i) '<--feature name
+        charDefMeas.Text = featureArr(0, i) '<--feature name
         charDef.appendChild charDefName
         charDef.appendChild charDefMeas
         
@@ -152,9 +153,9 @@ Sub CreateXMLTest()
             Set charDefTol = doc.createNode(MSXML2.NODE_ELEMENT, "Tolerance", XML_SCHEMA_NAMESPACE_VALUE)
             
             Set charDefMax = doc.createNode(MSXML2.NODE_ELEMENT, "MaxValue", XML_SCHEMA_NAMESPACE_VALUE)
-            charDefMax.Text = testArr(4, i) '<-- Upper Limit
+            charDefMax.Text = featureArr(4, i) '<-- Upper Limit
             Set charDefMin = doc.createNode(MSXML2.NODE_ELEMENT, "MinValue", XML_SCHEMA_NAMESPACE_VALUE)
-            charDefMin.Text = testArr(2, i) '<-- Lower Limit
+            charDefMin.Text = featureArr(2, i) '<-- Lower Limit
             Set charDefLimit = doc.createNode(MSXML2.NODE_ELEMENT, "DefinedAsLimit", XML_SCHEMA_NAMESPACE_VALUE)
             charDefLimit.Text = "true"
             
@@ -167,7 +168,7 @@ Sub CreateXMLTest()
         
         'CharacteristicNominals
         Set charNom = doc.createNode(MSXML2.NODE_ELEMENT, "UserDefined" & style & "CharacteristicNominal", XML_SCHEMA_NAMESPACE_VALUE)
-        charNom.setAttribute "id", i + 3  '<---Unique ID (TODO: should be the number of features we have)
+        charNom.setAttribute "id", i + UBound(featureArr, 2) '<---Unique ID (TODO: should be the number of features we have)
         charNomsNode.appendChild charNom
         
         Set charDefID = doc.createNode(MSXML2.NODE_ELEMENT, "CharacteristicDefinitionId", XML_SCHEMA_NAMESPACE_VALUE)
@@ -181,7 +182,7 @@ Sub CreateXMLTest()
         
         If style = "Linear" Then
             Set charNomTarget = doc.createNode(MSXML2.NODE_ELEMENT, "TargetValue", XML_SCHEMA_NAMESPACE_VALUE)
-            charNomTarget.Text = testArr(2, i) '<-- Nominal Value
+            charNomTarget.Text = featureArr(3, i) '<-- Nominal Value
             charNom.appendChild charNomTarget
         Else
                 'Pass
@@ -203,19 +204,19 @@ Sub CreateXMLTest()
         
         'CharacteristicItems
         Set charItem = doc.createNode(MSXML2.NODE_ELEMENT, "UserDefined" & style & "CharacteristicItem", XML_SCHEMA_NAMESPACE_VALUE)
-        charItem.setAttribute "id", i + 6 '<---Unique ID (TODO: should be TWICE the number of features we have)
+        charItem.setAttribute "id", i + (UBound(featureArr, 2) * 2) '<---Unique ID (TODO: should be TWICE the number of features we have)
         charItemsNode.appendChild charItem
         
         Set charNomID = doc.createNode(MSXML2.NODE_ELEMENT, "CharacteristicNominalId", XML_SCHEMA_NAMESPACE_VALUE)
-        charNomID.Text = i + 3 '<--Link Nominal ID (TODO: should be equal to the number of features we have)
+        charNomID.Text = i + UBound(featureArr, 2) '<--Link Nominal ID (TODO: should be equal to the number of features we have)
         charItem.appendChild charNomID
         
         Set charItemDesc = doc.createNode(MSXML2.NODE_ELEMENT, "Description", XML_SCHEMA_NAMESPACE_VALUE)
-        charItemDesc.Text = "DRW-00717-10_RAJ." & testArr(0, i) '<-- Format of "Part_Rev.Feature", like "1642652_D.0_026_01"
+        charItemDesc.Text = partNum & "_" & rev & "." & featureArr(0, i) '<-- Format of "Part_Rev.Feature", like "1642652_D.0_026_01"
         charItem.appendChild charItemDesc
         
         Set charItemName = doc.createNode(MSXML2.NODE_ELEMENT, "Name", XML_SCHEMA_NAMESPACE_VALUE)
-        charItemName.Text = testArr(0, i) '<-- FeatureName
+        charItemName.Text = featureArr(0, i) '<-- FeatureName
         charItem.appendChild charItemName
     Next i
 
@@ -224,14 +225,17 @@ Sub CreateXMLTest()
     Set styles = New MSXML2.DOMDocument60
     Set output = New MSXML2.DOMDocument60
     styles.async = False
-    Dim stylesText As String
-    'TODO: change this up to the absolute directory, pull from DataSources
-    stylesText = fso.GetFile(ThisWorkbook.path & "\styles.xml").OpenAsTextStream.ReadAll
+'    Dim stylesText As String
+    
+    'TODO: doesnt really apply anymore
+    'Styles file applies the indenting to child elements
+'    stylesText = fso.GetFile(ThisWorkbook.path & "\styles.xml").OpenAsTextStream.ReadAll
 
 '    styles.LoadXML bstrXML:=stylesText
 '    doc.transformNodeToObject styles, output
     
-    Set ts = fso.CreateTextFile(ThisWorkbook.path & "\Output\New_Test.QIF")
+'    Set ts = fso.CreateTextFile(ThisWorkbook.path & "\Output\New_Test.QIF")
+    Set ts = fso.CreateTextFile(ThisWorkbook.path & "\Output\" & partNum & "_" & rev & "_" & routineName & "_" & "CREATE" & ".QIF")  'TODO: also include the routine in here
     Dim writer As MSXML2.MXXMLWriter60
     Set writer = New MSXML2.MXXMLWriter60
     Dim reader As MSXML2.SAXXMLReader60
@@ -272,3 +276,4 @@ Sub testArr()
     Debug.Print ("check this out")
 
 End Sub
+
