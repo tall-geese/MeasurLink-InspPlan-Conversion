@@ -47,13 +47,34 @@ Public Sub SetBorders(target As Range)
     target.Borders(xlEdgeRight).Weight = xlThin
 End Sub
 
+Public Function GetNumericSuffix(partNum As String) As String
+    Dim i As Integer
+    i = 0
+    Dim endNum As String
+    
+    While IsNumeric(Mid(partNum, Len(partNum) - i, 1))
+        i = i + 1
+        endNum = Right(partNum, i)
+        If Len(partNum) = i Then GoTo 10
+    Wend
+10
+    GetNumericSuffix = endNum
+
+End Function
+
+
+
+
+
 Sub test()
     Dim a As String
-    a = "$A$2:$A$9"
-    
-    Debug.Print (a)
-    Debug.Print (Len(a) - Len(Replace(a, "$A$", "")))
-
+    a = "80"
+    Debug.Print (GetNumericSuffix(a))
+    Dim sample As String
+    sample = Split(a, GetNumericSuffix(a))(0)
+    If sample = vbNullString Then
+        MsgBox ("its nothing")
+    End If
 
 End Sub
 
@@ -77,6 +98,7 @@ Sub arrTest()
 
 
 End Sub
+
 
 
 

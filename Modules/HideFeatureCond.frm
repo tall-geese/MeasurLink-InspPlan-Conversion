@@ -13,13 +13,21 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+'*************************************************************
+'*************************************************************
+'*                  HideFeatureCond
+'*
+'*************************************************************
+'*************************************************************
+
+
 
 Private Sub BuildHiddenFormulasButton_Click()
     Dim formula As String
     
     'If the User entered something in the PartNumber Text field
     If Me.PartNumberTextBox.Value <> vbNullString Then
-        On Error GoTo convertErr
+        On Error GoTo varErr
         
         Dim partField As String
         partField = Replace(Me.PartNumberTextBox.Value, " ", "") 'Ignore spaces
@@ -40,10 +48,35 @@ Private Sub BuildHiddenFormulasButton_Click()
             If InStr(seperations(i), "-") > 0 Then 'If we found a Range of values, split them up and do the high-low math
                 Dim partRange() As String
                 partRange = Split(seperations(i), "-") 'iterate over the difference, set lowNum + current iteration
-                If CDbl(partRange(1)) < CDbl(partRange(0)) Then GoTo convertErr
+                If UBound(partRange) <> 1 Then
+                    'There should be exactly to items: from and to
+                    Err.Raise Number:=vbObjectError + 1000, Description:="There should be exactly 2 items per '-' Delimiter"
+                End If
+                
+                Dim prefix As String
+                Dim fromNum As String
+                Dim toNum As String
+                
+                fromNum = ThisWorkbook.GetNumericSuffix(partRange(0))
+                toNum = ThisWorkbook.GetNumericSuffix(partRange(1))
+                prefix = Split(partRange(0), fromNum)(0)
+                
+                If prefix <> vbNullString Then
+                    If prefix <> Split(partRange(1), toNum)(0) Then 'The leading values arent the same
+                        Err.Raise Number:=vbObjectError + 1000, Description:="The leading characters of the part numbers between " _
+                            & "the range are not the same"
+                    End If
+                    partRange(0) = fromNum
+                    partRange(1) = toNum
+                End If
+                
+                
+                If CDbl(partRange(1)) < CDbl(partRange(0)) Then
+                    Err.Raise Number:=vbObjectError + 1000, Description:="End of range is smaller than the beginning"
+                End If
                 
                 For j = 0 To CDbl(partRange(1)) - CDbl(partRange(0))
-                    partNumCol.Add (CStr(CDbl(partRange(0) + j)))
+                    partNumCol.Add (prefix & CStr(CDbl(partRange(0) + j)))
                 Next j
             Else
                 partNumCol.Add (seperations(i)) 'Otherwise, just add the number
@@ -54,13 +87,13 @@ Private Sub BuildHiddenFormulasButton_Click()
         If partNumCol.Count = 1 Then
                 'Output of...
                 '=IF('START HERE'!$C$8=1642652,"",
-            formula = "=IF('START HERE'!$C$8=" & partNumCol.Item(1) & "," & Chr(34) & Chr(34) & ","
+            formula = "=IF('START HERE'!$C$8=" & Chr(34) & partNumCol.Item(1) & Chr(34) & "," & Chr(34) & Chr(34) & ","
         ElseIf partNumCol.Count > 1 Then
                 'Output of....
                 '=IF(OR('START HERE'!$C$8=1642652,'START HERE'!$C$8=1642653),"",
             formula = "=IF(OR("
             For Each partNum In partNumCol
-                formula = formula & "'START HERE'!$C$8=" & partNum
+                formula = formula & "'START HERE'!$C$8=" & Chr(34) & partNum & Chr(34)
                 If Not (partNumCol.Item(partNumCol.Count) = partNum) Then
                     formula = formula & ","
                 End If
@@ -84,13 +117,13 @@ Private Sub BuildHiddenFormulasButton_Click()
     Unload Me
     
     Exit Sub
-    
-convertErr:
-    MsgBox "Couldn't convert the Part Number(s), Try again or try setting a variable instead", vbCritical
-    GoTo 10
-    
 varErr:
-    MsgBox "Couldn't create a formula with these values", vbCritical
+    If Err.Number <> vbObjectError + 1000 Then
+       MsgBox "Couldn't convert the Part Number(s), Try again or try setting a variable instead", vbCritical
+    Else
+        MsgBox Err.Description, vbCritical
+    End If
+    On Error GoTo 0
     GoTo 10
 End Sub
 
@@ -121,3 +154,5 @@ Private Sub VariableTextBox_Change()
     Me.PartNumberTextBox.Value = vbNullString
         
 End Sub
+
+

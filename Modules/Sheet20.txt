@@ -207,12 +207,14 @@ Sub setNumberInstances(indexCell As Range)
     'if it has multiple instances, like 3X then we want to inlcude that information in its own cell
     If posistion > 0 Then
         returnString = Left(indexCell.offset(0, 7), posistion - 1)
+        If Not IsNumeric(returnString) Then GoTo 10 'In case we find an "X" like in "MAX", this isnt a mult instance
         With indexCell.offset(0, 8)
             .Value = returnString
             .Font.Bold = True
             .Font.color = RGB(0, 0, 0)
         End With
     ElseIf posistion = 0 Then
+10
         With indexCell.offset(0, 8)
             .Value = 1 'if there is only a single instance then set as "1", but gray so it doesnt draw attention
             .Font.Bold = False
@@ -357,7 +359,7 @@ Sub TransferData()
             If minInstance >= 2 Then
                 With targetCell
                     .NumberFormat = "General"
-                    .Formula2 = "=IF(" & .offset(1 - minInstance).Address & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & .offset(1 - minInstance).Address & ")"
+                    .Formula2 = "=IF(" & .offset(1 - minInstance).Address & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & Chr(34) & ballFormat & Chr(34) & ")"
                     '=IF($C$14="","",$C$14)
                 End With
             Else
@@ -366,13 +368,13 @@ Sub TransferData()
             targetCell.offset(0, -2).Value = indexNo
             
             Select Case minInstance
-                Case Is = 1
+                Case Is = 1 'Parent of Mult. Instances
                     targetCell.HorizontalAlignment = xlHAlignRight
-                    targetCell.Font.color = RGB(0, 176, 240)
-                Case Is >= 2
+                    targetCell.Font.color = RGB(68, 114, 196)
+                Case Is >= 2 'Child Instance
                     targetCell.HorizontalAlignment = xlHAlignCenter
                     targetCell.Font.color = RGB(128, 128, 128)
-                Case Else
+                Case Else 'Feature w/ no children
                     targetCell.HorizontalAlignment = xlHAlignRight
                     targetCell.Font.color = RGB(0, 0, 0)
             End Select
@@ -440,7 +442,6 @@ Public Function GetAddress(column As Integer) As String
     GetAddress = vArr(0)
 
 End Function
-
 
 
 
