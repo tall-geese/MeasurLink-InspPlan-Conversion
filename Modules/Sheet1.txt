@@ -71,18 +71,21 @@ End Sub
 
 Public Function IsInImmutableRange(targetCell As Range) As Boolean
     'We don't want to apply certain changes to the top 5 rows of visual criteria
+    
+    
+    
     Dim immutable As Range
     Dim intersection As Range
     Set immutable = Rows(DataSources.VISUALS)
-    On Error GoTo 10
+    On Error Resume Next
     Set intersection = Application.Intersect(immutable, targetCell)
     If Not intersection Is Nothing Then
         IsInImmutableRange = True
     End If
     
-    Exit Function
-10
-    Err.Raise vbObjectError + 1000, Description:="Problem with verifying immutable range" & vbCrLf & Err.Description
+'    Exit Function
+'10
+'    Err.Raise vbObjectError + 1000, Description:="Problem with verifying immutable range" & vbCrLf & Err.Description
 
 End Function
 
@@ -579,7 +582,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
                                     subCell.Value = ""
                                     GoTo 10
                                 ElseIf result = vbYes Then
-                                    Call LoadMfgTol(inspMethodCell:=subCell, minIndex:=minIndex, maxIndex:=maxIndex)
+                                    Call LoadMfgTol(inspMethodCell:=subCell, minIndex:=minIndex, maxIndex:=maxIndex, onChangeCalled:=True)
                                 Else
                                     'User doesnt care, do nothing
                                 End If
@@ -619,6 +622,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
         Next subCell
     End If
 20
+    On Error Resume Next
     Application.EnableEvents = True
 10
     Exit Sub
@@ -797,7 +801,8 @@ End Function
 '***************   Mfg Tolerances   *********************
 
 'Display the mfg tol Userform
-Public Sub LoadMfgTol(inspMethodCell As Range, minIndex As Integer, maxIndex As Integer)
+'Called in OnChange here in PartLib
+Public Sub LoadMfgTol(inspMethodCell As Range, minIndex As Integer, maxIndex As Integer, Optional onChangeCalled As Boolean)
     Load CreateMfgTolerance
     If maxIndex > 0 Then 'If this is a MAX dimension, disable the Utol Input field
         CreateMfgTolerance.UTolTextBox = inspMethodCell.offset(0, -8).Value
@@ -807,16 +812,19 @@ Public Sub LoadMfgTol(inspMethodCell As Range, minIndex As Integer, maxIndex As 
         CreateMfgTolerance.LTolTextBox.Enabled = False
     End If
     CreateMfgTolerance.Tag = inspMethodCell.offset(0, -11).Address 'Userform needs to know what cells to change
+    If onChangeCalled = True Then CreateMfgTolerance.NoteTextBox = "Range/Target adjusted for MeasurLink"
     CreateMfgTolerance.Show
 
 End Sub
 
 'Called by mfg Tol userform
-'TODO: maybe this method can be called from a ribbon function to set a new mfg tolerance
-Sub SetMfgTol(charAddress As String, inputs() As Variant)
+Sub SetMfgTol(charAddress As String, inputs() As Variant, Optional tolNote As Variant)
     Dim charRange As Range
     Set charRange = Range(charAddress) 'Address of e.g. 0_008_01
     Dim i As Integer
+    If Not IsMissing(tolNote) Then
+        tolNote = vbCrLf & tolNote
+    End If
     
     For i = 1 To 3
         Dim offsetRange As Range
@@ -828,9 +836,9 @@ Sub SetMfgTol(charAddress As String, inputs() As Variant)
         If offsetRange.Value = "" Then offsetRange.Value = 0
         
         If (offsetRange.CommentThreaded Is Nothing) Then
-            offsetRange.AddCommentThreaded ("Original Value: " & offsetRange.Value)
+            offsetRange.AddCommentThreaded ("Original Value: " & offsetRange.Value & tolNote)
         Else
-            offsetRange.CommentThreaded.AddReply ("Prev Value: " & offsetRange.Value)
+            offsetRange.CommentThreaded.AddReply ("Prev Value: " & offsetRange.Value & tolNote)
         End If
         offsetRange.Value = inputs(i - 1)
         offsetRange.Font.color = RGB(112, 48, 160)

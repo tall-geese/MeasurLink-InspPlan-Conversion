@@ -99,7 +99,11 @@ Sub arrTest()
 
 End Sub
 
+Sub eventTest()
+    Debug.Print (Application.EnableEvents)
 
+
+End Sub
 
 
 

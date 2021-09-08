@@ -185,8 +185,7 @@ Public Sub PivotFeature(ByRef control As IRibbonControl)
                 Dim sample As Integer
                 sample = partWS.Range("D3").End(xlToRight).column
                 
-                'TODO: we're prob going to have to come up with a way of chaning the colors and setting borders, depending on the amount of cells
-                'we prob need to ask the left neighbor cell what it's color and border is when we got to set a value
+
                 Set charCell = Worksheets("PartLib Table").GetCharOrFamily(charCell)
                 Worksheets("PivotFeature").SetCharacteristic feature:=charCell, lastCol:=sample
                 
