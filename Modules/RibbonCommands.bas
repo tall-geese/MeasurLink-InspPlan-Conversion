@@ -136,73 +136,12 @@ End Sub
 '******************   Pivot Features Btn  ***********************
 
 Public Sub PivotFeature(ByRef control As IRibbonControl)
-    Set partWS = Worksheets("PartLib Table")
     
     If ActiveSheet.Name = "PartLib Table" Then
-        If Not partWS.IsInImmutableRange(ActiveCell) Then
-            Dim charCell As Range
-            Set charCell = ActiveCell.offset(0, partWS.GetCol("Characteristic Name") - ActiveCell.column)
-            If charCell.Value <> vbNullString Then
-                Dim headerRange As Range
-                Set headerRange = partWS.Range("$D$3:" & partWS.Range("D3").End(xlToRight).Address)
-                
-                Dim pvtWS As Worksheet
-                Set pvtWS = Worksheets("PivotFeature")
-                Dim toRange As Range
-                Set toRange = pvtWS.Range("B4")
-                
-                Application.ScreenUpdating = False
-                
-                pvtWS.Unprotect Password:="3063bqa"
-                Call Worksheets("PivotFeature").Cleanup
-                
-                'Hide/Show our grouped rows, if they are hidden or not on the PartLib Table and vice-versa
-                If Not (partWS.Columns(4).EntireColumn.Hidden) Then
-                    pvtWS.Rows(3).EntireRow.ShowDetail = True
-                End If
-                If Not (partWS.Columns(8).EntireColumn.Hidden) Then
-                    pvtWS.Rows(8).EntireRow.ShowDetail = True
-                End If
-                If Not (partWS.Columns(18).EntireColumn.Hidden) Then
-                    pvtWS.Rows(18).EntireRow.ShowDetail = True
-                End If
-                
-                
-                Dim headerCell As Range
-                For Each headerCell In headerRange
-                    If toRange.Value = "" Then
-                        toRange.Value = headerCell.Value
-                        toRange.Interior.color = headerCell.Interior.color
-                        toRange.offset(0, -1).Value = "QE"
-                        toRange.offset(0, -1).Interior.color = headerCell.Interior.color
-                        
-                        ThisWorkbook.SetBorders target:=toRange
-                        ThisWorkbook.SetBorders target:=toRange.offset(0, -1)
-                    End If
-                    Set toRange = toRange.offset(1, 0)
-                Next headerCell
-                
-                Dim sample As Integer
-                sample = partWS.Range("D3").End(xlToRight).column
-                
-
-                Set charCell = Worksheets("PartLib Table").GetCharOrFamily(charCell)
-                Worksheets("PivotFeature").SetCharacteristic feature:=charCell, lastCol:=sample
-                
-                pvtWS.Visible = xlSheetVisible
-                pvtWS.Activate
-                
-                pvtWS.Protect Password:="3063bqa"
-            End If
-        
-        End If
-        
+        Call Worksheets("PartLib Table").PivotOnFeature
     ElseIf ActiveSheet.Name = "PivotFeature" Then
         Worksheets("PartLib Table").Activate
     End If
-10
-    Application.ScreenUpdating = True
-    
 End Sub
 
 

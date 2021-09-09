@@ -459,6 +459,83 @@ Public Sub DeleteRoutine(routineName As String)
 End Sub
 
 
+Public Sub PivotOnFeature(Optional CharName As String, Optional Direction As Integer)
+    Dim selectedCell As Range
+    If CharName = "" Then
+        'Called by RibbonCommands
+        Set selectedCell = ActiveCell
+    Else
+        'Called by PivotFeatureSheet
+        Set selectedCell = Range("C" & Application.WorksheetFunction.Match(CharName, Range("C1:C500"), 0))
+        Do
+            Set selectedCell = selectedCell.offset(Direction, 0)
+            If selectedCell.offset(0, -2).Value = "" Or (Not IsNumeric(selectedCell.offset(0, -2).Value)) Then Exit Sub
+        Loop While (selectedCell.Value = "")
+    End If
+    
+    Debug.Print (selectedCell.Value)
+    
+    If Not IsInImmutableRange(selectedCell) Then
+            Dim charCell As Range
+            Set charCell = selectedCell.offset(0, GetCol("Characteristic Name") - selectedCell.column)
+            If charCell.Value <> vbNullString Then
+                Dim headerRange As Range
+                Set headerRange = Range("$D$3:" & Range("D3").End(xlToRight).Address)
+                
+                
+                Dim pvtWS As Worksheet
+                Set pvtWS = Worksheets("PivotFeature")
+                Dim toRange As Range
+                Set toRange = pvtWS.Range("B4")
+                
+                Application.ScreenUpdating = False
+                
+                pvtWS.Unprotect Password:="3063bqa"
+                Call Worksheets("PivotFeature").Cleanup
+                
+                'Hide/Show our grouped rows, if they are hidden or not on the PartLib Table and vice-versa
+                If Not (Columns(4).EntireColumn.Hidden) Then
+                    pvtWS.Rows(3).EntireRow.ShowDetail = True
+                End If
+                If Not (Columns(8).EntireColumn.Hidden) Then
+                    pvtWS.Rows(8).EntireRow.ShowDetail = True
+                End If
+                If Not (Columns(18).EntireColumn.Hidden) Then
+                    pvtWS.Rows(18).EntireRow.ShowDetail = True
+                End If
+                
+                'Set Headers like Comments, Inspection Method, Etc.
+                Dim headerCell As Range
+                For Each headerCell In headerRange
+                    If toRange.Value = "" Then
+                        toRange.Value = headerCell.Value
+                        toRange.Interior.color = headerCell.Interior.color
+                        toRange.offset(0, -1).Value = "QE" 'Routine Headers have QE set as the owner
+                        toRange.offset(0, -1).Interior.color = headerCell.Interior.color
+                        
+                        ThisWorkbook.SetBorders target:=toRange
+                        ThisWorkbook.SetBorders target:=toRange.offset(0, -1)
+                    End If
+                    Set toRange = toRange.offset(1, 0)
+                Next headerCell
+                
+                Dim lastCol As Integer
+                lastCol = Range("D3").End(xlToRight).column
+                
+
+                Set charCell = GetCharOrFamily(charCell)
+                Worksheets("PivotFeature").SetCharacteristic feature:=charCell, lastCol:=lastCol
+                
+                pvtWS.Visible = xlSheetVisible
+                pvtWS.Activate
+                pvtWS.Protect Password:="3063bqa"
+                
+                Application.ScreenUpdating = True
+            End If
+        End If
+End Sub
+
+
 
 
 
