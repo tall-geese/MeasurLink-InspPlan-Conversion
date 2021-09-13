@@ -58,12 +58,12 @@ Public Sub ExportQIF(ByRef control As IRibbonControl)
             featureArr = Worksheets("PartLib Table").CollectFeaturesForExport(routineArr(i))
             If (Not featureArr) = -1 Then
                 MsgBox ("Didnt find any characteristics for " & vbCrLf & routineArr(i) & vbCrLf & "No Output")
-                GoTo cont
+                GoTo Cont
             End If
             
             'TODO: change to include in teh routine name
             Call XMLCreation.CreateXML(featureArr, partArr(j), rev, routineArr(i))
-cont:
+Cont:
         Next j
     Next i
     
@@ -82,6 +82,102 @@ cont:
 20
 End Sub
 
+
+Public Sub ImportRoutineMap(ByRef control As IRibbonControl)
+    'TODO: the workbook should be adding its version code on startup
+    Dim fso As FileSystemObject
+    Set fso = New FileSystemObject
+    Dim extPath As String
+    Dim cust As String
+    Dim wbPath As String
+    Dim readWB As Workbook
+    
+    
+    
+    cust = Worksheets("START HERE").Range("C2").Value
+    If cust <> "" And fso.FolderExists(DataSources.REPORTS_PATH & cust) Then
+        extPath = DataSources.REPORTS_PATH & cust
+    Else
+        extPath = DataSources.REPORTS_PATH
+    End If
+    
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .InitialFileName = extPath
+        .Title = "Select Routine Map to Import"
+        .Show
+        
+        If .SelectedItems.Count = 0 Then Exit Sub
+        wbPath = .SelectedItems.Item(1)
+    End With
+    
+    
+    On Error GoTo fileErr
+    If (InStr(wbPath, ".xlsx") > 0) Then
+        Err.Raise Number:=vbObjectError + 1100, Description:="This should be a new style Routine Map, Version 1.X.X Min"
+    End If
+    If Not (InStr(wbPath, ".xlsm") > 0) Then
+        Err.Raise Number:=vbObjectError + 1100, Description:=""
+    End If
+    
+    
+    'Will opening the workbook cause some events to fire that we dont want?
+    'Disable events before opening?
+    
+    Application.EnableEvents = False
+    On Error GoTo wbErr
+    Set readWB = Workbooks.Open(Filename:=wbPath, UpdateLinks:=False, ReadOnly:=True)
+    Application.EnableEvents = True
+    
+    Dim verCode As String
+    On Error GoTo subErr
+    With readWB.VBProject.VBComponents("DataSources").CodeModule
+        On Error GoTo verErr
+        verCode = Split(Split(.Lines(1, .CountOfDeclarationLines), "Const VERSION = " & Chr(34))(1), Chr(34))(0)
+    End With
+    
+    Dim verNums() As String
+    verNums = Split(verCode, ".")
+    If CDbl(verNums(0) & "." & verNums(1)) < 1.1 Then
+        MsgBox (verNums(0) & "." & verNums(1))
+        GoTo verErr 'Functionality supported in 1.1.0
+    End If
+    
+    Dim featuresArr() As String
+    featuresArr = readWB.GetFeaturesForImport()
+    If (Not featuresArr) = -1 Then
+        MsgBox "Didn't find any features to set", vbInformation
+        GoTo 10
+    End If
+    
+    On Error GoTo featErr
+    ThisWorkbook.Worksheets("PartLib Table").ImportRoutineMap (featuresArr)
+10
+    On Error Resume Next
+    readWB.Close SaveChanges:=False
+       
+    Exit Sub
+    
+    
+fileErr:
+    MsgBox "You selected an incorrect file type." & vbCrLf & Err.Description, vbCritical
+    Exit Sub
+subErr:
+    MsgBox "This RoutineMap does not support Import Functionality", vbInformation
+    GoTo 10
+verErr:
+    MsgBox "This Version of the RoutineMap does not support Importing", vbInformation
+    GoTo 10
+featErr:
+    MsgBox "Error encountered when setting feature information", vbInformation
+    GoTo 10
+wbErr:
+    MsgBox "Coudn't Open the Workbook", vbCritical
+    On Error Resume Next
+    readWB.Close SaveChanges:=False
+    Application.EnableEvents = True
+    Exit Sub
+
+End Sub
 
 
 '****************************************************
@@ -199,14 +295,14 @@ Public Sub HideFeaturesCondForm(ByRef control As IRibbonControl)
                     'We're going to index from the Characteristic Cell
                     Set featureCell = subCell.offset(0, partWS.GetCol("Characteristic Name") - subCell.column)
                     'Ignore cells w/o Characteristic Names
-                    If featureCell.Value = "" Then GoTo cont
+                    If featureCell.Value = "" Then GoTo Cont
                     
                     'If the user did a horizontal collection, we only want to set one feature ONCE
                     If Not ThisWorkbook.IsInColl(featureCol, featureCell) Then
                         featureCol.Add featureCell
                     End If
                 End If
-cont:
+Cont:
             Next subCell
             
             If featureCol.Count = 0 Then Exit Sub
@@ -294,6 +390,8 @@ End Sub
 Public Sub DisableEvents_Toggle(ByRef control As Office.IRibbonControl, ByRef isPressed As Boolean)
     Application.EnableEvents = Not (isPressed)
 End Sub
+
+
 
 
 

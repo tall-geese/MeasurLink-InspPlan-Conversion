@@ -125,5 +125,37 @@ Public Function GetPartNumberOrNumbers() As String()
 
 End Function
 
+'Called by PartLibTable.ExportRoutineMap
+Public Function GetPartNumbers() As String()
+    Dim firstNum As Range
+    Set firstNum = Range("A2")
+    Dim partNums() As String
+    
+    'If the first cell is missing a part number, then the wb is prob not part number dependant
+    If firstNum.Value = "" Then
+        GetPartNumbers = partNums
+    End If
+    
+    'If the row below A2 has nothing, then assume there is no part family table
+    If firstNum.offset(1, 0).Value = "" Then
+        ReDim Preserve partNums(0)
+        partNums(0) = firstNum.Value
+    Else
+        'Otherwise fill array with every part num
+        Set firstNum = Range("A2:A" & Range("A2").End(xlDown).Row)
+        For Each subCell In firstNum
+            If (Not partNums) = -1 Then
+                ReDim Preserve partNums(0)
+                partNums(0) = subCell.Value
+            Else
+                ReDim Preserve partNums(UBound(partNums) + 1)
+                partNums(UBound(partNums)) = subCell.Value
+            End If
+        Next subCell
+    End If
+    GetPartNumbers = partNums
+10
+
+End Function
 
 

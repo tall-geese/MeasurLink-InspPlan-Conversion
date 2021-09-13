@@ -48,8 +48,6 @@ Public Sub ApplyGroupings()
             groupStart = 0
         ElseIf (instanceGroup = True And cell.Row = rangeEnd) Then
             Rows(groupStart & ":" & cell.Row - 1).Group
-        Else
-            'Next iteration
         End If
     Next cell
     
@@ -378,7 +376,7 @@ Public Function CollectFeaturesForExport(routineName As String) As Variant()
                 MsgBox ("Error here: " & indexCell.offset(0, 2).Value & vbCrLf & "No Inspection Type (Variable/Attribute) was set")
                 GoTo 10
             ElseIf indexCell.offset(0, rtCol - indexCell.column).Value = "" Then 'If there is no X or O or anything for the routine, skip this
-                GoTo cont
+                GoTo Cont
             Else
                 If (Not featureArr) = -1 Then
                     ReDim Preserve featureArr(0 To 4, 1 To 1)
@@ -410,7 +408,7 @@ Public Function CollectFeaturesForExport(routineName As String) As Variant()
                 End If
             End If
         End If
-cont:
+Cont:
     Next indexCell
     
     CollectFeaturesForExport = featureArr
@@ -535,6 +533,151 @@ Public Sub PivotOnFeature(Optional CharName As String, Optional Direction As Int
         End If
 End Sub
 
+'Called By ThisWorkbook  (Import RoutineMap)
+Public Function ExportRoutineMap() As String()
+    'If our workbook has multiple part numbers, then we want to set one of them first before
+    'going further, so cells will have information hidden or variably changed correctly.
+    Dim partArr() As String
+    partArr = Worksheets("Variables").GetPartNumbers()
+    
+    'If there's no part numbers in the Variables Tab, this Routine Map is likely not part number dependant, skip ahead
+    If (Not partArr) = -1 Then
+        GoTo 10
+    End If
+
+    'If there is only a single part number in the variables tab, skip ahead but first just make sure that its set in the START HERE page
+    If UBound(partArr) = 0 Then 'TODO: also goto, but might as well first copy this part number in the START HERE cell
+        Worksheets("START HERE").Range("C8").Value = partArr(0)
+        GoTo 10
+    Else
+    'Otherwise they need to select a part number, becuase we can only work with one
+        Load PartNumForm
+        Dim k As Integer
+        For k = 0 To UBound(partArr)
+            PartNumForm.PartNumComboBox.AddItem partArr(k)
+        Next k
+        PartNumForm.Show
+        
+        If PartNumForm.PartNumComboBox.Value = "" Then
+            Exit Function
+        Else
+            Worksheets("START HERE").Range("C8").Value = PartNumForm.PartNumComboBox.Value
+        End If
+        
+        Unload PartNumForm
+    End If
+    
+10
+    Dim featureArr() As String
+    Dim featureCount As Integer
+    Dim subCell As Range
+    For Each subCell In Range("A4:A" & Range("A4").End(xlDown).Row)
+        If Not (IsInImmutableRange(subCell)) And subCell.offset(0, 2).Value <> "" Then
+            featureCount = featureCount + 1 'Get a count of how many features to export. We can't redim this later
+        End If
+    Next subCell
+    
+    If featureCount = 0 Then Exit Function
+    
+    '25 columns to collect info from (0 indexed). Everything but Index and the routines
+    ReDim Preserve featureArr(featureCount - 1, 24)
+    Dim i As Integer
+    Dim j As Integer
+    i = 0
+    
+    For Each subCell In Range("A4:A" & Range("A4").End(xlDown).Row)
+        'If its not one of the immmutable cells and there is an index number
+        If Not (IsInImmutableRange(subCell)) And subCell.offset(0, 2).Value <> "" Then
+            For j = 1 To 25
+                'Only collecting the hard-coded values. Should be no reason to copy over the formulas, they wont be related to the
+                    'new parent's part numbers
+                featureArr(i, j - 1) = subCell.offset(0, j).Value
+            Next j
+            i = i + 1
+        End If
+    Next subCell
+    
+    ExportRoutineMap = featureArr
+
+End Function
+
+'Called By RibbonCommands (Import RoutineMap)
+Public Sub ImportRoutineMap(featuresArr() As String)
+    'Turn off events first
+    'Alert if we see an "Attached Image" but we dont have that filename in the "Attachments" directory
+    'There are some formula driven columns that we probably should skip, like tol range and balloon num??
+    Me.Activate
+    Application.EnableEvents = False
+    
+    Dim indexCell As Range
+    Dim lastIndex As Integer
+    Set indexCell = Range("A4").End(xlDown)
+    lastIndex = CInt(indexCell.Value)
+    
+    Dim skipCols As Collection
+    Set skipCols = New Collection
+    'We should skip adding to LowerLimit, Target, UpperLimit, BALLOON NO., and Tol. Range
+    skipCols.Add ("H")
+    skipCols.Add ("I")
+    skipCols.Add ("J")
+    skipCols.Add ("K")
+    skipCols.Add ("R")
+    
+    Dim i As Integer
+    Dim j As Integer
+    For i = 0 To UBound(featuresArr) 'For each feature
+        Set indexCell = indexCell.offset(1, 0)
+        lastIndex = lastIndex + 1
+        indexCell.Value = lastIndex
+        For j = 0 To UBound(featuresArr, 2) 'For each column
+            If Not (ThisWorkbook.ColInColl(skipCols, Mid(indexCell.offset(0, j + 1).Address, 2, 1))) Then
+                Dim targetCell As Range
+                Set targetCell = indexCell.offset(0, j + 1)
+                
+                If j = 1 Then 'If we hit Characteristic Name
+                    Dim instance As Integer
+                    instance = CInt(Right(featuresArr(i, j), 2))
+                    
+                    'If parent or child multiple instance, then apply special formatting
+                    If instance >= 1 Then
+                        Select Case instance
+                        Case Is = 1 'Parent of Mult. Instances
+                            targetCell.HorizontalAlignment = xlHAlignRight
+                            targetCell.Font.color = RGB(68, 114, 196)
+                        Case Is >= 2 'Child Instance
+                            targetCell.HorizontalAlignment = xlHAlignCenter
+                            targetCell.Font.color = RGB(128, 128, 128)
+                        End Select
+                    End If
+                    
+                    'If its a child Cell, we should apply formulas instead of the literal values
+                    If instance >= 2 Then
+                        Dim parentCell As Range
+                        Set parentCell = targetCell.offset((1 - instance), 0)
+                        Worksheets("IEX-DATA").SetInstance refCell:=parentCell, destCell:=targetCell, instance:=instance
+                        targetCell.Value = ""
+                                            '=IF($C$11="","","0_003_02")
+                        targetCell.formula = "=IF(" & parentCell.Address & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) _
+                            & "," & Chr(34) & featuresArr(i, j) & Chr(34) & ")"
+                        GoTo nextFeat 'The other columns get set by the SetInstance call, so just go to next feature
+                    End If
+                End If
+                
+                targetCell.Value = featuresArr(i, j)
+            End If
+        Next j
+nextFeat:
+    Next i
+    
+    Call ApplyGroupings
+    Call IgnoreErrors
+10
+    Application.EnableEvents = True
+    Exit Sub
+SetErr:
+    MsgBox "Error encountered when setting features"
+    GoTo 10
+End Sub
 
 
 
@@ -1084,6 +1227,12 @@ Private Function ParseToolValue(tool As String) As String
     End If
 
 End Function
+
+
+
+
+
+
 
 
 

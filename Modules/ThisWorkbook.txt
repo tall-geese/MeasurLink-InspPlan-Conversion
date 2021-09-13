@@ -26,6 +26,15 @@ Private Sub Workbook_Open()
     Call Validations.OpenDataValidations
 End Sub
 
+
+Public Function GetFeaturesForImport()
+    GetFeaturesForImport = Worksheets("PartLib Table").ExportRoutineMap()
+End Function
+
+
+
+
+
 Public Function IsInColl(col As Collection, val As Range) As Boolean
     For Each subitem In col
         If subitem = val Then
@@ -33,6 +42,15 @@ Public Function IsInColl(col As Collection, val As Range) As Boolean
         End If
     Next subitem
 End Function
+
+Public Function ColInColl(col As Collection, val As String) As Boolean
+    For Each subitem In col
+        If subitem = val Then
+            ColInColl = True
+        End If
+    Next subitem
+End Function
+
 
 
 Sub events()
@@ -64,46 +82,6 @@ End Function
 
 
 
-
-
-Sub test()
-    Dim a As String
-    a = "80"
-    Debug.Print (GetNumericSuffix(a))
-    Dim sample As String
-    sample = Split(a, GetNumericSuffix(a))(0)
-    If sample = vbNullString Then
-        MsgBox ("its nothing")
-    End If
-
-End Sub
-
-Sub teste2()
-    MsgBox (ThisWorkbook.path & "\Output\New_Test.qif")
-
-
-End Sub
-
-
-Sub arrTest()
-    Dim arr() As Variant
-    For i = 0 To 3
-        If (Not arr) = -1 Then
-            ReDim Preserve arr(0 To 4, 0)
-        Else
-            ReDim Preserve arr(0 To 4, 0 To UBound(arr, 2) + 1)
-        End If
-        Debug.Print (UBound(arr, 2))
-    Next i
-
-
-End Sub
-
-Sub eventTest()
-    Debug.Print (Application.EnableEvents)
-
-
-End Sub
 
 
 
