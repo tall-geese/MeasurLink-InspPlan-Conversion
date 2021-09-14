@@ -368,17 +368,118 @@ End Sub
 
 
 Public Sub DeleteRoutines(ByRef control As IRibbonControl)
-    Dim routineArr() As String
-    routineArr = Worksheets("PartLib Table").GetRoutineListing()
-    If (Not routineArr) = -1 Then 'If there are no routines yet, exit sub
-        Exit Sub
-    End If
+    Dim colors() As Variant
+    Dim routines() As Variant
     
-    Load DeleteRoutineForm
-    For i = 0 To UBound(routineArr)
-        DeleteRoutineForm.RoutineComboBox.AddItem routineArr(i)
+    On Error GoTo rtErr
+    routines = Worksheets("PartLib Table").GetRoutinesAndColors(colors)
+
+    On Error GoTo frmErr
+    Load DelRoutinesForm
+    Dim myFrame As MSForms.Frame
+    Dim chkbx As MSForms.CheckBox
+    Dim ctl As MSForms.control
+    Dim btn As btnClass
+    Dim spacing As Integer
+    
+    For i = 0 To UBound(routines)
+        'Spacing, account for how many rows each frame will  have
+        spacing = spacing + (5 + Application.WorksheetFunction.Ceiling_Math((UBound(routines(i)) + 1) / 3) * 16)
     Next i
-    DeleteRoutineForm.Show
+    
+    Dim padding As Integer
+    For i = 0 To UBound(colors)
+        'Frames need to be spaced further from the top depending on the order they're in
+        padding = padding + (10 * (i + 1))
+    Next i
+    
+    spacing = spacing + padding
+    
+    'Exponential negative scaling, it just works
+    spacing = spacing + ((i * i) * (-4))
+    
+    'Add the height of the btn
+    spacing = spacing + 30
+    
+    'Add the difference of (Height  - Inside Height)
+    DelRoutinesForm.Height = spacing + 37
+    
+    
+    
+    For i = 0 To UBound(routines)
+        'For each group, create a frame to house the routines in
+        Set myFrame = DelRoutinesForm.Controls.Add("Forms.Frame.1", "myframe" & (i + 1))
+        With myFrame
+            .BackColor = colors(i) 'Set the background color to the color we found associated with that routine name
+            .Height = 5 + Application.WorksheetFunction.Ceiling_Math((UBound(routines(i)) + 1) / 3) * 16 'Scaling height depending on rows
+            .Top = 10 * (i + 1)
+            If i > 0 Then
+                For k = 1 To i
+                    .Top = .Top + DelRoutinesForm.Controls("myframe" & k).Height
+                Next k
+            End If
+            .Left = 11
+            .Width = 366
+            'For each frame, set the grouped routine names
+            For j = 0 To UBound(routines(i))
+                Set chkbx = myFrame.Controls.Add("Forms.CheckBox.1", "myBox" & (j + 1))
+                With chkbx
+                    .Height = 18
+                    .Width = 120
+                    .Left = 10 + (120 * Application.WorksheetFunction.Floor_Math(j Mod 3))
+                    .Caption = routines(i)(j)
+                    .Top = 1 + (14 * Application.WorksheetFunction.Floor_Math(j / 3))
+                End With
+            Next j
+        End With
+    Next i
+    
+    Set ctl = DelRoutinesForm.Controls.Add("Forms.CommandButton.1", "myBtn")
+    'Set configuration for the btn
+    With ctl
+        .Height = 30
+            'Set it underneath the last frame that we set
+        .Top = DelRoutinesForm.Controls("myframe" & i).Top + DelRoutinesForm.Controls("myframe" & i).Height + 2
+        .Width = 366
+        .Left = 11
+        .Caption = "Delete Routines"
+        .Font.Bold = True
+        .Font.Size = 12
+    End With
+
+    'Set as an instance of our custom btn class which has the callback function associated with it
+    Set btn = New btnClass
+    Set btn.btn = ctl
+    Set btn.usrForm = DelRoutinesForm
+    
+    DelRoutinesForm.Show
+    
+    On Error GoTo delErr
+    Dim contr As MSForms.control
+    For Each contr In DelRoutinesForm.Controls
+        If TypeName(contr) = "CheckBox" Then
+            If contr.Value = True Then
+                'For each checked off box, delete that routine
+                Call Worksheets("PartLib Table").DeleteRoutine(contr.Caption)
+            End If
+        End If
+    Next contr
+    
+    Unload DelRoutinesForm
+    
+    Exit Sub
+rtErr:
+    MsgBox "Couldn't read the Value or Color of a Routine", vbCritical
+    Exit Sub
+
+frmErr:
+    MsgBox "Error when building form with listing of routines", vbCritical
+    Exit Sub
+    
+delErr:
+    MsgBox "Couldn't Delete the routine: " & contr.Caption, vbCritical
+    Exit Sub
+    
 End Sub
 
 

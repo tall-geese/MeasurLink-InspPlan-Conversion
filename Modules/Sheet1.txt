@@ -284,7 +284,6 @@ Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As 
     
     Application.EnableEvents = False
     
-    Call AppendOperationNames(opTag & sequence)
     
     For i = 0 To UBound(routineArr)
         nextCol.Value = routineArr(i) & sequence & suffix
@@ -293,6 +292,8 @@ Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As 
         
         Set nextCol = nextCol.offset(0, 1)
     Next i
+    
+    Call AppendOperationNames(opTag & sequence, routineArr)
     
     
 20
@@ -307,9 +308,10 @@ End Sub
 
 
 'Called by SetRoutines
-Public Sub AppendOperationNames(opName As String)
+Public Sub AppendOperationNames(opName As String, routineArr() As Variant)
     Dim charRange As Range
     Dim i As Integer
+    Dim j As Integer
     On Error GoTo 10
     Cells(9, 3).Activate
     Set charRange = Application.InputBox("Select Characteristics the OP(s) are Applicable to", "Select Characteristics", Type:=8)
@@ -338,10 +340,44 @@ Public Sub AppendOperationNames(opName As String)
         Dim tempRange As Range
         Set tempRange = Range(addys(i))
         Dim subCell As Range
-        For Each subCell In tempRange
+        For Each subCell In tempRange 'For each characteristic the user selected
             If subCell.Value <> vbNullString Then
-                subCell.offset(0, 23).Value = opName
+                Dim opCell As Range
+                Set opCell = subCell.offset(0, 23)
+                If IsNumeric(Right(subCell.Value, 1)) Then
+                    Dim instance As Integer
+                    instance = CInt(Split(subCell.Value, "_")(2))
+                    If instance >= 2 Then 'If its a child instance, set the referential formulas
+                        Dim offsetVal As Integer
+                        Do
+                            With opCell
+                                Dim parentAddr As String
+                                parentAddr = Worksheets("IEX-DATA").GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
+                                .Value = ""
+                                .NumberFormat = "General"
+                                '=IF(G14="","",G14)
+                                .Formula2 = "=IF(" & parentAddr & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddr & ")"
+                            End With
+                            
+                            If j <= UBound(routineArr) Then
+                                offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
+                                Set opCell = opCell.offset(0, offsetVal)
+                                j = j + 1
+                            Else
+                                Exit Do
+                            End If
+                        Loop While True
+                    Else
+                        'Otherwise its a parent instance or non-family
+                        GoTo 20
+                    End If
+                Else
+20
+                    'Otherwise not numeric
+                    opCell.Value = opName
+                End If
             End If
+            j = 0
         Next subCell
     Next i
     
@@ -444,6 +480,62 @@ Public Function GetRoutineListing() As String()
 
 End Function
 
+'Called by RibbonCommands.DeleteRoutines
+Public Function GetRoutinesAndColors(ByRef colors() As Variant) As Variant()
+    If Not Not colors Then Exit Function
+
+    Dim rtRange As Range
+    Set rtRange = Range("AA3:BZ3")
+    Dim subCell As Range
+    Dim i As Integer
+    Dim j As Integer
+    Dim routineArr() As Variant
+    
+    'Fill our array with the Unique Colors
+    For Each subCell In rtRange
+        If subCell.Value <> "" Then
+            If (Not colors) = -1 Then
+                ReDim Preserve colors(0)
+                colors(0) = subCell.Interior.color
+            Else
+                For i = 0 To UBound(colors)
+                    'If we have the color in our collection already, continue on
+                    If colors(i) = subCell.Interior.color Then GoTo nextCell
+                Next i
+                'If we found a unique color, we should add it to our list
+                ReDim Preserve colors(UBound(colors) + 1)
+                colors(UBound(colors)) = subCell.Interior.color
+            End If
+        End If
+nextCell:
+    Next subCell
+    
+    'For each color, we need an array of the routines that are associated with it
+    ReDim Preserve routineArr(UBound(colors))
+    
+    'Go through each routine Cell again, adding a routine if it isn't empty and fits the color
+    For i = 0 To UBound(routineArr)
+        Dim tempArray() As Variant
+        For Each subCell In rtRange
+            If subCell.Value <> "" And subCell.Interior.color = colors(i) Then
+                If (Not tempArray) = -1 Then
+                    ReDim Preserve tempArray(0)
+                    tempArray(0) = subCell.Value
+                Else
+                    ReDim Preserve tempArray(UBound(tempArray) + 1)
+                    tempArray(UBound(tempArray)) = subCell.Value
+                End If
+            End If
+        Next subCell
+        
+        routineArr(i) = tempArray
+        Erase tempArray
+    Next i
+    
+    GetRoutinesAndColors = routineArr
+
+End Function
+
 'TODO: temp placeholder
 Public Sub DeleteRoutine(routineName As String)
     Dim colNum As Integer
@@ -492,6 +584,7 @@ Public Sub PivotOnFeature(Optional CharName As String, Optional Direction As Int
                 Call Worksheets("PivotFeature").Cleanup
                 
                 'Hide/Show our grouped rows, if they are hidden or not on the PartLib Table and vice-versa
+                On Error Resume Next
                 If Not (Columns(4).EntireColumn.Hidden) Then
                     pvtWS.Rows(3).EntireRow.ShowDetail = True
                 End If
@@ -502,6 +595,7 @@ Public Sub PivotOnFeature(Optional CharName As String, Optional Direction As Int
                     pvtWS.Rows(18).EntireRow.ShowDetail = True
                 End If
                 
+                On Error GoTo 0
                 'Set Headers like Comments, Inspection Method, Etc.
                 Dim headerCell As Range
                 For Each headerCell In headerRange
@@ -1227,43 +1321,5 @@ Private Function ParseToolValue(tool As String) As String
     End If
 
 End Function
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
