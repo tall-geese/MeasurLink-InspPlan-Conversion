@@ -353,6 +353,9 @@ Public Sub SetMfgTolerance(ByRef control As IRibbonControl)
 End Sub
 
 
+
+
+
 '****************************************************
 '***************   Routines   ***********************
 '****************************************************
@@ -366,120 +369,71 @@ Public Sub InsertOperation(ByRef control As IRibbonControl)
 
 End Sub
 
-
+'******************   Delete Routines Btn  ***********************
 Public Sub DeleteRoutines(ByRef control As IRibbonControl)
     Dim colors() As Variant
     Dim routines() As Variant
+    Dim selectedRoutines() As String
     
     On Error GoTo rtErr
     routines = Worksheets("PartLib Table").GetRoutinesAndColors(colors)
-
-    On Error GoTo frmErr
-    Load DelRoutinesForm
-    Dim myFrame As MSForms.Frame
-    Dim chkbx As MSForms.CheckBox
-    Dim ctl As MSForms.control
-    Dim btn As btnClass
-    Dim spacing As Integer
     
-    For i = 0 To UBound(routines)
-        'Spacing, account for how many rows each frame will  have
-        spacing = spacing + (5 + Application.WorksheetFunction.Ceiling_Math((UBound(routines(i)) + 1) / 3) * 16)
+    'TODO: error handle here before trying to delete routines???
+    selectedRoutines = ThisWorkbook.BuildRoutineForm(routines:=routines, colors:=colors, frmHeader:="Select Routine(s) to Delete", _
+                            btnCaption:="Delete")
+    If (Not selectedRoutines) = -1 Then Exit Sub
+    
+    For i = 0 To UBound(selectedRoutines)
+        Call Worksheets("PartLib Table").DeleteRoutine(selectedRoutines(i))
     Next i
-    
-    Dim padding As Integer
-    For i = 0 To UBound(colors)
-        'Frames need to be spaced further from the top depending on the order they're in
-        padding = padding + (10 * (i + 1))
-    Next i
-    
-    spacing = spacing + padding
-    
-    'Exponential negative scaling, it just works
-    spacing = spacing + ((i * i) * (-4))
-    
-    'Add the height of the btn
-    spacing = spacing + 30
-    
-    'Add the difference of (Height  - Inside Height)
-    DelRoutinesForm.Height = spacing + 37
-    
-    
-    
-    For i = 0 To UBound(routines)
-        'For each group, create a frame to house the routines in
-        Set myFrame = DelRoutinesForm.Controls.Add("Forms.Frame.1", "myframe" & (i + 1))
-        With myFrame
-            .BackColor = colors(i) 'Set the background color to the color we found associated with that routine name
-            .Height = 5 + Application.WorksheetFunction.Ceiling_Math((UBound(routines(i)) + 1) / 3) * 16 'Scaling height depending on rows
-            .Top = 10 * (i + 1)
-            If i > 0 Then
-                For k = 1 To i
-                    .Top = .Top + DelRoutinesForm.Controls("myframe" & k).Height
-                Next k
-            End If
-            .Left = 11
-            .Width = 366
-            'For each frame, set the grouped routine names
-            For j = 0 To UBound(routines(i))
-                Set chkbx = myFrame.Controls.Add("Forms.CheckBox.1", "myBox" & (j + 1))
-                With chkbx
-                    .Height = 18
-                    .Width = 120
-                    .Left = 10 + (120 * Application.WorksheetFunction.Floor_Math(j Mod 3))
-                    .Caption = routines(i)(j)
-                    .Top = 1 + (14 * Application.WorksheetFunction.Floor_Math(j / 3))
-                End With
-            Next j
-        End With
-    Next i
-    
-    Set ctl = DelRoutinesForm.Controls.Add("Forms.CommandButton.1", "myBtn")
-    'Set configuration for the btn
-    With ctl
-        .Height = 30
-            'Set it underneath the last frame that we set
-        .Top = DelRoutinesForm.Controls("myframe" & i).Top + DelRoutinesForm.Controls("myframe" & i).Height + 2
-        .Width = 366
-        .Left = 11
-        .Caption = "Delete Routines"
-        .Font.Bold = True
-        .Font.Size = 12
-    End With
-
-    'Set as an instance of our custom btn class which has the callback function associated with it
-    Set btn = New btnClass
-    Set btn.btn = ctl
-    Set btn.usrForm = DelRoutinesForm
-    
-    DelRoutinesForm.Show
-    
-    On Error GoTo delErr
-    Dim contr As MSForms.control
-    For Each contr In DelRoutinesForm.Controls
-        If TypeName(contr) = "CheckBox" Then
-            If contr.Value = True Then
-                'For each checked off box, delete that routine
-                Call Worksheets("PartLib Table").DeleteRoutine(contr.Caption)
-            End If
-        End If
-    Next contr
-    
-    Unload DelRoutinesForm
     
     Exit Sub
 rtErr:
     MsgBox "Couldn't read the Value or Color of a Routine", vbCritical
     Exit Sub
+End Sub
 
-frmErr:
-    MsgBox "Error when building form with listing of routines", vbCritical
-    Exit Sub
+'******************   Optimize Offsetables Btn  ***********************
+Public Sub OptimizeOffsetables(ByRef control As IRibbonControl)
+    Dim colors() As Variant
+    Dim routines() As Variant
+    Dim selectedRoutines() As String
+    Dim instructions As String
+    instructions = "The Selected Routines will have all of the characteristics designated for inspection changed to " & vbCrLf _
+                & "Should Fall In (X). Then the Offsettable features of the smallest tolerance ranges will be set (O)" & vbCrLf _
+                & vbCrLf & "*** Note that Most FA_ and all FI_ routines will always be SFI's"
+    'TODO: come back later and create a collection of routineNames to ignore
+    Dim likeList As Collection
+    Set likeList = New Collection
+    likeList.Add "FA_FIRST"
+    likeList.Add "FA_MINI"
+    likeList.Add "IP_"
     
-delErr:
-    MsgBox "Couldn't Delete the routine: " & contr.Caption, vbCritical
-    Exit Sub
     
+    On Error GoTo rtErr
+    routines = Worksheets("PartLib Table").GetRoutinesAndColors(colors)
+    
+    'TODO: error handle here before trying to delete routines???
+    selectedRoutines = ThisWorkbook.BuildRoutineForm(routines:=routines, colors:=colors, frmHeader:="Select Routine(s) to Optimize", _
+                            btnCaption:="Optimize For Offsetable", instructions:=instructions, instructionsSpacing:=45)
+    If (Not selectedRoutines) = -1 Then Exit Sub
+    
+    For i = 0 To UBound(selectedRoutines)
+        For j = 1 To likeList.Count
+            If InStr(selectedRoutines(i), likeList(j)) > 0 Then 'If its similar to a routine name appropriate to optimization
+                    'And its not an IP_LAST or a IP_ASSY
+                If InStr(selectedRoutines(i), "IP_LAST") = 0 And InStr(selectedRoutines(i), "IP_ASSY") = 0 Then
+                    'TODO: call the optimization here
+                    Call Worksheets("partLib Table").OptimizeRoutineOffsetables(selectedRoutines(i))
+                End If
+            End If
+        Next j
+    Next i
+    
+    Exit Sub
+rtErr:
+    MsgBox "Couldn't read the Value or Color of a Routine", vbCritical
+    Exit Sub
 End Sub
 
 

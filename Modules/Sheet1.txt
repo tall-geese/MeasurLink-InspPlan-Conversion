@@ -21,6 +21,9 @@ Option Explicit
 '************************************************************
 
 
+            '***************   Called by IEX-DATA   *********************
+
+'Called by IEX-DATA.TransferData
 Public Sub ApplyGroupings()
     On Error Resume Next
     Outline.ShowLevels RowLevels:=2
@@ -55,6 +58,8 @@ Public Sub ApplyGroupings()
 
 End Sub
 
+
+'Called by IEX-DATA.TransferData
 Public Sub IgnoreErrors()
     'Characteristic values are inconsistently formatted, suppress the meaningless errors
     Dim workingRange As Range
@@ -67,43 +72,155 @@ Public Sub IgnoreErrors()
     Next charCell
 End Sub
 
-Public Function IsInImmutableRange(targetCell As Range) As Boolean
-    'We don't want to apply certain changes to the top 5 rows of visual criteria
+
+            '***************   Called by UserForms   *********************
+
+'Called by CreateRoutinesForm
+Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As String, machOp As String)
+    On Error GoTo rtSetErr
+
+    If (Not routineArr) = -1 Then Exit Sub
+    'If machOp Is missing Then machOp = 1  'TODO: replace with the logic that keeps track of added machining ops
+    'TODO: there needs to be something that captures the name of the operation set like Receiving, Milling, etc.
     
+    Dim nextCol As Range
+    Set nextCol = Range(Range("C3").End(xlToRight).Address).offset(0, 1)
     
-    
-    Dim immutable As Range
-    Dim intersection As Range
-    Set immutable = Rows(DataSources.VISUALS)
-    On Error Resume Next
-    Set intersection = Application.Intersect(immutable, targetCell)
-    If Not intersection Is Nothing Then
-        IsInImmutableRange = True
+    Dim sequence As String
+    If opTag = "SWISS" Or opTag = "MILL" Then
+        If CInt(machOp) > 1 Then
+            sequence = machOp
+        End If
     End If
     
-'    Exit Function
-'10
-'    Err.Raise vbObjectError + 1000, Description:="Problem with verifying immutable range" & vbCrLf & Err.Description
-
-End Function
-
-
-'Return column # of the header
-Public Function GetCol(colName As String) As Integer
-    Dim colRange As Range
-    Set colRange = Range("A3:BZ3")
-'    Dim retRange As Range
-'    Set retRange = colRange.Find(What:=colName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
-'    GetCol = retRange.column
-    On Error Resume Next
-    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
-    If Err.Number <> 0 Then
-        GetCol = 0
-    End If
+    Dim i As Integer
+    Dim suffix As String
+    If opTag = "MILL" Then suffix = "_MILL"
+    
+    Application.EnableEvents = False
+    
+    
+    For i = 0 To UBound(routineArr)
+        routineArr(i) = routineArr(i) & sequence & suffix
+        nextCol.Value = routineArr(i)
+        nextCol.offset(-1, 0).Value = "QE"
+        Range(nextCol.offset(-1, 0).Address & ":" & Replace(nextCol.offset(-1, 0).Address, "2", "400")).Interior.color = selectedColor
+        
+        Set nextCol = nextCol.offset(0, 1)
+    Next i
+    
+    Call AppendOperationNames(opTag & sequence, routineArr)
+    
+    
+20
+    Application.EnableEvents = True
+    Exit Sub
+    
+rtSetErr:
+    MsgBox "Encountered a problem when setting Routines", vbCritical
     On Error GoTo 0
-End Function
+    GoTo 20
+End Sub
 
-'Set a variable formula, called by our ConditionalFeature form
+
+'Called by ^^^^^ SetRoutines ^^^^
+Public Sub AppendOperationNames(opName As String, routineArr() As Variant)
+    Dim charRange As Range
+    Dim i As Integer
+    Dim j As Integer
+    On Error GoTo 10
+    Cells(9, 3).Activate
+    Set charRange = Application.InputBox("Select Characteristics the OP(s) are Applicable to", "Select Characteristics", Type:=8)
+    If charRange Is Nothing Then Exit Sub
+    If charRange.Worksheet.Name <> "PartLib Table" Then GoTo 10
+    
+    Dim addys() As String
+    If InStr(charRange.Address, ",") > 0 Then 'If multiple areas are chosen, split them up
+        addys = Split(charRange.Address, ",")
+    Else
+        ReDim Preserve addys(0) 'Otherwise just set the one area
+        addys(0) = charRange.Address
+    End If
+    
+    'Address validation
+    For i = 0 To UBound(addys)
+        If InStr(addys(i), ":") > 0 Then
+            If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 6 Then GoTo 10 'If $C$X:$C$X, not all in the C Column
+        Else
+            If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 3 Then GoTo 10 'IF $C$6, not in the C column
+        End If
+    Next i
+    
+    'iterate through the cells and set their Operation values
+    For i = 0 To UBound(addys)
+        Dim tempRange As Range
+        Set tempRange = Range(addys(i))
+        Dim subCell As Range
+        For Each subCell In tempRange 'For each characteristic the user selected
+            If subCell.Value <> vbNullString Then
+                Dim opCell As Range
+                Set opCell = subCell.offset(0, 23)
+                If IsNumeric(Right(subCell.Value, 1)) Then
+                    Dim instance As Integer
+                    instance = CInt(Split(subCell.Value, "_")(2))
+                    If instance >= 2 Then 'If its a child instance, set the referential formulas
+                        Dim offsetVal As Integer
+                        Do
+                            With opCell
+                                Dim parentAddr As String
+                                parentAddr = Worksheets("IEX-DATA").GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
+                                .Value = ""
+                                .NumberFormat = "General"
+                                '=IF(G14="","",G14)
+                                .Formula2 = "=IF(" & parentAddr & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddr & ")"
+                            End With
+                            
+                            'For each routine in each child instance, set the ref information
+                            If j <= UBound(routineArr) Then
+                                offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
+                                Set opCell = opCell.offset(0, offsetVal)
+                                j = j + 1
+                            Else
+                                Exit Do
+                            End If
+                        Loop While True
+                    Else
+                        'Otherwise its a parent instance or non-family
+                        GoTo 20
+                    End If
+                Else
+20
+                    'Otherwise not numeric
+                    opCell.Value = opName
+                    'TODO This is where we would set the X's and O's logic
+                    
+                    For j = 0 To UBound(routineArr)
+                        If InStr(CStr(routineArr(j)), "FA_FIRST") > 0 Then
+                            offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
+                            Set opCell = opCell.offset(0, offsetVal)
+                            opCell.Value = "X"
+                        End If
+                    Next j
+                End If
+            End If
+            j = 0
+        Next subCell
+    Next i
+    
+    Call Worksheets("MachineOps").InsertNewOp(opName)
+    
+    
+    Exit Sub
+
+10
+    'TODO: might want to raise an error here instead, to propogate to the calling sub in case we don't want to do anything
+        'In the result of an error
+    MsgBox "You did not choose a valid Characteristic Name Range" & vbCrLf & "Choose ONLY values from Column C", vbCritical
+    Err.Raise Number:=vbObjectError + 1000, Description:="Incorrect Range"
+    
+End Sub
+
+'called by our ConditionalFeature form, Set a variable formula
 Public Sub ApplyFormula(targetCol As String, Optional limit As Variant, Optional varCol As Variant)
     On Error GoTo formErr
     
@@ -184,7 +301,7 @@ formErr:
     
 End Sub
 
-'apply hiding based on certain part numbers or variable lookups, called by HideFeatureCond userform,
+'called by HideFeatureCond userform, apply hiding based on certain part numbers or variable lookups
 Public Sub SetHiding(features As String, hideForm As String)
     Dim cellAdd() As String
     
@@ -232,6 +349,16 @@ hideErr:
     GoTo 20
 End Sub
 
+
+
+
+
+
+
+
+            '***************   Called by RibbonCommands   *********************
+
+
 'Called by RibbonCommands.PivotFeature
 Public Function GetCharOrFamily(charCell As Range) As Range
     'If a cell is a parent and theres a parent below it, do nothing
@@ -257,142 +384,7 @@ Public Function GetCharOrFamily(charCell As Range) As Range
     'Then pass them back
     Set GetCharOrFamily = charCell
 
-
 End Function
-
-'Called by CreateRoutinesForm
-Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As String, machOp As String)
-    On Error GoTo rtSetErr
-
-    If (Not routineArr) = -1 Then Exit Sub
-    'If machOp Is missing Then machOp = 1  'TODO: replace with the logic that keeps track of added machining ops
-    'TODO: there needs to be something that captures the name of the operation set like Receiving, Milling, etc.
-    
-    Dim nextCol As Range
-    Set nextCol = Range(Range("C3").End(xlToRight).Address).offset(0, 1)
-    
-    Dim sequence As String
-    If opTag = "SWISS" Or opTag = "MILL" Then
-        If CInt(machOp) > 1 Then
-            sequence = machOp
-        End If
-    End If
-    
-    Dim i As Integer
-    Dim suffix As String
-    If opTag = "MILL" Then suffix = "_MILL"
-    
-    Application.EnableEvents = False
-    
-    
-    For i = 0 To UBound(routineArr)
-        nextCol.Value = routineArr(i) & sequence & suffix
-        nextCol.offset(-1, 0).Value = "QE"
-        Range(nextCol.offset(-1, 0).Address & ":" & Replace(nextCol.offset(-1, 0).Address, "2", "400")).Interior.color = selectedColor
-        
-        Set nextCol = nextCol.offset(0, 1)
-    Next i
-    
-    Call AppendOperationNames(opTag & sequence, routineArr)
-    
-    
-20
-    Application.EnableEvents = True
-    Exit Sub
-    
-rtSetErr:
-    MsgBox "Encountered a problem when setting Routines", vbCritical
-    On Error GoTo 0
-    GoTo 20
-End Sub
-
-
-'Called by SetRoutines
-Public Sub AppendOperationNames(opName As String, routineArr() As Variant)
-    Dim charRange As Range
-    Dim i As Integer
-    Dim j As Integer
-    On Error GoTo 10
-    Cells(9, 3).Activate
-    Set charRange = Application.InputBox("Select Characteristics the OP(s) are Applicable to", "Select Characteristics", Type:=8)
-    If charRange Is Nothing Then Exit Sub
-    If charRange.Worksheet.Name <> "PartLib Table" Then GoTo 10
-    
-    Dim addys() As String
-    If InStr(charRange.Address, ",") > 0 Then 'If multiple areas are chosen, split them up
-        addys = Split(charRange.Address, ",")
-    Else
-        ReDim Preserve addys(0) 'Otherwise just set the one area
-        addys(0) = charRange.Address
-    End If
-    
-    'Address validation
-    For i = 0 To UBound(addys)
-        If InStr(addys(i), ":") > 0 Then
-            If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 6 Then GoTo 10 'If $C$X:$C$X, not all in the C Column
-        Else
-            If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 3 Then GoTo 10 'IF $C$6, not in the C column
-        End If
-    Next i
-    
-    'iterate through the cells and set their Operation values
-    For i = 0 To UBound(addys)
-        Dim tempRange As Range
-        Set tempRange = Range(addys(i))
-        Dim subCell As Range
-        For Each subCell In tempRange 'For each characteristic the user selected
-            If subCell.Value <> vbNullString Then
-                Dim opCell As Range
-                Set opCell = subCell.offset(0, 23)
-                If IsNumeric(Right(subCell.Value, 1)) Then
-                    Dim instance As Integer
-                    instance = CInt(Split(subCell.Value, "_")(2))
-                    If instance >= 2 Then 'If its a child instance, set the referential formulas
-                        Dim offsetVal As Integer
-                        Do
-                            With opCell
-                                Dim parentAddr As String
-                                parentAddr = Worksheets("IEX-DATA").GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
-                                .Value = ""
-                                .NumberFormat = "General"
-                                '=IF(G14="","",G14)
-                                .Formula2 = "=IF(" & parentAddr & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddr & ")"
-                            End With
-                            
-                            If j <= UBound(routineArr) Then
-                                offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
-                                Set opCell = opCell.offset(0, offsetVal)
-                                j = j + 1
-                            Else
-                                Exit Do
-                            End If
-                        Loop While True
-                    Else
-                        'Otherwise its a parent instance or non-family
-                        GoTo 20
-                    End If
-                Else
-20
-                    'Otherwise not numeric
-                    opCell.Value = opName
-                End If
-            End If
-            j = 0
-        Next subCell
-    Next i
-    
-    Call Worksheets("MachineOps").InsertNewOp(opName)
-    
-    
-    Exit Sub
-
-10
-    'TODO: might want to raise an error here instead, to propogate to the calling sub in case we don't want to do anything
-        'In the result of an error
-    MsgBox "You did not choose a valid Characteristic Name Range" & vbCrLf & "Choose ONLY values from Column C", vbCritical
-    Err.Raise Number:=vbObjectError + 1000, Description:="Incorrect Range"
-    
-End Sub
 
 'Called by RibbonCommands.ExportQIF
 Public Function CollectFeaturesForExport(routineName As String) As Variant()
@@ -536,7 +528,7 @@ nextCell:
 
 End Function
 
-'TODO: temp placeholder
+'Called by RibbonCommands.DeleteRoutines
 Public Sub DeleteRoutine(routineName As String)
     Dim colNum As Integer
     Dim routineRng As Range
@@ -549,6 +541,7 @@ Public Sub DeleteRoutine(routineName As String)
 End Sub
 
 
+'Called by RibbonCommands.PivotFeature
 Public Sub PivotOnFeature(Optional CharName As String, Optional Direction As Integer)
     Dim selectedCell As Range
     If CharName = "" Then
@@ -627,73 +620,6 @@ Public Sub PivotOnFeature(Optional CharName As String, Optional Direction As Int
         End If
 End Sub
 
-'Called By ThisWorkbook  (Import RoutineMap)
-Public Function ExportRoutineMap() As String()
-    'If our workbook has multiple part numbers, then we want to set one of them first before
-    'going further, so cells will have information hidden or variably changed correctly.
-    Dim partArr() As String
-    partArr = Worksheets("Variables").GetPartNumbers()
-    
-    'If there's no part numbers in the Variables Tab, this Routine Map is likely not part number dependant, skip ahead
-    If (Not partArr) = -1 Then
-        GoTo 10
-    End If
-
-    'If there is only a single part number in the variables tab, skip ahead but first just make sure that its set in the START HERE page
-    If UBound(partArr) = 0 Then 'TODO: also goto, but might as well first copy this part number in the START HERE cell
-        Worksheets("START HERE").Range("C8").Value = partArr(0)
-        GoTo 10
-    Else
-    'Otherwise they need to select a part number, becuase we can only work with one
-        Load PartNumForm
-        Dim k As Integer
-        For k = 0 To UBound(partArr)
-            PartNumForm.PartNumComboBox.AddItem partArr(k)
-        Next k
-        PartNumForm.Show
-        
-        If PartNumForm.PartNumComboBox.Value = "" Then
-            Exit Function
-        Else
-            Worksheets("START HERE").Range("C8").Value = PartNumForm.PartNumComboBox.Value
-        End If
-        
-        Unload PartNumForm
-    End If
-    
-10
-    Dim featureArr() As String
-    Dim featureCount As Integer
-    Dim subCell As Range
-    For Each subCell In Range("A4:A" & Range("A4").End(xlDown).Row)
-        If Not (IsInImmutableRange(subCell)) And subCell.offset(0, 2).Value <> "" Then
-            featureCount = featureCount + 1 'Get a count of how many features to export. We can't redim this later
-        End If
-    Next subCell
-    
-    If featureCount = 0 Then Exit Function
-    
-    '25 columns to collect info from (0 indexed). Everything but Index and the routines
-    ReDim Preserve featureArr(featureCount - 1, 24)
-    Dim i As Integer
-    Dim j As Integer
-    i = 0
-    
-    For Each subCell In Range("A4:A" & Range("A4").End(xlDown).Row)
-        'If its not one of the immmutable cells and there is an index number
-        If Not (IsInImmutableRange(subCell)) And subCell.offset(0, 2).Value <> "" Then
-            For j = 1 To 25
-                'Only collecting the hard-coded values. Should be no reason to copy over the formulas, they wont be related to the
-                    'new parent's part numbers
-                featureArr(i, j - 1) = subCell.offset(0, j).Value
-            Next j
-            i = i + 1
-        End If
-    Next subCell
-    
-    ExportRoutineMap = featureArr
-
-End Function
 
 'Called By RibbonCommands (Import RoutineMap)
 Public Sub ImportRoutineMap(featuresArr() As String)
@@ -773,6 +699,176 @@ SetErr:
     GoTo 10
 End Sub
 
+'Called by RibbonCommands.OptimizeOffsetables
+Public Sub OptimizeRoutineOffsetables(routineName As String)
+    Dim indexRange As Range
+    Set indexRange = Range("A4:A" & Range("A4").End(xlDown).Row)
+    Dim rtCol As Integer
+    rtCol = GetCol(routineName)
+    Dim featCell As Range
+    Dim featureColl As Collection
+    Set featureColl = New Collection
+    Dim i As Integer
+    Dim j As Integer
+    
+    'TODO: dont forget to disable events before we go actually changing anything
+    
+    For Each featCell In indexRange
+            'Collect features marked for inspection in the routine, ignore any child features
+        If Cells(featCell.Row, rtCol).Value <> "" And InStr(Cells(featCell.Row, rtCol).formula, "=IF") = 0 Then
+            featureColl.Add featCell.Address
+        End If
+    Next featCell
+    
+    If featureColl.Count = 0 Then Exit Sub
+    
+    '***Validation***
+    For i = 1 To featureColl.Count
+        Dim tempIndex As Range
+        Dim info As String
+        Set tempIndex = Range(featureColl(i))
+        If tempIndex.offset(0, GetCol("Inspection Type") - tempIndex.column).Value = "" Then
+            info = "Inpsection Type"
+            GoTo missingInfo
+        End If
+        If tempIndex.offset(0, GetCol("TOOL AXIS OFFSET") - tempIndex.column).Value = "" Then
+            info = "Tool Axis Offset"
+            GoTo missingInfo
+        End If
+        If tempIndex.offset(0, GetCol("Inspection Type") - tempIndex.column).Value <> "Attribute" And _
+                    tempIndex.offset(0, GetCol("Tol. Range") - tempIndex.column).Value = 0 Then
+            info = "Tolerance Range"
+            GoTo missingInfo
+        End If
+    Next i
+    
+    Application.EnableEvents = False
+    
+    On Error GoTo compErr
+    
+    '***Setting***
+    For i = 1 To featureColl.Count
+            'If the given feature is of Type Attribute or contains non-offsettable features in one of the controls..
+            'just set it to SFI (X)
+            Set featCell = Range(featureColl(i))
+                        
+            If (Cells(featCell.Row, GetCol("Inspection Type")).Value = "Attribute") _
+                Or (InStr(Cells(featCell.Row, GetCol("TOOL AXIS OFFSET")).Value, "TOOL") > 0) _
+                Or (InStr(Cells(featCell.Row, GetCol("TOOL AXIS OFFSET")).Value, "PROG") > 0) _
+                Or (InStr(Cells(featCell.Row, GetCol("TOOL AXIS OFFSET")).Value, "NA") > 0) Then
+                
+                Cells(featCell.Row, GetCol(routineName)).Value = "X"
+                GoTo nextFeat
+            End If
+            
+            'Otherwise it is of type Variable
+            Dim evalCell As Range
+            For j = 1 To featureColl.Count
+                  If featureColl(i) = featureColl(j) Then GoTo sameFeat 'Skip self-evaluation
+                  
+                  Set evalCell = Range(featureColl(j))
+                    'If the evaluate cell is not of type attribute and both comparison cells have the same tool axis offset info
+                    If Cells(evalCell.Row, GetCol("Inspection Type")).Value <> "Attribute" _
+                        And Cells(evalCell.Row, GetCol("TOOL AXIS OFFSET")).Value = _
+                        Cells(featCell.Row, GetCol("TOOL AXIS OFFSET")).Value Then
+                            
+                            'If evalCell Tolerance < featureCell Tolerance
+                            If Cells(evalCell.Row, GetCol("Tol. Range")).Value < Cells(featCell.Row, GetCol("Tol. Range")).Value Then
+                                Cells(featCell.Row, GetCol(routineName)).Value = "X"
+                                GoTo nextFeat
+                            End If
+                    End If
+sameFeat:
+            Next j
+            
+                'If we made it here then this feat had the smallest found tolerance of the group, mark it as offsetable
+            Cells(featCell.Row, GetCol(routineName)).Value = "O"
+nextFeat:
+    Next i
+    Exit Sub
+    
+missingInfo:
+    MsgBox "For feature: " & tempIndex.offset(0, 2).Value & vbCrLf & "Nothing was set for " & info, vbCritical
+    Exit Sub
+    
+compErr:
+    MsgBox "Error when checking features for " & featureColl(i) & vbCrLf & "For routine: " & routineName, vbCritical
+    Application.EnableEvents = True
+    Exit Sub
+End Sub
+
+            '***************   Called by ThisWorkbook   *********************
+
+'Called By ThisWorkbook  (Import RoutineMap)
+Public Function ExportRoutineMap() As String()
+    'If our workbook has multiple part numbers, then we want to set one of them first before
+    'going further, so cells will have information hidden or variably changed correctly.
+    Dim partArr() As String
+    partArr = Worksheets("Variables").GetPartNumbers()
+    
+    'If there's no part numbers in the Variables Tab, this Routine Map is likely not part number dependant, skip ahead
+    If (Not partArr) = -1 Then
+        GoTo 10
+    End If
+
+    'If there is only a single part number in the variables tab, skip ahead but first just make sure that its set in the START HERE page
+    If UBound(partArr) = 0 Then 'TODO: also goto, but might as well first copy this part number in the START HERE cell
+        Worksheets("START HERE").Range("C8").Value = partArr(0)
+        GoTo 10
+    Else
+    'Otherwise they need to select a part number, becuase we can only work with one
+        Load PartNumForm
+        Dim k As Integer
+        For k = 0 To UBound(partArr)
+            PartNumForm.PartNumComboBox.AddItem partArr(k)
+        Next k
+        PartNumForm.Show
+        
+        If PartNumForm.PartNumComboBox.Value = "" Then
+            Exit Function
+        Else
+            Worksheets("START HERE").Range("C8").Value = PartNumForm.PartNumComboBox.Value
+        End If
+        
+        Unload PartNumForm
+    End If
+    
+10
+    Dim featureArr() As String
+    Dim featureCount As Integer
+    Dim subCell As Range
+    For Each subCell In Range("A4:A" & Range("A4").End(xlDown).Row)
+        If Not (IsInImmutableRange(subCell)) And subCell.offset(0, 2).Value <> "" Then
+            featureCount = featureCount + 1 'Get a count of how many features to export. We can't redim this later
+        End If
+    Next subCell
+    
+    If featureCount = 0 Then Exit Function
+    
+    '25 columns to collect info from (0 indexed). Everything but Index and the routines
+    ReDim Preserve featureArr(featureCount - 1, 24)
+    Dim i As Integer
+    Dim j As Integer
+    i = 0
+    
+    For Each subCell In Range("A4:A" & Range("A4").End(xlDown).Row)
+        'If its not one of the immmutable cells and there is an index number
+        If Not (IsInImmutableRange(subCell)) And subCell.offset(0, 2).Value <> "" Then
+            For j = 1 To 25
+                'Only collecting the hard-coded values. Should be no reason to copy over the formulas, they wont be related to the
+                    'new parent's part numbers
+                featureArr(i, j - 1) = subCell.offset(0, j).Value
+            Next j
+            i = i + 1
+        End If
+    Next subCell
+    
+    ExportRoutineMap = featureArr
+
+End Function
+
+
+
 
 
 
@@ -796,6 +892,7 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal target As Range, Cancel As Boolean
     End If
 End Sub
 
+    'Called by ^^^Worksheet_BeforeDoubleClick^^^
 Private Sub SetAttachment(target As Range)
     Dim fso As FileSystemObject
     Dim path As String
@@ -835,6 +932,7 @@ Private Sub SetAttachment(target As Range)
 
 End Sub
 
+    'Called by ^^^Worksheet_BeforeDoubleClick^^^
 Private Sub ExpandGroup(target As Range)
     'Show/Hide children of multiple instance features when user double-clicks
     Dim child As Range
@@ -945,10 +1043,6 @@ errmsg:
     GoTo 20
 End Sub
 
-
-'************************************************************
-'***************   Support Functions   **********************
-'************************************************************
 
 '***************   Inspection Methods   *********************
 
@@ -1170,8 +1264,6 @@ End Sub
 
 '***************   Tool Axis Offset   *********************
 
-
-
 'Values in the given cell should either be from the selectable drop-down list or (#XXX or DXXX) format
 Sub ValidateControl(controlCell As Range)
     Dim cellInput As String
@@ -1180,9 +1272,14 @@ Sub ValidateControl(controlCell As Range)
     Application.EnableEvents = False
     On Error GoTo 10
     
-'    controlCell.Value = UCase(controlCell.Value)
-    If Len(controlCell.Value = 3) And IsNumeric(controlCell.Value) Then
+    '650 -> #650
+    If Len(controlCell.Value) = 3 And IsNumeric(controlCell.Value) Then
         controlCell.Value = "#" & controlCell.Value
+    End If
+    
+    If Left(controlCell.Value, 1) = "D" And IsNumeric(Right(controlCell.Value, Len(controlCell.Value) - 1)) Then
+        cellInput = "D???"
+        GoTo 20
     End If
     
     For i = 1 To Len(controlCell.Value)
@@ -1193,6 +1290,7 @@ Sub ValidateControl(controlCell As Range)
         End If
     Next i
     
+20
     Call OpenDataValidations
     validInput = valWB.ControlIsInValidationRange(cellInput)
     
@@ -1322,4 +1420,46 @@ Private Function ParseToolValue(tool As String) As String
 
 End Function
 
+
+
+
+'************************************************************
+'***************   Exposed Functions   **********************
+'******************   Common Use   **************************
+'************************************************************
+
+
+Public Function IsInImmutableRange(targetCell As Range) As Boolean
+    'We don't want to apply certain changes to the top 5 rows of visual criteria
+        
+    Dim immutable As Range
+    Dim intersection As Range
+    Set immutable = Rows(DataSources.VISUALS)
+    On Error Resume Next
+    Set intersection = Application.Intersect(immutable, targetCell)
+    If Not intersection Is Nothing Then
+        IsInImmutableRange = True
+    End If
+    
+'    Exit Function
+'10
+'    Err.Raise vbObjectError + 1000, Description:="Problem with verifying immutable range" & vbCrLf & Err.Description
+
+End Function
+
+
+'Return column # of the header
+Public Function GetCol(colName As String) As Integer
+    Dim colRange As Range
+    Set colRange = Range("A3:BZ3")
+'    Dim retRange As Range
+'    Set retRange = colRange.Find(What:=colName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
+'    GetCol = retRange.column
+    On Error Resume Next
+    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
+    If Err.Number <> 0 Then
+        GetCol = 0
+    End If
+    On Error GoTo 0
+End Function
 
