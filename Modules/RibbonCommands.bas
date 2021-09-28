@@ -399,6 +399,7 @@ Public Sub OptimizeOffsetables(ByRef control As IRibbonControl)
     Dim routines() As Variant
     Dim selectedRoutines() As String
     Dim instructions As String
+    Dim offsetExclusions As Collection
     instructions = "The Selected Routines will have all of the characteristics designated for inspection changed to " & vbCrLf _
                 & "Should Fall In (X). Then the Offsettable features of the smallest tolerance ranges will be set (O)" & vbCrLf _
                 & vbCrLf & "*** Note that Most FA_ and all FI_ routines will always be SFI's"
@@ -413,22 +414,17 @@ Public Sub OptimizeOffsetables(ByRef control As IRibbonControl)
     On Error GoTo rtErr
     routines = Worksheets("PartLib Table").GetRoutinesAndColors(colors)
     
-    'TODO: error handle here before trying to delete routines???
-    selectedRoutines = ThisWorkbook.BuildRoutineForm(routines:=routines, colors:=colors, frmHeader:="Select Routine(s) to Optimize", _
-                            btnCaption:="Optimize For Offsetable", instructions:=instructions, instructionsSpacing:=45)
-    If (Not selectedRoutines) = -1 Then Exit Sub
     
-    For i = 0 To UBound(selectedRoutines)
-        For j = 1 To likeList.Count
-            If InStr(selectedRoutines(i), likeList(j)) > 0 Then 'If its similar to a routine name appropriate to optimization
-                    'And its not an IP_LAST or a IP_ASSY
-                If InStr(selectedRoutines(i), "IP_LAST") = 0 And InStr(selectedRoutines(i), "IP_ASSY") = 0 Then
-                    'TODO: call the optimization here
-                    Call Worksheets("partLib Table").OptimizeRoutineOffsetables(selectedRoutines(i))
-                End If
-            End If
-        Next j
-    Next i
+    
+    Set offsetExclusions = New Collection
+    offsetExclusions.Add "IP_LAST"
+    offsetExclusions.Add "FA_SYLVAC"
+    offsetExclusions.Add "FA_RAMPROG"
+    offsetExclusions.Add "FA_CMM"
+    offsetExclusions.Add "FI_ALL"
+    offsetExclusions.Add "FA_VIS"
+    
+    Call Worksheets("PartLib Table").OptimizeRoutineOffsetables(routines, offsetExclusions)
     
     Exit Sub
 rtErr:

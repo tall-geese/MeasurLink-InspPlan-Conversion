@@ -474,6 +474,8 @@ End Function
 
 'Called by RibbonCommands.DeleteRoutines
 Public Function GetRoutinesAndColors(ByRef colors() As Variant) As Variant()
+    'We take an emtpy array to populate
+    'It will be a staggered array of i colors, with 1 to n Routine Names
     If Not Not colors Then Exit Function
 
     Dim rtRange As Range
@@ -502,6 +504,8 @@ Public Function GetRoutinesAndColors(ByRef colors() As Variant) As Variant()
 nextCell:
     Next subCell
     
+    If (Not colors) = -1 Then GoTo colorErr
+    
     'For each color, we need an array of the routines that are associated with it
     ReDim Preserve routineArr(UBound(colors))
     
@@ -525,6 +529,11 @@ nextCell:
     Next i
     
     GetRoutinesAndColors = routineArr
+    Exit Function
+    
+colorErr:
+    MsgBox "Couldn't find any routines or colored routines" & vbCrLf & "Function: GetRoutinesAndColors", vbCritical
+    Err.Raise Number:=vbObjectError + 1000, Description:="No Routines"
 
 End Function
 
@@ -700,101 +709,152 @@ SetErr:
 End Sub
 
 'Called by RibbonCommands.OptimizeOffsetables
-Public Sub OptimizeRoutineOffsetables(routineName As String)
+
+Public Sub OptimizeRoutineOffsetables(routines() As Variant, offsetExclusions As Collection)
+    'routine() should be a staggered array of colors, then the routines belonging to those colors
     Dim indexRange As Range
     Set indexRange = Range("A4:A" & Range("A4").End(xlDown).Row)
-    Dim rtCol As Integer
-    rtCol = GetCol(routineName)
     Dim featCell As Range
-    Dim featureColl As Collection
-    Set featureColl = New Collection
-    Dim i As Integer
-    Dim j As Integer
-    
-    'TODO: dont forget to disable events before we go actually changing anything
-    
-    For Each featCell In indexRange
-            'Collect features marked for inspection in the routine, ignore any child features
-        If Cells(featCell.Row, rtCol).Value <> "" And InStr(Cells(featCell.Row, rtCol).formula, "=IF") = 0 Then
-            featureColl.Add featCell.Address
-        End If
-    Next featCell
-    
-    If featureColl.Count = 0 Then Exit Sub
+    Dim toolCell As Range
+                
     
     '***Validation***
-    For i = 1 To featureColl.Count
-        Dim tempIndex As Range
+    For Each featCell In indexRange
+    
         Dim info As String
-        Set tempIndex = Range(featureColl(i))
-        If tempIndex.offset(0, GetCol("Inspection Type") - tempIndex.column).Value = "" Then
+        If featCell.offset(0, GetCol("Inspection Type") - featCell.column).Value = "" Then
             info = "Inpsection Type"
             GoTo missingInfo
         End If
-        If tempIndex.offset(0, GetCol("TOOL AXIS OFFSET") - tempIndex.column).Value = "" Then
+        If featCell.offset(0, GetCol("TOOL AXIS OFFSET") - featCell.column).Value = "" And _
+            featCell.offset(0, GetCol("TOOL AXIS OFFSET") - featCell.column).formula <> "" Then
+                'If there's no offset information, and its not because the feature is hidden...
             info = "Tool Axis Offset"
             GoTo missingInfo
         End If
-        If tempIndex.offset(0, GetCol("Inspection Type") - tempIndex.column).Value <> "Attribute" And _
-                    tempIndex.offset(0, GetCol("Tol. Range") - tempIndex.column).Value = 0 Then
+        If featCell.offset(0, GetCol("Inspection Type") - featCell.column).Value <> "Attribute" And _
+                    (featCell.offset(0, GetCol("Tol. Range") - featCell.column).Value = 0 Or _
+                        featCell.offset(0, GetCol("Tol. Range") - featCell.column).Value = "NA") Then
             info = "Tolerance Range"
             GoTo missingInfo
         End If
-    Next i
+        
+    Next featCell
     
     Application.EnableEvents = False
     
+    '***Resetting SFI's***
+        'Remove any SFI's from the Offsets, we should start fresh and re-evaluate
+    For Each featCell In indexRange
+        Set toolCell = Cells(featCell.Row, GetCol("TOOL AXIS OFFSET"))
+        If InStr(toolCell.Value, "SFI") > 0 Then
+            toolCell.Value = Trim(Replace(toolCell.Value, "SFI", ""))
+        End If
+    
+    Next featCell
+    
+    
+    Application.EnableEvents = True
+    
     On Error GoTo compErr
     
-    '***Setting***
-    For i = 1 To featureColl.Count
-            'If the given feature is of Type Attribute or contains non-offsettable features in one of the controls..
-            'just set it to SFI (X)
-            Set featCell = Range(featureColl(i))
+    '***Setting SFI's***
+    For Each featCell In indexRange
+        Set toolCell = Cells(featCell.Row, GetCol("TOOL AXIS OFFSET"))
+        
+        If toolCell.Value = "" Then GoTo nextFeat  'If a feature is hidden, then we should skip it
+            
+            'Non-offsetable features must be SFI
+        If (Cells(featCell.Row, GetCol("Inspection Type")).Value = "Attribute") _
+            Or (InStr(toolCell.Value, "TOOL") > 0) _
+            Or (InStr(toolCell.Value, "PROG") > 0) _
+            Or (InStr(toolCell.Value, "NA") > 0) Then
+            
+            
+            Call SetInspections(routines:=routines, target:=featCell, offsetExclusions:=offsetExclusions, offsetable:=False)
+            GoTo nextFeat
+        End If
+        
+        'Otherwise it is of type Variable
+        Dim evalCell As Range
+        For Each evalCell In indexRange
+              If featCell.Address = evalCell.Address Then GoTo nextEval 'Skip self-evaluation
+              
+                'If the evaluate cell is not of type attribute and both comparison cells have the same tool axis offset info
+                If Cells(evalCell.Row, GetCol("Inspection Type")).Value <> "Attribute" _
+                    And Cells(evalCell.Row, GetCol("TOOL AXIS OFFSET")).Value = _
+                    Cells(featCell.Row, GetCol("TOOL AXIS OFFSET")).Value Then
                         
-            If (Cells(featCell.Row, GetCol("Inspection Type")).Value = "Attribute") _
-                Or (InStr(Cells(featCell.Row, GetCol("TOOL AXIS OFFSET")).Value, "TOOL") > 0) _
-                Or (InStr(Cells(featCell.Row, GetCol("TOOL AXIS OFFSET")).Value, "PROG") > 0) _
-                Or (InStr(Cells(featCell.Row, GetCol("TOOL AXIS OFFSET")).Value, "NA") > 0) Then
-                
-                Cells(featCell.Row, GetCol(routineName)).Value = "X"
-                GoTo nextFeat
-            End If
-            
-            'Otherwise it is of type Variable
-            Dim evalCell As Range
-            For j = 1 To featureColl.Count
-                  If featureColl(i) = featureColl(j) Then GoTo sameFeat 'Skip self-evaluation
-                  
-                  Set evalCell = Range(featureColl(j))
-                    'If the evaluate cell is not of type attribute and both comparison cells have the same tool axis offset info
-                    If Cells(evalCell.Row, GetCol("Inspection Type")).Value <> "Attribute" _
-                        And Cells(evalCell.Row, GetCol("TOOL AXIS OFFSET")).Value = _
-                        Cells(featCell.Row, GetCol("TOOL AXIS OFFSET")).Value Then
-                            
-                            'If evalCell Tolerance < featureCell Tolerance
-                            If Cells(evalCell.Row, GetCol("Tol. Range")).Value < Cells(featCell.Row, GetCol("Tol. Range")).Value Then
-                                Cells(featCell.Row, GetCol(routineName)).Value = "X"
-                                GoTo nextFeat
-                            End If
-                    End If
-sameFeat:
-            Next j
-            
-                'If we made it here then this feat had the smallest found tolerance of the group, mark it as offsetable
-            Cells(featCell.Row, GetCol(routineName)).Value = "O"
+                        'If evalCell Tolerance < featureCell Tolerance
+                        If Cells(evalCell.Row, GetCol("Tol. Range")).Value < Cells(featCell.Row, GetCol("Tol. Range")).Value Then
+                            'Set SFI on the featureCell
+'                            Cells(featCell.Row, GetCol("Tol. Range")).Value = Cells(featCell.Row, GetCol("Tol. Range")).Value & " SFI"
+                        
+                            'TODO: set all the routines with "X", SFI
+                            Call SetInspections(routines:=routines, target:=featCell, offsetExclusions:=offsetExclusions, offsetable:=False)
+                            GoTo nextFeat
+                        End If
+                End If
+nextEval:
+        Next evalCell
+        
+            'If we made it here then this feat had the smallest found tolerance of the group, mark it as offsetable
+        Call SetInspections(routines:=routines, target:=featCell, offsetExclusions:=offsetExclusions, offsetable:=True)
 nextFeat:
-    Next i
+    Next featCell
     Exit Sub
     
 missingInfo:
-    MsgBox "For feature: " & tempIndex.offset(0, 2).Value & vbCrLf & "Nothing was set for " & info, vbCritical
+    MsgBox "For feature: " & featCell.offset(0, 2).Value & vbCrLf & "Nothing was set for " & info, vbCritical
     Exit Sub
     
 compErr:
-    MsgBox "Error when checking features for " & featureColl(i) & vbCrLf & "For routine: " & routineName, vbCritical
+    MsgBox "Error when checking features for " & featCell.offset(0, 2).Value & vbCrLf, vbCritical
     Application.EnableEvents = True
     Exit Sub
+    
+    
+
+End Sub
+
+    'Called by OptimizeRoutineOffsetables(), this is where we actually change values
+Private Sub SetInspections(routines() As Variant, target As Range, offsetExclusions As Collection, Optional offsetable As Boolean)
+    Dim i As Integer
+    Dim j As Integer
+    Dim rtCell As Range
+    Dim exclusion As Variant
+    
+    Application.EnableEvents = False
+    
+    If offsetable = False And Cells(target.Row, GetCol("TOOL AXIS OFFSET")).Value <> "NA" Then
+        Cells(target.Row, GetCol("TOOL AXIS OFFSET")).Value = Cells(target.Row, GetCol("TOOL AXIS OFFSET")).Value & " SFI"
+    End If
+    
+        'In each color group...
+    For i = 0 To UBound(routines)
+            'For each routine
+        For j = 0 To UBound(routines(i))
+            Set rtCell = Cells(target.Row, GetCol(CStr(routines(i)(j))))
+                'If something is set for inspection and its not a child cell...
+            If rtCell.Value <> "" And InStr(rtCell.formula, "=IF") = 0 Then
+                If offsetable = True Then
+                    rtCell.Value = "O"
+                        'Some routine names do not receive "O" indicators, only "X"
+                    For Each exclusion In offsetExclusions
+                        If InStr(exclusion, routines(i)(j)) > 0 Then
+                            rtCell.Value = "X"
+                        End If
+                    Next exclusion
+                Else
+                    rtCell.Value = "X"
+                End If
+            End If
+        Next j
+    Next i
+    
+    Application.EnableEvents = True
+
+
 End Sub
 
             '***************   Called by ThisWorkbook   *********************
@@ -1462,4 +1522,5 @@ Public Function GetCol(colName As String) As Integer
     End If
     On Error GoTo 0
 End Function
+
 
