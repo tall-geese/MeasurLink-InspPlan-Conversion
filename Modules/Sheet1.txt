@@ -1257,8 +1257,12 @@ FullFMT:
         
         Loop While userInput <> vbNullString
         
-        If collectedGauges = vbNullString Then collectedGauges = "????"
-        SetGaugePinData = "(JPMC " & collectedGauges & ")"
+        If collectedGauges <> "" Then
+            SetGaugePinData = "(JPMC " & collectedGauges & ")"
+        Else
+                'If they entered nothing, try to reserve what we originally had in Pins/Gauges
+            SetGaugePinData = methodCell.offset(0, 2).Value
+        End If
     Else
 80
         SetGaugePinData = "NA"
@@ -1404,16 +1408,23 @@ Private Sub OffsetCommentFormat(offsetRange As Range) 'TODO: add parameter here 
     Hpr = " " & offsetRange.offset(0, 4).Value
     Hse = " " & offsetRange.offset(0, 7).Value
     
+        'If NA is filled out for anything, then the tool axis offset should be NA
+    If Tpr = "NA" Or Tse = "NA" Or Cpr = "NA" Or Cse = "NA" Or Trim(Hpr) = "NA" Or Trim(Hse) = "NA" Then
+        offsetRange.Value = "NA"
+        Exit Sub
+    End If
+    
     'If data is missing from the primary columns, then dont do anything
     If Tpr = vbNullString Or Cpr = vbNullString Or Trim(Hpr) = vbNullString Then
         Exit Sub
     End If
-    'If all of the values in the second set are nothing, then that is fin
+    'If all of the values in the second set are nothing, then that is fine
     If Tse = vbNullString And Cse = vbNullString And Trim(Hse) = vbNullString Then
     
     'If all of the values in the second set have something filled in then that is fine too
     ElseIf Tse <> vbNullString And Cse <> vbNullString And Trim(Hse) <> vbNullString Then
     
+        
     Else 'Otherwise we have a partial fillout, the result should remain ""
         Exit Sub
     End If
@@ -1432,9 +1443,15 @@ Private Sub OffsetCommentFormat(offsetRange As Range) 'TODO: add parameter here 
         Cse = vbNullString
         Hse = vbNullString
     
+        'If the tool# and heads are the same, then its really just 1 tool with 2 offsets
     ElseIf StrComp(Hpr, Hse, vbTextCompare) = 0 And StrComp(Tpr, Tse, vbTextCompare) = 0 Then
         Tse = ""
         Hpr = ""
+            'If the controls are also the same, then get rid of the redundant control
+        If StrComp(Cpr, Cse, vbTextCompare) = 0 Then
+            Cse = ""
+        End If
+        'If the two heads are the same, then onyl call out the head once
     ElseIf StrComp(Hpr, Hse, vbTextCompare) = 0 Then
         Hpr = " "
     ElseIf Trim(Hse) <> "" Then
@@ -1442,8 +1459,12 @@ Private Sub OffsetCommentFormat(offsetRange As Range) 'TODO: add parameter here 
     End If
     
     If expandedFormat = False Then
+            'Multiple controls on one head
+            'T03,X,Y HD1
         offsetRange.Value = (Tpr & GetControlDelimiter(Cpr) & Cpr & Hpr & Tse & GetControlDelimiter(Cse) & Cse & Hse)
     Else
+            'Multiple controls on multiple heads
+            'T03,X HD1 & T03,Y HD2
         offsetRange.Value = (Tpr & GetControlDelimiter(Cpr) & Cpr & Hpr & " & " & Tse & GetControlDelimiter(Cse) & Cse & Hse)
     End If
 

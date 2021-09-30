@@ -26,7 +26,7 @@ Sub CleanData()
 
 
     Dim balloonRange As Range
-    Set balloonRange = Range("A2:A" & Range("A2").End(xlDown) + 1)
+    Set balloonRange = Range("A2:A" & Range("A2").End(xlDown).Row + 1)
     
     Dim resultValue As String
     Dim cell As Range
