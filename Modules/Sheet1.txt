@@ -1028,7 +1028,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
                 On Error GoTo 20
                 Application.EnableEvents = False 'prevent recursive looping
                 
-                Call SetInspMethodValidation(cell:=subCell) 'Reset the validation in case of copy/paste
+                Call Validations.SetInspMethodValidation(cell:=subCell) 'Reset the validation in case of copy/paste
                 
                 If subCell.Value = "" Then
                     subCell.offset(0, -7).Value = "" 'set Insp Type to nothing
@@ -1128,7 +1128,13 @@ Private Function SetGaugePinData(methodCell As Range) As String
     If InStr(methodCell.Value, "Gauge Pins") > 0 Then
         Dim ballNum As String
         Dim iexWS As Worksheet
-        ballNum = Split(methodCell.offset(0, -3).Value, "_")(0) 'error handling here in event that it isnt a balloon number [(iv)]
+        
+        If InStr(methodCell.offset(0, -3).Value, "_") > 0 Then
+            ballNum = Split(methodCell.offset(0, -3).Value, "_")(1) 'TODO: error handling here in event that it isnt a balloon number [(iv)]
+        Else
+            ballNum = methodCell.offset(0, -3).Value
+        End If
+        
         
         Set iexWS = Worksheets("IEX-Data")
         Dim workingRange As Range
@@ -1199,7 +1205,8 @@ Private Function SetGaugePinData(methodCell As Range) As String
             If featureType = "Geometric Tolerance" Then GoTo FullFMT
             
         'If we donthave a MIN/MAX keyword present
-            If Not (InStr(methodCell.offset(0, -2), "MAX") > 0) And Not (InStr(methodCell.offset(0, -2), "MIN") > 0) Then
+            If (Not (InStr(methodCell.offset(0, -2), "MAX") > 0) And Not (InStr(methodCell.offset(0, -2), "MIN") > 0)) _
+                    Or (InStr(methodCell.offset(0, -2), "MINOR") > 0) Then
                 Select Case tol
                 Case Is >= 0.002 'Needs 50% Truncation
                     trunc = 0.25
@@ -1543,5 +1550,7 @@ Public Function GetCol(colName As String) As Integer
     End If
     On Error GoTo 0
 End Function
+
+
 
 

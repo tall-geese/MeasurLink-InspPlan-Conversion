@@ -326,12 +326,40 @@ Sub TransferData()
     Set partSheet = Sheets("PartLib Table")
     
     Dim prefixChar As String
-    prefixChar = Sheets("START HERE").Range("$E$6").Value
-    If prefixChar = "" Then prefixChar = "0"
+    Dim firstBall As String
+    firstBall = Range("A2").Value
+    
+    Set charRange = Range("A2:A" & Range("A2").End(xlDown).Row)
+    
+    Call stripAlpha(workingRange:=charRange, prefix:=prefixChar)
+    
+'    If Len(firstBall) >= 2 Then
+'            'If first character is alpha and the remaining are all numeric
+'            'A1
+'        If Not (IsNumeric(Left(firstBall, 1))) And IsNumeric(Right(firstBall, Len(firstBall) - 1)) Then
+'            prefixChar = Left(firstBall, 1)
+'        ElseIf IsNumeric(firstBall) Then
+'            prefixChar = ""
+'        Else
+'            GoTo 20
+'        End If
+'    Else
+'        If IsNumeric(firstBall) Then
+'            prefixChar = ""
+'        Else
+'20
+'            MsgBox "Can't interpret value for this balloon number: " & firstBall
+'            Exit Sub
+'        End If
+'    End If
+    
+    If prefixChar = "" Then prefixChar = Sheets("START HERE").Range("E6").Value
+    
+        'Value of Index# field in PartLib, starts at 6
     Dim indexNo As Integer
     indexNo = 6
     
-    Set charRange = Range("A2:A" & Range("A2").End(xlDown).Row)
+    
     Set targetCell = partSheet.Range("C9")
     partSheet.Activate
     
@@ -354,8 +382,16 @@ Sub TransferData()
         
         Do
             Dim ballFormat As String
-            'TODO: we need something here for designating a subreport
-            ballFormat = prefixChar & Format(indexCell.Value, "_000")
+            Dim realBallNum As String
+            
+                'Translate balloons like
+                    ' A1 --> 1
+            If prefixChar <> "0" Then
+                realBallNum = Replace(indexCell.Value, prefixChar, "")
+            Else
+                realBallNum = indexCell.Value
+            End If
+            ballFormat = prefixChar & Format(realBallNum, "_000")
             ballFormat = ballFormat & Format(minInstance, "_00")
             
             'Set the Balloon Number and the Index Number
@@ -440,12 +476,51 @@ Sub SetInstance(refCell As Range, destCell As Range, instance As Integer)
 
 End Sub
 
+Private Sub stripAlpha(workingRange As Range, ByRef prefix As String)
+    Dim indexCell As Range
+    Dim i As Integer
+    
+    Application.EnableEvents = False
+    Me.Unprotect Password:="3063bqa"
+    
+    For Each indexCell In workingRange
+        Dim ballNum As String
+resetStr:
+        ballNum = indexCell.Value
+        For i = 1 To Len(ballNum)
+                'if there is a non-number in the ballon# field
+            If Not (IsNumeric(Mid(ballNum, i, 1))) Then
+                prefix = Mid(ballNum, i, 1) 'Set it as our prefix character
+                ballNum = Replace(ballNum, prefix, "")  'And strip it out
+                indexCell.Value = ballNum
+                Worksheets("START HERE").Range("E6").Value = prefix
+                GoTo resetStr  'continue to strip out alpha characters out of the cell
+            End If
+        Next i
+    Next indexCell
+    
+    
+20
+    
+    Application.EnableEvents = True
+    Me.Protect Password:="3063bqa"
+    Exit Sub
+    
+stripErr:
+    MsgBox "Error when trying to remove Prefix Characters from the Balloon Numbers"
+    GoTo 20
+End Sub
+
 Public Function GetAddress(column As Integer) As String
     Dim vArr
     vArr = Split(Cells(1, column).Address(True, False), "$")
     GetAddress = vArr(0)
 
 End Function
+
+
+
+
 
 
 
