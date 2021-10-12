@@ -87,7 +87,7 @@ Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As 
     Set nextCol = Range(Range("C3").End(xlToRight).Address).offset(0, 1)
     
     Dim sequence As String
-    If opTag = "SWISS" Or opTag = "MILL" Then
+    If opTag = "SWISS" Or opTag = "MILL" Or opTag = "RECEIVE" Then
         If CInt(machOp) > 1 Then
             sequence = machOp
         End If
@@ -99,7 +99,7 @@ Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As 
     
     Application.EnableEvents = False
     
-    
+        'Set the Header values and Colors of the new Routine Columns
     For i = 0 To UBound(routineArr)
         routineArr(i) = routineArr(i) & sequence & suffix
         nextCol.Value = routineArr(i)
@@ -126,89 +126,61 @@ End Sub
 'Called by ^^^^^ SetRoutines ^^^^
 Public Sub AppendOperationNames(opName As String, routineArr() As Variant)
     Dim charRange As Range
+    Dim opCell As Range
     Dim i As Integer
-    Dim j As Integer
-    On Error GoTo 10
-    Cells(9, 3).Activate
-    Set charRange = Application.InputBox("Select Characteristics the OP(s) are Applicable to", "Select Characteristics", Type:=8)
-    If charRange Is Nothing Then Exit Sub
-    If charRange.Worksheet.Name <> "PartLib Table" Then GoTo 10
     
-    Dim addys() As String
-    If InStr(charRange.Address, ",") > 0 Then 'If multiple areas are chosen, split them up
-        addys = Split(charRange.Address, ",")
-    Else
-        ReDim Preserve addys(0) 'Otherwise just set the one area
-        addys(0) = charRange.Address
+    Dim offsetVal As Integer
+    On Error GoTo 10
+    
+        'If its a SWISS,MILL or RECEIVE
+    If (InStr(opName, "SWISS") > 0) Or (InStr(opName, "MILL") > 0) Or (InStr(opName, "RECEIVE") > 0) Then
+        If Not (ThisWorkbook.StrInColl(Worksheets("MachineOps").GetOpNames(), opName)) And Worksheets("MachineOps").GetOpNames().Count <> 0 Then
+            Cells(9, 3).Activate
+            Set charRange = Application.InputBox("Select Characteristics this OP is Applicable to", "Select Characteristics", Type:=8)
+            If charRange Is Nothing Then Exit Sub
+            If charRange.Worksheet.Name <> "PartLib Table" Then GoTo 10
+            
+            Dim addys() As String
+            If InStr(charRange.Address, ",") > 0 Then 'If multiple areas are chosen, split them up
+                addys = Split(charRange.Address, ",")
+            Else
+                ReDim Preserve addys(0) 'Otherwise just set the one area
+                addys(0) = charRange.Address
+            End If
+            
+            'Address validation
+            For i = 0 To UBound(addys)
+                If InStr(addys(i), ":") > 0 Then
+                    If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 6 Then GoTo 10 'If $C$X:$C$X, not all in the C Column
+                Else
+                    If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 3 Then GoTo 10 'IF $C$6, not in the C column
+                End If
+            Next i
+            
+            'Iterate through the Chosen cells and set their Operation values
+            For i = 0 To UBound(addys)
+                Dim tempRange As Range
+                Set tempRange = Range(addys(i))
+                For Each opCell In tempRange 'For each characteristic the user selected
+                    Call SetOpCell(opCell, routineArr, opName)
+                Next opCell
+            Next i
+            
+        Else
+            'Its a SWISS/MLL/RECEINSP OP, but the first instance of one of these ops
+                'or like, a SWISS already exists and They're adding more routines to SWISS
+            
+            Dim allCharRange As Range
+            Set allCharRange = Range("A4:A" & Range("A4").End(xlDown).Row)
+            Set allCharRange = allCharRange.offset(0, 2)
+            
+            For Each opCell In allCharRange
+                Call SetOpCell(opCell, routineArr, opName)
+            Next opCell
+        End If
     End If
     
-    'Address validation
-    For i = 0 To UBound(addys)
-        If InStr(addys(i), ":") > 0 Then
-            If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 6 Then GoTo 10 'If $C$X:$C$X, not all in the C Column
-        Else
-            If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 3 Then GoTo 10 'IF $C$6, not in the C column
-        End If
-    Next i
-    
-    'iterate through the cells and set their Operation values
-    For i = 0 To UBound(addys)
-        Dim tempRange As Range
-        Set tempRange = Range(addys(i))
-        Dim subCell As Range
-        For Each subCell In tempRange 'For each characteristic the user selected
-            If subCell.Value <> vbNullString Then
-                Dim opCell As Range
-                Set opCell = subCell.offset(0, 23)
-                If IsNumeric(Right(subCell.Value, 1)) Then
-                    Dim instance As Integer
-                    instance = CInt(Split(subCell.Value, "_")(2))
-                    If instance >= 2 Then 'If its a child instance, set the referential formulas
-                        Dim offsetVal As Integer
-                        Do
-                            With opCell
-                                Dim parentAddr As String
-                                parentAddr = Worksheets("IEX-DATA").GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
-                                .Value = ""
-                                .NumberFormat = "General"
-                                '=IF(G14="","",G14)
-                                .Formula2 = "=IF(" & parentAddr & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddr & ")"
-                            End With
-                            
-                            'For each routine in each child instance, set the ref information
-                            If j <= UBound(routineArr) Then
-                                offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
-                                Set opCell = opCell.offset(0, offsetVal)
-                                j = j + 1
-                            Else
-                                Exit Do
-                            End If
-                        Loop While True
-                    Else
-                        'Otherwise its a parent instance or non-family
-                        GoTo 20
-                    End If
-                Else
-20
-                    'Otherwise not numeric
-                    opCell.Value = opName
-                    'TODO This is where we would set the X's and O's logic
-                    
-                    For j = 0 To UBound(routineArr)
-                        If InStr(CStr(routineArr(j)), "FA_FIRST") > 0 Then
-                            offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
-                            Set opCell = opCell.offset(0, offsetVal)
-                            opCell.Value = "X"
-                        End If
-                    Next j
-                End If
-            End If
-            j = 0
-        Next subCell
-    Next i
-    
     Call Worksheets("MachineOps").InsertNewOp(opName)
-    
     
     Exit Sub
 
@@ -218,6 +190,60 @@ Public Sub AppendOperationNames(opName As String, routineArr() As Variant)
     MsgBox "You did not choose a valid Characteristic Name Range" & vbCrLf & "Choose ONLY values from Column C", vbCritical
     Err.Raise Number:=vbObjectError + 1000, Description:="Incorrect Range"
     
+End Sub
+
+'Called by ^^^^^ AppendOperationNames ^^^^
+Public Sub SetOpCell(subCell As Range, routineArr() As Variant, opName As String)
+    Dim j As Integer
+    Dim opCell As Range
+    Dim offsetVal As Integer
+
+    If subCell.Value <> vbNullString Then
+                        
+        Set opCell = subCell.offset(0, 23)
+        If IsNumeric(Right(subCell.Value, 1)) Then
+            Dim instance As Integer
+            instance = CInt(Split(subCell.Value, "_")(2))
+            If instance >= 2 Then 'If its a child instance, set the referential formulas
+                
+                Do
+                    With opCell
+                        Dim parentAddr As String
+                        parentAddr = Worksheets("IEX-DATA").GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
+                        .Value = ""
+                        .NumberFormat = "General"
+                        '=IF(G14="","",G14)
+                        .Formula2 = "=IF(" & parentAddr & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddr & ")"
+                    End With
+                    
+                    'For each routine in each child instance, set the ref information
+                    If j <= UBound(routineArr) Then
+                        offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
+                        Set opCell = opCell.offset(0, offsetVal)
+                        j = j + 1
+                    Else
+                        Exit Do
+                    End If
+                Loop While True
+            Else
+                'Otherwise its a parent instance or non-family
+                GoTo 20
+            End If
+        Else
+20
+            'Otherwise not numeric
+            opCell.Value = opName
+            
+                'If one of the routines being set is a FA_FIRST, then set "X" for the given input
+            For j = 0 To UBound(routineArr)
+                If InStr(CStr(routineArr(j)), "FA_FIRST") > 0 Then
+                    offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
+                    Set opCell = opCell.offset(0, offsetVal)
+                    opCell.Value = "X"
+                End If
+            Next j
+        End If
+    End If
 End Sub
 
 'called by our ConditionalFeature form, Set a variable formula
@@ -263,6 +289,7 @@ Public Sub ApplyFormula(targetCol As String, Optional limit As Variant, Optional
     If targetCol = "Lower" Then
         If IsMissing(varCol) Then
             'form = the nom cell - the hard limit
+            targetCell.NumberFormat = "General"
             targetCell.formula = "=$E" & ActiveCell.Row & " - " & limit
         Else
             'for = the nom cell - the vlookup
@@ -272,6 +299,7 @@ Public Sub ApplyFormula(targetCol As String, Optional limit As Variant, Optional
     ElseIf targetCol = "Upper" Then
         If IsMissing(varCol) Then
             'form = the nom cell + the hard limit
+            targetCell.NumberFormat = "General"
             targetCell.formula = "=$E" & ActiveCell.Row & " + " & limit
         Else
             'for = the nom cell + the vlookup
@@ -289,7 +317,30 @@ Public Sub ApplyFormula(targetCol As String, Optional limit As Variant, Optional
         targetCell.formula = "=" & prefix & "VLOOKUP('START HERE'!$C$8,Variables!$A$2:$AZ$500," & formulaCol & ",FALSE)"
     End If
     
-    Rows(ActiveCell.Row).Interior.ColorIndex = 33
+    'TODO: set the child rows as also being that colorindex
+    'Also we want to set everything but the index cell to blue, index cell should remain uncolored in case
+    ' the qe wantts to change it to yellow
+    Dim targetIndex As Range
+    Dim targetCharac As Range
+    Dim storeColor As Double
+    Set targetIndex = targetCell.offset(0, GetCol("Index #") - targetCell.column)
+    Set targetCharac = targetCell.offset(0, GetCol("Characteristic Name") - targetCell.column)
+    storeColor = targetIndex.Interior.color
+    
+        'If its a parent characteristic
+    If targetCharac.Font.color = RGB(68, 114, 196) Then
+        Do
+            Rows(targetCharac.Row).Interior.ColorIndex = 33 'Change the color
+            targetCharac.offset(0, -2).Interior.color = storeColor
+            Set targetCharac = targetCharac.offset(1, 0)
+        
+        Loop While targetCharac.Font.color = RGB(128, 128, 128)  'Keep going as we hit child cells
+        'Otherwise, just change the color
+    Else
+        Rows(ActiveCell.Row).Interior.ColorIndex = 33
+        targetIndex.Interior.color = storeColor
+    End If
+    
 20
     Application.EnableEvents = True
     
@@ -347,6 +398,54 @@ Public Sub SetHiding(features As String, hideForm As String)
 hideErr:
     MsgBox "Could not set the formula" & vbCrLf & hideForm & vbCrLf & "For features:" & vbCrLf & features, vbCritical
     GoTo 20
+End Sub
+
+'called by HideFeatureCond userform, erase hiding formula from already hidden features
+Public Sub UnsetHiding(featCell As Range)
+    Dim tolerRows As Range
+    Dim toolRows As Range
+    Set tolerRows = Range("H1:K1").EntireColumn
+    Set toolRows = Range("R1:X1").EntireColumn
+
+    Dim offCell As Range
+    Dim j As Integer
+    
+    For j = 0 To 22
+        Set offCell = featCell.offset(0, j)
+        If InStr(offCell.formula, "=IF(") = 0 Then GoTo contOff
+        If (Application.Intersect(tolerRows, offCell) Is Nothing) And (Application.Intersect(toolRows, offCell) Is Nothing) Then
+            Dim strippedVal As String
+            strippedVal = GetHiddenValue(offCell.formula)
+'            If strippedVal = "" Then
+'                MsgBox "We couldnt parse the value from " & offCell.Address, vbInformation
+'                Exit Sub
+'            End If
+            
+            
+            If Mid(strippedVal, 1, 1) = "=" Then
+                offCell.Value = ""
+                offCell.formula = strippedVal
+            Else
+                offCell.Value = strippedVal
+            End If
+            
+'            Dim params() As String
+'            params = Split(offCell.formula, ",")
+'            Dim ogValue As String
+'            'TODO: this doenst work for the VLOOKUPS...
+'            ogValue = params(UBound(params))
+'
+'            ogValue = Mid(ogValue, 1, Len(ogValue) - 1)
+'
+'            If Mid(ogValue, 1, 1) <> Chr(34) Then
+'                offCell.Value = ""
+'                offCell.formula = "=" & ogValue
+'            Else
+'                offCell.Value = Replace(ogValue, Chr(34), "")
+'            End If
+        End If
+contOff:
+    Next j
 End Sub
 
 
@@ -631,7 +730,7 @@ End Sub
 
 
 'Called By RibbonCommands (Import RoutineMap)
-Public Sub ImportRoutineMap(featuresArr() As String)
+Public Sub ImportRoutineMap(featuresArr() As String, wbName As String)
     'Turn off events first
     'Alert if we see an "Attached Image" but we dont have that filename in the "Attachments" directory
     'There are some formula driven columns that we probably should skip, like tol range and balloon num??
@@ -664,6 +763,9 @@ Public Sub ImportRoutineMap(featuresArr() As String)
                 Set targetCell = indexCell.offset(0, j + 1)
                 
                 If j = 1 Then 'If we hit Characteristic Name
+                    'If its an unusual characteristic name, just set the value
+                    If Not (IsNumeric(Right(featuresArr(i, j), 2))) Then GoTo 20
+                
                     Dim instance As Integer
                     instance = CInt(Right(featuresArr(i, j), 2))
                     
@@ -690,9 +792,23 @@ Public Sub ImportRoutineMap(featuresArr() As String)
                             & "," & Chr(34) & featuresArr(i, j) & Chr(34) & ")"
                         GoTo nextFeat 'The other columns get set by the SetInstance call, so just go to next feature
                     End If
+                    
+                ElseIf j = 11 Then 'If we hit the COMMENTS
+                    Dim parsedName As String
+                    parsedName = Split(Replace(wbName, ".xlsm", ""), " ")(0)
+                    If featuresArr(i, j) = "NA" Then  'Replace NA with the drawing name
+                        targetCell.Value = "DWG# " & parsedName
+                    Else  'Otherwise append the DWG name to beginning of the actual comment
+                        targetCell.Value = "DWG# " & parsedName & ", " & featuresArr(i, j)
+                    End If
+                    GoTo 30
+                    
+                ElseIf j = 23 Then   'If detected a picture/attachment here, we should do our best to grab the files
+                    
                 End If
-                
+20
                 targetCell.Value = featuresArr(i, j)
+30
             End If
         Next j
 nextFeat:
@@ -1501,6 +1617,8 @@ Private Function ParseToolValue(tool As String) As String
         End If
     ElseIf IsNumeric(tool) Then
         ParseToolValue = tool
+    ElseIf tool = "NA" Then
+        ParseToolValue = "NA"
     Else
 10
         'We can't parse this, doesn't makes sense
@@ -1550,6 +1668,52 @@ Public Function GetCol(colName As String) As Integer
     End If
     On Error GoTo 0
 End Function
+
+
+
+Public Function GetHiddenValue(checkForm As String) As String
+
+        'Is it a " or a )     Value, vs formula
+    Dim expr As String
+    expr = Mid(checkForm, Len(checkForm) - 1, 1)
+    
+    If expr = Chr(34) Then
+        Dim lastQuote As Integer
+        Dim prevQuote As Integer
+        lastQuote = InStrRev(checkForm, Chr(34))
+        prevQuote = InStrRev(checkForm, Chr(34), lastQuote - 1) + 1
+        GetHiddenValue = Mid(checkForm, prevQuote, (lastQuote - prevQuote))
+    
+    ElseIf expr = ")" Then
+        Dim lastParen As Integer
+        Dim prevParen As Integer
+        Dim startFunc As Integer
+        lastParen = InStrRev(checkForm, ")")
+        prevParen = InStrRev(checkForm, "(")
+        startFunc = InStrRev(checkForm, ",", prevParen - 1) + 1
+        GetHiddenValue = "=" & Mid(checkForm, startFunc, (lastParen - startFunc))
+            'Keep in mind, this will need a "=" prefix
+            
+            
+    ElseIf InStr(checkForm, ",") > 0 Then
+        Dim ending() As String
+        Dim endVal As String
+        ending = Split(checkForm, ",")
+        endVal = ending(UBound(ending))
+        GetHiddenValue = "=" & Mid(endVal, 1, Len(endVal) - 1)  'Get the last value, except for the ")"
+    
+    End If
+    
+    
+End Function
+
+Private Sub testHiddenValue()
+    Dim rng As Range
+    Set rng = Range("a2:A50")
+    Debug.Print (rng.Address)
+    Debug.Print (rng.offset(0, 3).Address)
+
+End Sub
 
 
 

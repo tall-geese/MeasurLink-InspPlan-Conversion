@@ -137,9 +137,10 @@ Public Sub ImportRoutineMap(ByRef control As IRibbonControl)
     
     Dim verNums() As String
     verNums = Split(verCode, ".")
+'    Debug.Print (CDbl(verNums(0) & "." & verNums(1)))
     If CDbl(verNums(0) & "." & verNums(1)) < 1.1 Then
         MsgBox (verNums(0) & "." & verNums(1))
-        GoTo verErr 'Functionality supported in 1.1.0
+        GoTo verErr 'Initial Import Functionality supported in 1.1.0
     End If
     
     Dim featuresArr() As String
@@ -150,7 +151,8 @@ Public Sub ImportRoutineMap(ByRef control As IRibbonControl)
     End If
     
     On Error GoTo featErr
-    ThisWorkbook.Worksheets("PartLib Table").ImportRoutineMap (featuresArr)
+    
+    Call ThisWorkbook.Worksheets("PartLib Table").ImportRoutineMap(featuresArr, readWB.Name)
 10
     On Error Resume Next
     readWB.Close SaveChanges:=False
@@ -162,7 +164,8 @@ fileErr:
     MsgBox "You selected an incorrect file type." & vbCrLf & Err.Description, vbCritical
     Exit Sub
 subErr:
-    MsgBox "This RoutineMap does not support Import Functionality", vbInformation
+    MsgBox "This RoutineMap either does not support Import Functionality" & vbCrLf & "Or you may not have 'Trust Access to VBA Project Model'" _
+                & " Enabled in your Excel Settings", vbInformation
     GoTo 10
 verErr:
     MsgBox "This Version of the RoutineMap does not support Importing", vbInformation
@@ -295,7 +298,7 @@ Public Sub HideFeaturesCondForm(ByRef control As IRibbonControl)
                     'We're going to index from the Characteristic Cell
                     Set featureCell = subCell.offset(0, partWS.GetCol("Characteristic Name") - subCell.column)
                     'Ignore cells w/o Characteristic Names
-                    If featureCell.Value = "" Then GoTo Cont
+                    If featureCell.Value = "" And featureCell.formula = "" Then GoTo Cont
                     
                     'If the user did a horizontal collection, we only want to set one feature ONCE
                     If Not ThisWorkbook.IsInColl(featureCol, featureCell) Then
@@ -312,27 +315,78 @@ Cont:
                 label = "*Multiple*"
             End If
             
-            Load HideFeatureCond
-            HideFeatureCond.FeatureLabel.Caption = label
             
-            'Store the address of each applicable cell in the userform
-            Dim feature As Range
+                'Validate no hiddens in the Collection
+            Dim hiddenAlready As Boolean
+            Dim hiddenIndexes As Collection
+            Set hiddenIndexes = New Collection
+            Dim i As Integer
+            i = 1
             For Each feature In featureCol
-                HideFeatureCond.Tag = HideFeatureCond.Tag & feature.Address & ","
+                    'If a characteristic name has a formula in it
+                If InStr(feature.formula, "=IF(") > 0 Then
+                    If IsNumeric(Right(feature.Value, 2)) Then
+                        If CInt(Right(feature.Value, 2)) <= 1 Then   'And its not becuase it is a child feature...
+                            hiddenAlready = True
+                            hiddenIndexes.Add i
+                        End If
+                    Else
+                        hiddenAlready = True
+                        hiddenIndexes.Add i
+                    End If
+                End If
+                i = i + 1
             Next feature
-            HideFeatureCond.Tag = Mid(HideFeatureCond.Tag, 1, Len(HideFeatureCond.Tag) - 1) 'erase the last comma
             
-            Dim varColumns As Range
-            'Set our ComboBox values with the list of the Variable types
-            Set varColumns = Worksheets("Variables").GetVariableColumns()
-            For Each colCell In varColumns
-                HideFeatureCond.Controls("VariableComboBox").AddItem (colCell)
-            Next colCell
+                'If the selected features are hidden features
+            If hiddenAlready Then
+                result = MsgBox("Some of the Features Selected appear to be conditionally hiddem" & vbCrLf _
+                                & "Would you like to attempt to remove conditional hiding from these features?", vbYesNo)
+                If result = vbNo Then Exit Sub
+                
+                If result = vbYes Then
+                    On Error GoTo resetFeatErr
+                    Application.EnableEvents = False
+                    
+                    For Each ind In hiddenIndexes
+                        Dim featCell As Range
+                        Set featCell = featureCol.Item(ind)
+                        Call Worksheets("PartLib Table").UnsetHiding(featCell:=featCell)
+                    Next ind
+                End If
+                
+                'If the selected features are not already hidden
+            Else
+                Load HideFeatureCond
+                HideFeatureCond.FeatureLabel.Caption = label
+                
+                'Store the address of each applicable cell in the userform
+'                Dim feature As Range
+                For Each feature In featureCol
+                    HideFeatureCond.Tag = HideFeatureCond.Tag & feature.Address & ","
+                Next feature
+                HideFeatureCond.Tag = Mid(HideFeatureCond.Tag, 1, Len(HideFeatureCond.Tag) - 1) 'erase the last comma
+                
+                Dim varColumns As Range
+                'Set our ComboBox values with the list of the Variable types
+                Set varColumns = Worksheets("Variables").GetVariableColumns()
+                For Each colCell In varColumns
+                    HideFeatureCond.Controls("VariableComboBox").AddItem (colCell)
+                Next colCell
+                
+                HideFeatureCond.Show
+            End If
             
-            HideFeatureCond.Show
         End If
     End If
+10
+    Application.EnableEvents = True
+    Exit Sub
 
+resetFeatErr:
+    MsgBox "Something went wrong with " & featureCol.Item(ind) & vbCrLf & "couldn't strip the value", vbCritical
+    GoTo 10
+    Exit Sub
 
 End Sub
 
@@ -441,6 +495,8 @@ End Sub
 Public Sub DisableEvents_Toggle(ByRef control As Office.IRibbonControl, ByRef isPressed As Boolean)
     Application.EnableEvents = Not (isPressed)
 End Sub
+
+
 
 
 

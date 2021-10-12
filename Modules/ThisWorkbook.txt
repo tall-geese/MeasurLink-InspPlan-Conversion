@@ -37,16 +37,26 @@ End Function
 
 Public Function IsInColl(col As Collection, val As Range) As Boolean
     For Each subitem In col
-        If subitem = val Then
+        If subitem.Address = val.Address Then
             IsInColl = True
         End If
     Next subitem
 End Function
 
 Public Function ColInColl(col As Collection, val As String) As Boolean
+    If col.Count = 0 Then Exit Function
     For Each subitem In col
         If subitem = val Then
             ColInColl = True
+        End If
+    Next subitem
+End Function
+
+Public Function StrInColl(col As Collection, val As String) As Boolean
+    If col.Count = 0 Then Exit Function
+    For Each subitem In col
+        If subitem = val Then
+            StrInColl = True
         End If
     Next subitem
 End Function
@@ -214,10 +224,38 @@ delErr:
 End Function
 
 
+Sub testColl()
+    Dim a As Collection
+    Set a = New Collection
+    a.Add "Hello"
+    a.Add "goodbye"
+    a.Add "sup"
+    
+    a.Remove (1)
+
+    Debug.Print (a.Item(1))
+
+End Sub
 
 
+Sub testSplit()
+    Dim readWB As Workbook
+    Set readWB = Me
+    Dim verCode As String
+    With readWB.VBProject.VBComponents("DataSources").CodeModule
+'        On Error GoTo verErr
+        verCode = Split(Split(.Lines(1, .CountOfDeclarationLines), "Const VERSION = " & Chr(34))(1), Chr(34))(0)
+    End With
+
+    Debug.Print (verCode)
+
+End Sub
+
+Sub testWBPath()
+    Debug.Print (Me.Name)
 
 
+End Sub
 
 
 
@@ -229,6 +267,8 @@ End Function
 'End Sub
 
 'Called by PartLib and PivotFeature
+
+
 
 
 

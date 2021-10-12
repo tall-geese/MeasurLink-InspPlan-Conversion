@@ -104,11 +104,14 @@ Public Sub DeactivateOthers(ctrlFrame As Frame)
 End Sub
 Public Sub ActivateMe(ctrlFrame As Frame)
     For Each ctrl In ctrlFrame.Controls
-        If ctrl.Name <> "FA_FIRSTCheckbox" And ctrl.Name <> "FA_VISCheckbox" And _
-            ctrl.Name <> "FI_OPXX_RECINSPCheckbox" And ctrl.Name <> "FI_DIMCheckbox" Then
-            ctrl.Enabled = True
-        End If
+        ctrl.Enabled = True
     Next ctrl
+'    For Each ctrl In ctrlFrame.Controls
+'        If ctrl.Name <> "FA_FIRSTCheckbox" And ctrl.Name <> "FA_VISCheckbox" And _
+'            ctrl.Name <> "FI_OPXX_RECINSPCheckbox" And ctrl.Name <> "FI_DIMCheckbox" Then
+'            ctrl.Enabled = True
+'        End If
+'    Next ctrl
 
 End Sub
 

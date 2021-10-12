@@ -462,7 +462,7 @@ Sub SetInstance(refCell As Range, destCell As Range, instance As Integer)
         Dim cell As Range
         Dim tempCell As Range
         Set tempCell = destCell.offset(0, 1)
-        For Each cell In Sheets("PartLib Table").Range(tempCell.Address & ":J" & tempCell.Row & ",L" & tempCell.Row & ":W" & tempCell.Row)
+        For Each cell In Sheets("PartLib Table").Range(tempCell.Address & ":J" & tempCell.Row & ",L" & tempCell.Row & ":Y" & tempCell.Row)
             With cell
                 Dim parentAddr As String
                 parentAddr = GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
