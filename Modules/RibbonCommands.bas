@@ -152,7 +152,7 @@ Public Sub ImportRoutineMap(ByRef control As IRibbonControl)
     
     On Error GoTo featErr
     
-    Call ThisWorkbook.Worksheets("PartLib Table").ImportRoutineMap(featuresArr, readWB.Name)
+    Call ThisWorkbook.Worksheets("PartLib Table").ImportRoutineMap(featuresArr, readWB.Name, readWB.path)
 10
     On Error Resume Next
     readWB.Close SaveChanges:=False
@@ -188,13 +188,20 @@ End Sub
 '****************************************************
 
 
+'***************   Import New Data Validations Btn  *********************
 
+Public Sub ImportDataValidations(ByRef control As IRibbonControl)
+    Call ImportValidationValues
+End Sub
+
+
+        '*********   Deprecated  ***************
 '***************   Set Data Validations Btn  *********************
 
-Public Sub LoadDataValidations(ByRef control As IRibbonControl)
-    Call Validations.OpenDataValidations
-    Call Validations.SetDataValidations
-End Sub
+'Public Sub LoadDataValidations(ByRef control As IRibbonControl)
+'    Call Validations.OpenDataValidations
+'    Call Validations.SetDataValidations
+'End Sub
 
 
 
@@ -221,7 +228,10 @@ Public Sub InsertValidationValue(ByRef control As IRibbonControl)
             'open the wb in write mode, save the changes and open again in read mode
             Call Validations.InsertNewValidation(newVal:=ActiveCell.Value, targetCol:=ActiveCell.column, userPass:=userPass)
             Call Validations.CloseDataValidations(saveWB:=True)
-            Call Validations.OpenDataValidations
+            
+            
+                'TODO: change this to ImportValidationValues maybe???
+'            Call Validations.OpenDataValidations
         End If
     End If
 

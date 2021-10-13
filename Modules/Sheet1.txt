@@ -50,7 +50,7 @@ Public Sub ApplyGroupings()
             Rows(groupStart & ":" & cell.Row - 1).Group
             groupStart = 0
         ElseIf (instanceGroup = True And cell.Row = rangeEnd) Then
-            Rows(groupStart & ":" & cell.Row - 1).Group
+            Rows(groupStart & ":" & cell.Row).Group
         End If
     Next cell
     
@@ -730,7 +730,7 @@ End Sub
 
 
 'Called By RibbonCommands (Import RoutineMap)
-Public Sub ImportRoutineMap(featuresArr() As String, wbName As String)
+Public Sub ImportRoutineMap(featuresArr() As String, wbName As String, wbPath As String)
     'Turn off events first
     'Alert if we see an "Attached Image" but we dont have that filename in the "Attachments" directory
     'There are some formula driven columns that we probably should skip, like tol range and balloon num??
@@ -741,6 +741,9 @@ Public Sub ImportRoutineMap(featuresArr() As String, wbName As String)
     Dim lastIndex As Integer
     Set indexCell = Range("A4").End(xlDown)
     lastIndex = CInt(indexCell.Value)
+    
+    Dim alertAboutAtt As Boolean
+    Dim shouldCopyAtt As Boolean
     
     Dim skipCols As Collection
     Set skipCols = New Collection
@@ -796,14 +799,77 @@ Public Sub ImportRoutineMap(featuresArr() As String, wbName As String)
                 ElseIf j = 11 Then 'If we hit the COMMENTS
                     Dim parsedName As String
                     parsedName = Split(Replace(wbName, ".xlsm", ""), " ")(0)
-                    If featuresArr(i, j) = "NA" Then  'Replace NA with the drawing name
+                    If featuresArr(i, j) = "NA" Or featuresArr(i, j) = "" Then  'Replace NA with the drawing name
                         targetCell.Value = "DWG# " & parsedName
                     Else  'Otherwise append the DWG name to beginning of the actual comment
                         targetCell.Value = "DWG# " & parsedName & ", " & featuresArr(i, j)
                     End If
                     GoTo 30
                     
-                ElseIf j = 23 Then   'If detected a picture/attachment here, we should do our best to grab the files
+                ElseIf j = 23 Then   'If we hit the ATTACHMENTS column
+                    If featuresArr(i, j) <> "" Then  'If there is actually an attachment set for a feature
+                        Dim result As Integer
+                        
+                            'If its the first time we've encountered an attachment
+                        If alertAboutAtt = False Then
+                            alertAboutAtt = True
+                            result = MsgBox("One or more attachments for features in the imported workbook were found" & vbCrLf _
+                                        & "Would you like to copy over these attachment files to this workbook?", vbYesNo)
+                            If result = vbYes Then
+                                shouldCopyAtt = True
+                            Else
+                                GoTo 20
+                            End If
+                            
+                        ElseIf alertAboutAtt = True And shouldCopyAtt = False Then
+                            GoTo 20 'User doesnt want to copy anything
+                        End If
+                    
+                        Dim fso As FileSystemObject
+                        Set fso = New FileSystemObject
+                        Dim readAttPath As String
+                        readAttPath = Replace(wbPath, fso.GetFileName(wbPath), "Attachments")
+                        
+                            'ReadWorkbook doenst have Attachments directory
+                        If Not (fso.FolderExists(readAttPath)) Then
+                            MsgBox "The imported workbook appears to have attachments set for features" & vbCrLf _
+                                & "However, no Attachments directory was found" & vbCrLf _
+                                & "Cannot copy over these attachements", vbInformation
+                            shouldCopyAtt = False
+                            GoTo 20
+                        End If
+                        
+                        Dim writeAttPath As String
+                        writeAttPath = Replace(ThisWorkbook.path, fso.GetFileName(ThisWorkbook.path), "Attachments")
+                        
+                            'If ThisWorkbook doesn't have an Attachments directory, ask the user if we should make one for them
+                        If Not (fso.FolderExists(writeAttPath)) Then
+                            result = MsgBox("There doesn't seem to be an 'Attachments' directory for this project" & vbCrLf & "Would you like to create one?", vbYesNo)
+                            If result = vbYes Then
+                                fso.CreateFolder (writeAttPath)
+                            Else
+                                shouldCopyAtt = False 'User doesn't want to setup the folder, dont copy anything
+                                GoTo 20
+                            End If
+                        End If
+                        
+                        Dim attachments() As String
+                        attachments = Split(featuresArr(i, j), "|")
+                        Dim k As Integer
+                        
+                            'For each attachment file for the feature...
+                        For k = 0 To UBound(attachments)
+                            Dim filePath As String
+                            filePath = readAttPath & "\" & attachments(k)
+                            If fso.FileExists(filePath) Then
+                                fso.CopyFile Source:=filePath, Destination:=writeAttPath & "\" & attachments(k)
+                            Else
+                                MsgBox "Couldn't find the file" & vbCrLf _
+                                        & attachments(k) & vbCrLf _
+                                        & "In the Imported Workbook's Attachment Directory", vbInformation
+                            End If
+                        Next k
+                    End If
                     
                 End If
 20
@@ -979,6 +1045,7 @@ End Sub
 Public Function ExportRoutineMap() As String()
     'If our workbook has multiple part numbers, then we want to set one of them first before
     'going further, so cells will have information hidden or variably changed correctly.
+    Me.Outline.ShowLevels RowLevels:=2
     Dim partArr() As String
     partArr = Worksheets("Variables").GetPartNumbers()
     
@@ -1144,7 +1211,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
                 On Error GoTo 20
                 Application.EnableEvents = False 'prevent recursive looping
                 
-                Call Validations.SetInspMethodValidation(cell:=subCell) 'Reset the validation in case of copy/paste
+'                Call Validations.SetInspMethodValidation(cell:=subCell) 'Reset the validation in case of copy/paste
                 
                 If subCell.Value = "" Then
                     subCell.offset(0, -7).Value = "" 'set Insp Type to nothing
@@ -1205,7 +1272,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
                 
                 'Somebody changed the control, either manually typed or perhaps set with a drop-down choice
             ElseIf target.column = GetCol("Comments") Then
-                Call SetCommentsValidation(cell:=subCell) 'Reset the validation in case of copy/paste
+'                Call SetCommentsValidation(cell:=subCell) 'Reset the validation in case of copy/paste
             End If
         Next subCell
     End If
@@ -1223,17 +1290,29 @@ End Sub
 '***************   Inspection Methods   *********************
 
 Private Function AssignInspType(Method As String) As String
-    Dim valWB As Workbook
     Dim valSheet As Worksheet
     On Error GoTo 10
-    Set valWB = Workbooks("RoutineMapDataValidations.xlsm")
-    Set valSheet = valWB.Worksheets("Data Validations")
-    
+    Set valSheet = Worksheets("Data Validations")
+
     Dim workingRange As Range
     Set workingRange = valSheet.Range("$E$2:$F$" & valSheet.Range("F2").End(xlDown).Row)
     Dim inspType As Variant
     inspType = Application.WorksheetFunction.VLookup(Method, workingRange, 2, False)
     AssignInspType = inspType
+    
+
+        '''' Previous Method of Referencing from an outside workbook '''''
+'    Dim valWB As Workbook
+'    Dim valSheet As Worksheet
+'    On Error GoTo 10
+'    Set valWB = Workbooks("RoutineMapDataValidations.xlsm")
+'    Set valSheet = valWB.Worksheets("Data Validations")
+'
+'    Dim workingRange As Range
+'    Set workingRange = valSheet.Range("$E$2:$F$" & valSheet.Range("F2").End(xlDown).Row)
+'    Dim inspType As Variant
+'    inspType = Application.WorksheetFunction.VLookup(Method, workingRange, 2, False)
+'    AssignInspType = inspType
     
 10
 End Function
@@ -1714,6 +1793,10 @@ Private Sub testHiddenValue()
     Debug.Print (rng.offset(0, 3).Address)
 
 End Sub
+
+
+
+
 
 
 

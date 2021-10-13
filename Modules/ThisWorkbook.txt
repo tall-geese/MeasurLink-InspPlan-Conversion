@@ -23,7 +23,7 @@ Private Sub Workbook_BeforeClose(Cancel As Boolean)
 End Sub
 
 Private Sub Workbook_Open()
-    Call Validations.OpenDataValidations
+'    Call Validations.OpenDataValidations
 End Sub
 
 
@@ -252,8 +252,13 @@ Sub testSplit()
 End Sub
 
 Sub testWBPath()
-    Debug.Print (Me.Name)
-
+    Dim fso As FileSystemObject
+    Set fso = New FileSystemObject
+    Debug.Print (ThisWorkbook.path)
+    Debug.Print (ThisWorkbook.Name)
+    Debug.Print (fso.GetFileName(ThisWorkbook.path))
+    
+    
 
 End Sub
 

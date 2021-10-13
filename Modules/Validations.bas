@@ -27,13 +27,36 @@ Public Sub CloseDataValidations(Optional saveWB As Boolean)
     Set valWB = Nothing
 End Sub
 
-'*************   Called by SetValidations Button  *******************
 
-Public Sub SetDataValidations()
+'***********   Called by Import New Data Validations Button  ******************
+Public Sub ImportValidationValues()
     Call OpenDataValidations
-    valWB.Sheets("StandardComments").SetValReference (ThisWorkbook.Name)
-    valWB.Sheets("InspMethods").SetValReference (ThisWorkbook.Name)
+    
+    Dim valWS As Worksheet
+    Set valWS = valWB.Worksheets("Data Validations")
+    Dim commWS As Worksheet
+    Set commWS = valWB.Worksheets("StandardComments")
+    Dim inspWS As Worksheet
+    Set inspWS = valWB.Worksheets("InspMethods")
+    
+    
+    Dim methodAssignmentRange As Range
+    Set methodAssignmentRange = valWS.Range("$E$2:$F$" & valWS.Range("F2").End(xlDown).Row)
+    methodAssignmentRange.Copy Destination:=ThisWorkbook.Worksheets("Data Validations").Range("E2")
+    
+    Dim commentRange As Range
+    Set commentRange = commWS.Range("$A$2:$A$" & commWS.Range("A2").End(xlDown).Row)
+    commentRange.Copy Destination:=ThisWorkbook.Worksheets("StandardComments").Range("A2")
+    
+    Dim inspRange As Range
+    Set inspRange = inspWS.Range("$A$2:$A$" & inspWS.Range("A2").End(xlDown).Row)
+    inspRange.Copy Destination:=ThisWorkbook.Worksheets("InspMethods").Range("A2")
+   
+    Call CloseDataValidations
+
 End Sub
+
+
 
 '***********   Called by Insert Validations Button  ******************
 
@@ -54,6 +77,8 @@ Public Sub InsertNewValidation(newVal As String, targetCol As Integer, userPass 
     If targetCol = 13 Then
         valWB.Sheets("StandardComments").InsertNewValue (newVal)
     ElseIf targetCol = 14 Then
+        
+    
         valWB.Sheets("InspMethods").InsertNewValue (newVal)
     End If
     
@@ -61,31 +86,57 @@ Public Sub InsertNewValidation(newVal As String, targetCol As Integer, userPass 
 End Sub
 
 
-'***********   Called by PartLib On_Change  ******************
 
 
-Public Sub SetInspMethodValidation(cell As Range)
-    '=INDIRECT("[RoutineMapDataValidations.xlsm]InspMethods!C2#")    [for N9]
-    If valWB Is Nothing Then Call OpenDataValidations
-    With cell.Validation
-        .Delete
-        .Add Type:=xlValidateList, Formula1:="=INDIRECT(" & Chr(34) & "[RoutineMapDataValidations.xlsm]InspMethods!C" & cell.Row - 7 & "#" & Chr(34) & ")"
-        .ShowError = False
-    End With
-
-End Sub
 
 
-Public Sub SetCommentsValidation(cell As Range)
-    '=INDIRECT("[RoutineMapDataValidations.xlsm]StandardComments!C2#")    [for M9]
-    If valWB Is Nothing Then Call OpenDataValidations
-    With cell.Validation
-        .Delete
-        .Add Type:=xlValidateList, Formula1:="=INDIRECT(" & Chr(34) & "[RoutineMapDataValidations.xlsm]StandardComments!C" & cell.Row - 7 & "#" & Chr(34) & ")"
-        .ShowError = False
-    End With
 
-End Sub
+
+
+
+
+
+
+
+
+'********************   Deprecated as of 2.0.0  *****************************
+
+
+'*************   Called by SetValidations Button  *******************
+'
+'Public Sub SetDataValidations()
+'    Call OpenDataValidations
+'    valWB.Sheets("StandardComments").SetValReference (ThisWorkbook.Name)
+'    valWB.Sheets("InspMethods").SetValReference (ThisWorkbook.Name)
+'End Sub
+
+
+
+''***********   Called by PartLib On_Change  ******************
+'
+'
+'Public Sub SetInspMethodValidation(cell As Range)
+'    '=INDIRECT("[RoutineMapDataValidations.xlsm]InspMethods!C2#")    [for N9]
+'    If valWB Is Nothing Then Call OpenDataValidations
+'    With cell.Validation
+'        .Delete
+'        .Add Type:=xlValidateList, Formula1:="=INDIRECT(" & Chr(34) & "[RoutineMapDataValidations.xlsm]InspMethods!C" & cell.Row - 7 & "#" & Chr(34) & ")"
+'        .ShowError = False
+'    End With
+'
+'End Sub
+'
+'
+'Public Sub SetCommentsValidation(cell As Range)
+'    '=INDIRECT("[RoutineMapDataValidations.xlsm]StandardComments!C2#")    [for M9]
+'    If valWB Is Nothing Then Call OpenDataValidations
+'    With cell.Validation
+'        .Delete
+'        .Add Type:=xlValidateList, Formula1:="=INDIRECT(" & Chr(34) & "[RoutineMapDataValidations.xlsm]StandardComments!C" & cell.Row - 7 & "#" & Chr(34) & ")"
+'        .ShowError = False
+'    End With
+'
+'End Sub
 
 
 
