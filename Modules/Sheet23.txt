@@ -36,3 +36,29 @@ Public Function TranslateCharacters(cipher As String) As String
 
 End Function
 
+Public Function ExtractLimit(cipher As String) As String
+    Dim dimension As String
+    Dim beginDimension As Boolean
+    Dim readChar As String
+    
+    Dim lookupRange As Range
+    Set lookupRange = Range("B2:D" & Range("D2").End(xlDown).Row)
+    
+    For i = 1 To Len(cipher)
+        readChar = Application.WorksheetFunction.VLookup( _
+            AscW(Mid(cipher, i, 1)), lookupRange, 3, False)
+            
+        If readChar = "." Or IsNumeric(readChar) Then
+            beginDimension = True
+            dimension = dimension & readChar
+        ElseIf beginDimension = True Then
+            GoTo 10
+        End If
+    Next i
+    
+10
+    ExtractLimit = dimension
+End Function
+
+
+

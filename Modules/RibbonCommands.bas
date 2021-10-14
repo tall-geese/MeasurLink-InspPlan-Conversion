@@ -228,10 +228,7 @@ Public Sub InsertValidationValue(ByRef control As IRibbonControl)
             'open the wb in write mode, save the changes and open again in read mode
             Call Validations.InsertNewValidation(newVal:=ActiveCell.Value, targetCol:=ActiveCell.column, userPass:=userPass)
             Call Validations.CloseDataValidations(saveWB:=True)
-            
-            
-                'TODO: change this to ImportValidationValues maybe???
-'            Call Validations.OpenDataValidations
+            Call ImportValidationValues
         End If
     End If
 
@@ -251,6 +248,15 @@ Public Sub PivotFeature(ByRef control As IRibbonControl)
     ElseIf ActiveSheet.Name = "PivotFeature" Then
         Worksheets("PartLib Table").Activate
     End If
+End Sub
+
+'******************   Add Child Instances Btn  ***********************
+
+Public Sub AddChildFeatures(ByRef control As IRibbonControl)
+    
+    If ActiveSheet.Name <> "PartLib Table" Then Exit Sub
+    Call Worksheets("PartLib Table").AddFeatureInstances(ActiveCell)
+    
 End Sub
 
 

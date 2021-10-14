@@ -73,11 +73,24 @@ Public Sub InsertNewValidation(newVal As String, targetCol As Integer, userPass 
     'Add a new inspection mehtod to the Write version of the Validations Workbook
     Call CloseDataValidations
     Call OpenDataValidations(pass:=userPass, readMode:=False)
+    
     If valWB Is Nothing Then Exit Sub
     If targetCol = 13 Then
         valWB.Sheets("StandardComments").InsertNewValue (newVal)
     ElseIf targetCol = 14 Then
+        'TODO: prompt the user for variable/Attribue to add in the new validation.
+        'Becuase this must also be set in the DataValidations sheet of the outside workbook
+        Load InspectionTypeForm
         
+        InspectionTypeForm.Show
+               
+        If InspectionTypeForm.VariableRad.Value = True Then
+            valWB.Sheets("Data Validations").InsertNewValue newVal, "Variable"
+        ElseIf InspectionTypeForm.AttributeRad.Value = True Then
+            valWB.Sheets("Data Validations").InsertNewValue newVal, "Attribute"
+        End If
+        
+        Unload InspectionTypeForm
     
         valWB.Sheets("InspMethods").InsertNewValue (newVal)
     End If

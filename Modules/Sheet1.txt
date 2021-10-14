@@ -458,7 +458,7 @@ End Sub
             '***************   Called by RibbonCommands   *********************
 
 
-'Called by RibbonCommands.PivotFeature
+'Called by RibbonCommands.PivotFeature / AddFeatureInstances
 Public Function GetCharOrFamily(charCell As Range) As Range
     'If a cell is a parent and theres a parent below it, do nothing
     If charCell.EntireRow.OutlineLevel = 1 And charCell.offset(1, 0).EntireRow.OutlineLevel = 1 Then
@@ -484,6 +484,92 @@ Public Function GetCharOrFamily(charCell As Range) As Range
     Set GetCharOrFamily = charCell
 
 End Function
+
+'Called by RibbonCommands.AddChildFeatures
+Public Sub AddFeatureInstances(selectedCell As Range)
+    If IsInImmutableRange(selectedCell) Then Exit Sub
+
+    Dim charCells As Range
+    Set charCells = selectedCell.offset(0, GetCol("Characteristic Name") - selectedCell.column)
+    Set charCells = GetCharOrFamily(charCells)
+    
+    
+    Dim parentCell As Range
+    Dim parentName As String
+    Set parentCell = charCells.Item(1)
+    
+    'TODO: we want to load our form here
+    Load AddChildInstances
+    AddChildInstances.ParentCharLabel = parentCell.Value
+    AddChildInstances.lowerBoundInst = charCells.Count
+    
+    AddChildInstances.Show
+    
+    If AddChildInstances.Tag = "" Then Exit Sub
+    Dim totalInstances As Integer
+    totalInstances = CInt(AddChildInstances.Tag)
+       
+    Unload AddChildInstances
+    
+    On Error GoTo errChild
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    
+    If Len(parentCell.Value) > 2 Then
+            'If its like a _00 or _01 instance..
+        If InStr(parentCell.Value, "_") > 0 And IsNumeric(Right(parentCell.Value, 2)) Then
+            parentCell.Value = Mid(parentCell.Value, 1, Len(parentCell.Value) - 3) & "_01"
+        Else   'If its a non-numeric instance like (vi)....
+            parentCell.Value = parentCell.Value & "_01"
+        End If
+        
+        parentName = Mid(parentCell.Value, 1, Len(parentCell.Value) - 2)
+        
+        parentCell.HorizontalAlignment = xlHAlignRight
+        parentCell.Font.color = RGB(68, 114, 196)
+    End If
+    
+    Dim i As Integer
+    For i = 1 To totalInstances - charCells.Count
+        Rows(parentCell.Row + charCells.Count + i - 1).Insert , xlFormatFromRightOrBelow
+        'TODO: can we call another outside method to set the child
+        Dim indexCell As Range
+        Dim childChar As Range
+        Set childChar = parentCell.offset(charCells.Count + i - 1, 0)
+        Set indexCell = childChar.offset(0, -2)
+        indexCell.Value = CStr(CDbl(indexCell.offset(-1, 0).Value) + 0.1)
+        
+        childChar.offset(-1, 8).Copy Destination:=childChar.offset(0, 8)
+        
+        Dim ballFormat As String
+        ballFormat = parentName & Format(charCells.Count + i, "00")
+        
+        With childChar
+            .HorizontalAlignment = xlHAlignCenter
+            .Font.color = RGB(128, 128, 128)
+            .NumberFormat = "General"
+            .Formula2 = "=IF(" & .offset(1 - (charCells.Count + i)).Address & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & Chr(34) & ballFormat & Chr(34) & ")"
+            '=IF($C$14="","","0_002_03")
+        End With
+        
+        Call Sheets("IEX-DATA").SetInstance(refCell:=indexCell, destCell:=childChar, instance:=charCells.Count + i)
+    Next i
+    
+    Call ApplyGroupings
+    
+'    Rows(parentCell.Row + charCells.Count).Insert , xlFormatFromRightOrBelow
+    
+10
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+
+    Exit Sub
+    
+errChild:
+    MsgBox "Error when setting Child Instance", vbCritical
+    GoTo 10
+
+End Sub
 
 'Called by RibbonCommands.ExportQIF
 Public Function CollectFeaturesForExport(routineName As String) As Variant()
@@ -1793,6 +1879,11 @@ Private Sub testHiddenValue()
     Debug.Print (rng.offset(0, 3).Address)
 
 End Sub
+
+
+
+
+
 
 
 

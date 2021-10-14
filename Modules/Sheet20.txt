@@ -66,9 +66,15 @@ Sub CleanData()
 
         If (cell.offset(0, 4).Value = "Geometric Tolerance") Then
             'Need to cross-reference our unicode values to the AMGDT font
-            'TODO: this function on the sheet needs to be adjusted slightly so we will VLOOKUP on the next column (ML Applicable text)
+            'TODO: We should also ask the GDT lexiacon sheet to create the upper / lower values for us
             resultValue = ThisWorkbook.Worksheets("GDT-Lexicon").TranslateCharacters(cell.offset(0, 7).Value)
-
+            
+            Dim dimension As String
+            dimension = Worksheets("GDT-Lexicon").ExtractLimit(cell.offset(0, 7).Value)
+            cell.offset(0, 3).Value = dimension
+            cell.offset(0, 2).Value = "0"
+            cell.offset(0, 1).Value = CDbl(dimension) / 2
+            
         Else
             'for non-angles we need to see if units is mm or in and determine if the dimension will have a leading 0 or not respectively
             unitChars = cell.offset(0, 6).Value
@@ -462,7 +468,8 @@ Sub SetInstance(refCell As Range, destCell As Range, instance As Integer)
         Dim cell As Range
         Dim tempCell As Range
         Set tempCell = destCell.offset(0, 1)
-        For Each cell In Sheets("PartLib Table").Range(tempCell.Address & ":J" & tempCell.Row & ",L" & tempCell.Row & ":Y" & tempCell.Row)
+        For Each cell In Sheets("PartLib Table").Range(tempCell.Address & ":J" & tempCell.Row & ",L" & tempCell.Row & ":" _
+                    & GetAddress(Sheets("PartLib Table").Range("C3").End(xlToRight).column) & tempCell.Row)
             With cell
                 Dim parentAddr As String
                 parentAddr = GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
@@ -517,6 +524,10 @@ Public Function GetAddress(column As Integer) As String
     GetAddress = vArr(0)
 
 End Function
+
+
+
+
 
 
 

@@ -262,6 +262,17 @@ Sub testWBPath()
 
 End Sub
 
+'Sub testForm()
+'    Load AddChildInstances
+'    AddChildInstances.lowerBoundInst = 3
+'    AddChildInstances.Show
+'
+'    MsgBox AddChildInstances.Tag
+'
+'    Unload AddChildInstances
+'
+'
+'End Sub
 
 
 
