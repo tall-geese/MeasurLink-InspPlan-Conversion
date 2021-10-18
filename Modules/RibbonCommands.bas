@@ -463,44 +463,78 @@ rtErr:
     Exit Sub
 End Sub
 
-'******************   Optimize Offsetables Btn  ***********************
-Public Sub OptimizeOffsetables(ByRef control As IRibbonControl)
-    Dim colors() As Variant
+'******************   Optimize Inspections Btn  ***********************
+Public Sub OptimizeInspections(ByRef control As IRibbonControl)
+    Dim charArr() As String
+    Dim uniqueOps As Collection
+    Set uniqueOps = New Collection
     Dim routines() As Variant
-    Dim selectedRoutines() As String
-    Dim instructions As String
-    Dim offsetExclusions As Collection
-    instructions = "The Selected Routines will have all of the characteristics designated for inspection changed to " & vbCrLf _
-                & "Should Fall In (X). Then the Offsettable features of the smallest tolerance ranges will be set (O)" & vbCrLf _
-                & vbCrLf & "*** Note that Most FA_ and all FI_ routines will always be SFI's"
-    'TODO: come back later and create a collection of routineNames to ignore
-    Dim likeList As Collection
-    Set likeList = New Collection
-    likeList.Add "FA_FIRST"
-    likeList.Add "FA_MINI"
-    likeList.Add "IP_"
+    Dim colors() As Variant
+    
+    'TODO: after we collect the routines, we should iterate through the routine name's
+    ' And ask PartLib to clear the current mappings from each column
     
     
-    On Error GoTo rtErr
-    routines = Worksheets("PartLib Table").GetRoutinesAndColors(colors)
-    
-    
-    
-    Set offsetExclusions = New Collection
-    offsetExclusions.Add "IP_LAST"
-    offsetExclusions.Add "FA_SYLVAC"
-    offsetExclusions.Add "FA_RAMPROG"
-    offsetExclusions.Add "FA_CMM"
-    offsetExclusions.Add "FI_ALL"
-    offsetExclusions.Add "FA_VIS"
-    
-    Call Worksheets("PartLib Table").OptimizeRoutineOffsetables(routines, offsetExclusions)
-    
-    Exit Sub
-rtErr:
-    MsgBox "Couldn't read the Value or Color of a Routine", vbCritical
-    Exit Sub
+    If Worksheets("PartLib Table").IsValidForInspection(charArr, uniqueOps) Then
+        routines = Worksheets("PartLib Table").GetRoutinesAndColors(colors)
+'        MsgBox "we did it boys"
+        
+        'Constructing the form...
+            'if the amount of unique Operations is 0 or 1, Then we only need to build a single frame of the applicable routines
+            'and list the balloon numbers affected above it
+        If Not (ThisWorkbook.BuildOptimizeInspectionForm(charArr, uniqueOps, routines)) Then Exit Sub
+            'For each opName in orutines
+            
+        
+            
+        
+    End If
+
+
 End Sub
+
+
+
+            '*********   Deprecated  ***************
+
+''******************   Optimize Offsetables Btn  ***********************
+'Public Sub OptimizeOffsetables(ByRef control As IRibbonControl)
+'    Dim colors() As Variant
+'    Dim routines() As Variant
+'    Dim selectedRoutines() As String
+'    Dim instructions As String
+'    Dim offsetExclusions As Collection
+'    instructions = "The Selected Routines will have all of the characteristics designated for inspection changed to " & vbCrLf _
+'                & "Should Fall In (X). Then the Offsettable features of the smallest tolerance ranges will be set (O)" & vbCrLf _
+'                & vbCrLf & "*** Note that Most FA_ and all FI_ routines will always be SFI's"
+'    'TODO: come back later and create a collection of routineNames to ignore
+'    Dim likeList As Collection
+'    Set likeList = New Collection
+'    likeList.Add "FA_FIRST"
+'    likeList.Add "FA_MINI"
+'    likeList.Add "IP_"
+'
+'
+'    On Error GoTo rtErr
+'    routines = Worksheets("PartLib Table").GetRoutinesAndColors(colors)
+'
+'
+'
+'    Set offsetExclusions = New Collection
+'    offsetExclusions.Add "IP_LAST"
+'    offsetExclusions.Add "FA_SYLVAC"
+'    offsetExclusions.Add "FA_RAMPROG"
+'    offsetExclusions.Add "FA_CMM"
+'    offsetExclusions.Add "FI_ALL"
+'    offsetExclusions.Add "FA_VIS"
+'
+'    Call Worksheets("PartLib Table").OptimizeRoutineOffsetables(routines, offsetExclusions)
+'
+'    Exit Sub
+'rtErr:
+'    MsgBox "Couldn't read the Value or Color of a Routine", vbCritical
+'    Exit Sub
+'End Sub
 
 
 

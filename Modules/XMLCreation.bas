@@ -99,7 +99,7 @@ Public Sub CreateXML(featureArr() As Variant, partNum As String, rev As String, 
         'Level-4 (Part) -> Header, CharacteristicNominalIds
     Set partHeaderNode = doc.createNode(MSXML2.NODE_ELEMENT, "Header", XML_SCHEMA_NAMESPACE_VALUE)
     Set partCharsNode = doc.createNode(MSXML2.NODE_ELEMENT, "CharacteristicNominalIds", XML_SCHEMA_NAMESPACE_VALUE)
-    partCharsNode.setAttribute "n", "3" '<-- number of features for this routine
+    partCharsNode.setAttribute "n", UBound(featureArr, 2) '<-- number of features for this routine
     partNode.appendChild partHeaderNode
     partNode.appendChild partCharsNode
     

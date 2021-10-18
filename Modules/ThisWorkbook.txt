@@ -61,6 +61,16 @@ Public Function StrInColl(col As Collection, val As String) As Boolean
     Next subitem
 End Function
 
+Public Function StrLikeCollItem(col As Collection, val As String) As Boolean
+    If col.Count = 0 Then Exit Function
+    For Each subitem In col
+        If (InStr(val, subitem) > 0) Then
+            StrLikeCollItem = True
+        End If
+    Next subitem
+End Function
+
+
 Public Sub SetBorders(target As Range)
     target.Borders(xlEdgeTop).Weight = xlThin
     target.Borders(xlEdgeBottom).Weight = xlThin
@@ -83,8 +93,207 @@ Public Function GetNumericSuffix(partNum As String) As String
 
 End Function
 
+Public Function HasNumber(routine As String) As Boolean
+    Dim i As Integer
+    For i = 1 To Len(routine)
+        If IsNumeric(Mid(routine, i, 1)) Then HasNumber = True
+    Next i
+End Function
+
+
+'*****************    Build Optimize Inspections Form      *****************
+' Called by RibbonCommands.OptimizeInspections
+Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps As Collection, ByRef routines() As Variant)
+
+        'Routines we should never include
+    Dim skipCollection As Collection
+    Set skipCollection = New Collection
+    skipCollection.Add ("FA_FIRST")
+    skipCollection.Add ("FI_DIM")
+    skipCollection.Add ("FA_LASR")
+    skipCollection.Add ("IP_ASSY")
+    skipCollection.Add ("FA_FIRST_ASSY")
+    skipCollection.Add ("FI_VIS")
+    skipCollection.Add ("FI_CMM")
+    skipCollection.Add ("FI_RAM")
+    skipCollection.Add ("FI_SYLVAC")
+    skipCollection.Add ("FI_COMPAR")
+    
+    Load MapRoutinesForm
+    
+    Dim multipleOperations As Boolean
+    If uniqueOps.Count > 1 Then multipleOperations = True
+    
+    Dim i As Integer
+    Dim j As Integer
+    Dim k As Integer
+    
+    For i = 1 To uniqueOps.Count
+        
+        Dim ballLabelCap As String
+        ballLabelCap = ""
+        Dim ballLabelHeight As Integer
+        ballLabelHeight = 10  'Default label height, should fit a single row of text
+        
+        Dim routineLabelCap As String
+        routineLabelCap = ""
+        Dim routineLabelHeight As Integer
+        routineLabelHeight = 10  'Default label height,
+        
+        Dim lead As String
+        
+        
+        
+        For j = 0 To UBound(charArr, 1)
+            If j <> 0 Then lead = " "
+            If charArr(j, 4) = uniqueOps(i) Or multipleOperations = False Then
+                ballLabelCap = ballLabelCap & lead & charArr(j, 0) & ","
+            End If
+        Next j
+        
+        lead = ""
+        
+        For j = 0 To UBound(routines)
+            For k = 0 To UBound(routines(j))
+                If k <> 0 And routineLabelCap <> "" Then lead = " "
+                    Dim routineName As String
+                    routineName = routines(j)(k)
+                    
+                    If StrLikeCollItem(skipCollection, routineName) Then GoTo skipRt
+                
+                If multipleOperations Then
+                    Dim splitRt() As String
+                    
+                        'Need to select on the Operation Name, but cant actually select here
+                    If uniqueOps(i) = "SWISS" Then
+                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And Not (HasNumber(routineName)) _
+                         And InStr(routineName, "MILL") = 0 Then GoTo addRT
+                        
+                    ElseIf uniqueOps(i) = "MILL" Then
+                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And Not (HasNumber(routineName)) _
+                         And InStr(routineName, "MILL") > 0 Then GoTo addRT
+                    
+                    ElseIf uniqueOps(i) = "RECEIVE" Then
+                        splitRt = Split(routineName, "_")
+                        If splitRt(UBound(splitRt)) = "RECISNP" Then GoTo addRT
+                    
+                    ElseIf InStr(uniqueOps(i), "SWISS") > 0 Then
+                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And (HasNumber(routineName)) _
+                         And InStr(routineName, "MILL") = 0 Then GoTo addRT
+                    
+                    ElseIf InStr(uniqueOps(i), "MILL") > 0 Then
+                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And (HasNumber(routineName)) _
+                         And InStr(routineName, "MILL") > 0 Then GoTo addRT
+                    
+                    ElseIf InStr(uniqueOps(i), "RECEIVE") > 0 Then
+                        splitRt = Split(routineName, "_")
+                        If splitRt(UBound(splitRt)) = Replace(uniqueOps(i), "RECEIVE", "RECINSP") Then GoTo addRT
+                    
+                    Else
+                    
+                    End If
+                Else  'if there's only one op, then just add everything
+addRT:
+                    routineLabelCap = routineLabelCap & lead & routines(j)(k) & ","
+                End If
+skipRt:
+            Next k
+        Next j
+        
+        'Remove the commas at the end
+        If Mid(routineLabelCap, Len(routineLabelCap), 1) = "," Then
+            routineLabelCap = Mid(routineLabelCap, 1, Len(routineLabelCap) - 1)
+        End If
+        If Mid(ballLabelCap, Len(ballLabelCap), 1) = "," Then
+            ballLabelCap = Mid(ballLabelCap, 1, Len(ballLabelCap) - 1)
+        End If
+        
+        ballLabelCap = "Balloons: " & ballLabelCap
+        
+        'Adjust the height as the characters wrap around
+        ballLabelHeight = ballLabelHeight + (10 * (Application.WorksheetFunction.Floor_Math(Len(ballLabelCap) / 60)))
+    
+        'Create label for the characteristics
+        Dim lbl As MSForms.label
+        Set lbl = MapRoutinesForm.Controls.Add("Forms.Label.1", "chLbl" & i) 'TODO: This 1 in the label name will need to generated variable
+        With lbl
+            .Width = 210
+            .Left = 18
+            If i <> 1 Then
+                .Top = MapRoutinesForm.Controls("rtFrm" & (i - 1)).Top + MapRoutinesForm.Controls("rtFrm" & (i - 1)).Height
+            Else
+                .Top = 78
+            End If
+            .Height = ballLabelHeight
+            .Caption = ballLabelCap
+        End With
+        
+        'Create Frame for the routines
+        Dim frm As MSForms.Frame
+        Set frm = MapRoutinesForm.Controls.Add("Forms.Frame.1", "rtFrm" & i)
+        With frm
+            .Width = 210
+            .Left = 18
+            .Top = lbl.Top + lbl.Height + 3
+            .Caption = uniqueOps(i)
+            .Height = 25
+        End With
+        
+        'Adjust the height of the label as the chracters wrap around
+        routineLabelHeight = routineLabelHeight + (10 * (Application.WorksheetFunction.Floor_Math(Len(routineLabelCap) / 30)))
+        
+        'Create label for the routines to go inside the frame
+        Dim lbl2 As MSForms.label
+        Set lbl2 = frm.Controls.Add("Forms.Label.1", "rtLbl" & i)
+        With lbl2
+            .Width = 200
+            .Left = 3
+            .Top = 5
+            .Height = routineLabelHeight
+            .Caption = routineLabelCap
+        End With
+                'Adjust the frame height to cover the size of our label
+        frm.Height = frm.Height + lbl2.Height
+        
+    
+    Next i
+    
+    
+    
+        'Bring the button down underneath the fram
+    MapRoutinesForm.MapRoutinesBtn.Top = MapRoutinesForm.Controls("rtFrm" & i - 1).Top + MapRoutinesForm.Controls("rtFrm" & i - 1).Height + 5
+    MapRoutinesForm.Height = MapRoutinesForm.MapRoutinesBtn.Height + MapRoutinesForm.MapRoutinesBtn.Top + 40
+    MapRoutinesForm.Show
+    
+    If MapRoutinesForm.Tag <> "True" Then Exit Function
+    
+    Erase routines
+    ReDim Preserve routines(1 To (uniqueOps.Count), 0 To 1)
+        
+    For i = 1 To uniqueOps.Count
+        routines(i, 0) = uniqueOps(i)
+        Dim rtCaption As String
+        rtCaption = MapRoutinesForm.Controls("rtLbl" & i).Caption
+        rtCaption = Replace(rtCaption, " ", "")
+        If rtCaption = "" Then GoTo skipRts
+        routines(i, 1) = Split(rtCaption, ",")
+skipRts:
+    Next i
+    
+    Unload MapRoutinesForm
+    
+    'Set the characteristic and routine information so PartLib will know what to optimize
+    
+
+    BuildOptimizeInspectionForm = True
+    
+End Function
+
+
+
 
 '*****************    Build Routine Form      *****************
+'Called by RibbonCommands.DeleteRoutines
 'Needs to take and array, A caption for the button, and optional Header with optional spacing ANd should return an array of selected checkboxes
 Public Function BuildRoutineForm(routines() As Variant, colors() As Variant, frmHeader As String, btnCaption As String, Optional instructions As Variant, _
                                     Optional instructionsSpacing As Integer) As String()
@@ -262,18 +471,22 @@ Sub testWBPath()
 
 End Sub
 
-'Sub testForm()
-'    Load AddChildInstances
-'    AddChildInstances.lowerBoundInst = 3
-'    AddChildInstances.Show
-'
-'    MsgBox AddChildInstances.Tag
-'
-'    Unload AddChildInstances
-'
-'
-'End Sub
+Sub testArr()
+    Dim a() As String
+    ReDim Preserve a(0 To 0, 0 To 4)
+    a(0, 1) = "hey"
+    
+    ReDim Preserve a(0 To 1, 0 To 5)
 
+
+
+'If (Not featureArr) = -1 Then
+'                    ReDim Preserve featureArr(0 To 4, 1 To 1)
+'                Else
+'                    ReDim Preserve featureArr(0 To 4, 1 To UBound(featureArr, 2) + 1)
+'                End If
+
+End Sub
 
 
 
@@ -283,13 +496,6 @@ End Sub
 'End Sub
 
 'Called by PartLib and PivotFeature
-
-
-
-
-
-
-
 
 
 
