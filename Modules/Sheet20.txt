@@ -404,8 +404,11 @@ Sub TransferData()
             'EDITS HERE
             If minInstance >= 2 Then
                 With targetCell
+                    Dim parentAddy As String
+                    parentAddy = .offset(1 - minInstance).Address
+                    parentAddy = Replace(parentAddy, "$", "")
                     .NumberFormat = "General"
-                    .Formula2 = "=IF(" & .offset(1 - minInstance).Address & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & Chr(34) & ballFormat & Chr(34) & ")"
+                    .Formula2 = "=IF(" & parentAddy & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & Chr(34) & ballFormat & Chr(34) & ")"
                     '=IF($C$14="","",$C$14)
                 End With
             Else
@@ -473,6 +476,7 @@ Sub SetInstance(refCell As Range, destCell As Range, instance As Integer)
             With cell
                 Dim parentAddr As String
                 parentAddr = GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
+                parentAddr = Replace(parentAddr, "$", "")
                 .NumberFormat = "General"
                     '=IF(G14="","",G14)
                 .Formula2 = "=IF(" & parentAddr & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddr & ")"
@@ -524,6 +528,8 @@ Public Function GetAddress(column As Integer) As String
     GetAddress = vArr(0)
 
 End Function
+
+
 
 
 

@@ -128,16 +128,17 @@ End Sub
 ''***********   Called by PartLib On_Change  ******************
 '
 '
-'Public Sub SetInspMethodValidation(cell As Range)
-'    '=INDIRECT("[RoutineMapDataValidations.xlsm]InspMethods!C2#")    [for N9]
-'    If valWB Is Nothing Then Call OpenDataValidations
-'    With cell.Validation
-'        .Delete
-'        .Add Type:=xlValidateList, Formula1:="=INDIRECT(" & Chr(34) & "[RoutineMapDataValidations.xlsm]InspMethods!C" & cell.Row - 7 & "#" & Chr(34) & ")"
-'        .ShowError = False
-'    End With
-'
-'End Sub
+Public Sub SetInspMethodValidation(cell As Range)
+    '=INDIRECT("[RoutineMapDataValidations.xlsm]InspMethods!C2#")    [for N9]
+    With cell.Validation
+        .Delete
+        .Add Type:=xlValidateList, Formula1:="=InspMethods!$C" & cell.Row - 7 & "#"
+        .ShowError = False
+    End With
+
+'=InspMethods!$C2#
+
+End Sub
 '
 '
 'Public Sub SetCommentsValidation(cell As Range)
@@ -195,6 +196,8 @@ Private Sub TempSetValidtion()
     Next workingCell
 
 End Sub
+
+
 
 
 

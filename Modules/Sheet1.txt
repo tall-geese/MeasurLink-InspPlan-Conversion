@@ -8,6 +8,7 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 Option Explicit
+Option Compare Text
 '*************************************************************
 '*************************************************************
 '*                  PartLib Table
@@ -1041,6 +1042,8 @@ Public Function IsValidForInspection(ByRef charArr() As String, ByRef uniqueOps 
     
         'Iterate through the range again, this time collecting our values
     Dim i As Integer
+    On Error GoTo missType
+    
     For Each subCell In indexRange
     
         'TODO: maybe we need to be storing the address as well???
@@ -1068,9 +1071,9 @@ Public Function IsValidForInspection(ByRef charArr() As String, ByRef uniqueOps 
                 'Store the Cell Address
             charArr(i, 5) = subCell.Address
             
+            i = i + 1
+            
         End If
-        
-        i = i + 1
     Next subCell
     
     IsValidForInspection = True
@@ -1089,6 +1092,98 @@ opsMissing:
 
 
 End Function
+
+'Called by RibbonCommands (OptimizeInspections)
+Public Sub ClearRoutineMapping(routineName As String)
+    Dim indexRange As Range
+    Dim indCell As Range
+    Dim target As Range
+    
+    
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    
+    Set indexRange = Range("A4:A" & Range("A4").End(xlDown).Row)
+    For Each indCell In indexRange
+        Set target = indCell.offset(0, GetCol(routineName) - indCell.column)
+        If InStr(target.formula, "=IF(") > 0 Then GoTo nextInd
+        target.Value = ""
+        
+nextInd:
+    Next indCell
+    
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+    
+    Exit Sub
+    
+    
+errErase:
+    MsgBox "Error when attempting to clear Routines", vbCritical
+    Exit Sub
+
+End Sub
+
+
+
+'Called by RibbonCommands (OptimizeInspections)
+Public Sub AssignAsInspection(charAddy As String, ByVal frequency As String, routineName As String, inspMethod As String)
+        'If its a Final Visual inspection Method, we should leave it alone
+    If InStr(inspMethod, "FI-VIS") > 0 Then Exit Sub
+
+
+        'if its a child cell then we should leave it alone
+    Dim crossTarget As Range
+    Set crossTarget = Range(charAddy)
+    Set crossTarget = crossTarget.offset(0, GetCol("Characteristic Name") - crossTarget.column)
+    If crossTarget.Font.color = RGB(128, 128, 128) Then Exit Sub
+    
+    Dim freqs() As String
+    frequency = Replace(frequency, " ", "")
+    frequency = Replace(frequency, "&", ",")  ' Change an & to be our delimiter
+    frequency = Replace(frequency, "AQLFREQ.", "BENCH")
+    If frequency = "1" Then frequency = "BENCH"   '<-----  100%'s should implicitly be FA_MINI and IP_BENCH, even if its not stated
+'    frequency = Replace(frequency, "1", "BENCH")
+    
+        'For each of the given frequencies, we should see if there is a match with the given routine
+    freqs = Split(frequency, ",")
+    Dim i As Integer
+    For i = 0 To UBound(freqs)
+    
+            'Some routines are specific to an inspection method, in that case that the inspection method is present for this characteristic....
+                'Then change up the name of the freq, so it will possibly better match with the Routine Name
+        Select Case inspMethod
+        
+        Case "GRAM-00XX (RAM) · Program"
+            If freqs(i) = "BENCH" Then freqs(i) = "RAMPROG"
+        Case "GOMS-000X (Sylvac)"
+            If freqs(i) = "BENCH" Then freqs(i) = "SYLVAC"
+        Case "GCMM-000X (CMM) · Var.Meas.", "GCMM-000X (CMM) · Var.Meas."
+            If freqs(i) = "BENCH" Then freqs(i) = "CMM"
+        Case "Comparator / Var.Meas."
+            If freqs(i) = "BENCH" Then freqs(i) = "COMPAR"
+        Case "GRAM-00XX (RAM) · Pass / Fail", "GRAM-00XX (RAM) · Var.Meas."
+            If freqs(i) = "BENCH" Then freqs(i) = "RAM"
+        End Select
+        
+        If InStr(routineName, freqs(i)) > 0 Then
+            Application.EnableEvents = False
+            Set crossTarget = crossTarget.offset(0, GetCol(routineName) - crossTarget.column)
+            crossTarget.Value = "X"
+        End If
+
+    Next i
+    
+10
+    Application.EnableEvents = True
+    
+    Exit Sub
+    
+parseErr:
+    MsgBox "Error when determining Inspections for " & crossTarget.Value, vbCritical
+    GoTo 10
+
+End Sub
 
     
         '*********   Deprecated  ***************
@@ -1413,7 +1508,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
                 On Error GoTo 20
                 Application.EnableEvents = False 'prevent recursive looping
                 
-'                Call Validations.SetInspMethodValidation(cell:=subCell) 'Reset the validation in case of copy/paste
+                Call Validations.SetInspMethodValidation(cell:=subCell) 'Reset the validation in case of copy/paste
                 
                 If subCell.Value = "" Then
                     subCell.offset(0, -7).Value = "" 'set Insp Type to nothing
@@ -1995,6 +2090,8 @@ Private Sub testHiddenValue()
     Debug.Print (rng.offset(0, 3).Address)
 
 End Sub
+
+
 
 
 

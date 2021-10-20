@@ -471,25 +471,37 @@ Public Sub OptimizeInspections(ByRef control As IRibbonControl)
     Dim routines() As Variant
     Dim colors() As Variant
     
-    'TODO: after we collect the routines, we should iterate through the routine name's
-    ' And ask PartLib to clear the current mappings from each column
-    
-    
     If Worksheets("PartLib Table").IsValidForInspection(charArr, uniqueOps) Then
         routines = Worksheets("PartLib Table").GetRoutinesAndColors(colors)
-'        MsgBox "we did it boys"
         
         'Constructing the form...
             'if the amount of unique Operations is 0 or 1, Then we only need to build a single frame of the applicable routines
             'and list the balloon numbers affected above it
         If Not (ThisWorkbook.BuildOptimizeInspectionForm(charArr, uniqueOps, routines)) Then Exit Sub
             'For each opName in orutines
-            
-        
-            
-        
+            Dim i As Integer
+            Dim j As Integer
+            Dim k As Integer
+                'Cleanup the routines from any previous mapping
+            For i = 1 To UBound(routines, 1)
+                'SWISS/MILL = routines(i,0)
+                'Array of routineNames = routines(i,1)(k)
+                For j = 0 To UBound(routines(i, 1))
+                    Worksheets("PartLib Table").ClearRoutineMapping (routines(i, 1)(j))  'Begin with erasing all of the old mappings
+                Next j
+            Next i
+            For i = 0 To UBound(charArr)
+                For j = 1 To UBound(routines, 1)
+                    If charArr(i, 4) = routines(j, 0) Then  'If character belongs to the assigned operation (like SWISS)
+                        For k = 0 To UBound(routines(j, 1))  'Then for each of the routines in that block
+                                'Evaluate need for inspection for the given routine and frequency(ies) and method
+                            Worksheets("PartLib Table").AssignAsInspection charAddy:=charArr(i, 5), frequency:=charArr(i, 3), _
+                                                            routineName:=CStr(routines(j, 1)(k)), inspMethod:=charArr(i, 2)
+                        Next k
+                    End If
+                Next j
+            Next i
     End If
-
 
 End Sub
 

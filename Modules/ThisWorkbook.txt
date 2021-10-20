@@ -143,7 +143,7 @@ Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps
         Dim lead As String
         
         
-        
+            'Each characteristic that matches opName add the strings together
         For j = 0 To UBound(charArr, 1)
             If j <> 0 Then lead = " "
             If charArr(j, 4) = uniqueOps(i) Or multipleOperations = False Then
@@ -153,39 +153,41 @@ Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps
         
         lead = ""
         
+            'For each routine
         For j = 0 To UBound(routines)
             For k = 0 To UBound(routines(j))
                 If k <> 0 And routineLabelCap <> "" Then lead = " "
                     Dim routineName As String
                     routineName = routines(j)(k)
                     
+                        'Ignore if it matches a skip routine
                     If StrLikeCollItem(skipCollection, routineName) Then GoTo skipRt
-                
+                    'IF there are multiple operations, add it if it matches that appropriate operation type
                 If multipleOperations Then
                     Dim splitRt() As String
                     
                         'Need to select on the Operation Name, but cant actually select here
-                    If uniqueOps(i) = "SWISS" Then
+                    If uniqueOps(i) = "SWISS" Then   'FA_FIRST, IP_1XSHIFT, ....
                         If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And Not (HasNumber(routineName)) _
                          And InStr(routineName, "MILL") = 0 Then GoTo addRT
                         
-                    ElseIf uniqueOps(i) = "MILL" Then
+                    ElseIf uniqueOps(i) = "MILL" Then   'FA_FIRST_MILL, IP_1XSHIFT_MILL....
                         If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And Not (HasNumber(routineName)) _
                          And InStr(routineName, "MILL") > 0 Then GoTo addRT
                     
-                    ElseIf uniqueOps(i) = "RECEIVE" Then
+                    ElseIf uniqueOps(i) = "RECEIVE" Then    'FI_OPXX_RECINSP...
                         splitRt = Split(routineName, "_")
                         If splitRt(UBound(splitRt)) = "RECISNP" Then GoTo addRT
                     
-                    ElseIf InStr(uniqueOps(i), "SWISS") > 0 Then
+                    ElseIf InStr(uniqueOps(i), "SWISS") > 0 Then  'FA_FIRST2, IP_1XSHIFT2....
                         If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And (HasNumber(routineName)) _
                          And InStr(routineName, "MILL") = 0 Then GoTo addRT
                     
-                    ElseIf InStr(uniqueOps(i), "MILL") > 0 Then
+                    ElseIf InStr(uniqueOps(i), "MILL") > 0 Then     'FA_FIRST2_MILL, IP_BENCH2_MILL
                         If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And (HasNumber(routineName)) _
                          And InStr(routineName, "MILL") > 0 Then GoTo addRT
                     
-                    ElseIf InStr(uniqueOps(i), "RECEIVE") > 0 Then
+                    ElseIf InStr(uniqueOps(i), "RECEIVE") > 0 Then     'FI_OPXX_RECINSP2, FI_OPXX_RECINSP3....
                         splitRt = Split(routineName, "_")
                         If splitRt(UBound(splitRt)) = Replace(uniqueOps(i), "RECEIVE", "RECINSP") Then GoTo addRT
                     
@@ -200,6 +202,14 @@ skipRt:
             Next k
         Next j
         
+            'If there are no valid routines for this op, exit function
+        If Replace(routineLabelCap, " ", "") = "" Then
+            MsgBox uniqueOps(i) & " is listed to one or more characteristics" & vbCrLf _
+                & "but there are no applicable routines to assign to it", vbCritical
+                
+            Exit Function
+        End If
+        
         'Remove the commas at the end
         If Mid(routineLabelCap, Len(routineLabelCap), 1) = "," Then
             routineLabelCap = Mid(routineLabelCap, 1, Len(routineLabelCap) - 1)
@@ -212,6 +222,8 @@ skipRt:
         
         'Adjust the height as the characters wrap around
         ballLabelHeight = ballLabelHeight + (10 * (Application.WorksheetFunction.Floor_Math(Len(ballLabelCap) / 60)))
+        
+        'BEGIN CREATING THE FORM CONTROLS...
     
         'Create label for the characteristics
         Dim lbl As MSForms.label
@@ -260,13 +272,14 @@ skipRt:
     
     
     
-        'Bring the button down underneath the fram
+        'Bring the button down underneath the frame
     MapRoutinesForm.MapRoutinesBtn.Top = MapRoutinesForm.Controls("rtFrm" & i - 1).Top + MapRoutinesForm.Controls("rtFrm" & i - 1).Height + 5
     MapRoutinesForm.Height = MapRoutinesForm.MapRoutinesBtn.Height + MapRoutinesForm.MapRoutinesBtn.Top + 40
     MapRoutinesForm.Show
     
     If MapRoutinesForm.Tag <> "True" Then Exit Function
     
+    'Create new routines() array with opName first, then the routines applicable to the opName() second
     Erase routines
     ReDim Preserve routines(1 To (uniqueOps.Count), 0 To 1)
         
@@ -495,7 +508,4 @@ End Sub
 '    Application.EnableEvents = True
 'End Sub
 
-'Called by PartLib and PivotFeature
-
-
-
+'Called by PartLib
