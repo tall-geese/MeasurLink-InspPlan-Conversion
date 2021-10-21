@@ -325,6 +325,10 @@ End Sub
 
 Sub TransferData()
     'TODO: need to add the logic for MMC position features
+    Dim result As Integer
+    result = MsgBox("This will take a few minutes to run." & vbCrLf & "Transfer Data?", vbYesNo)
+    If result <> vbYes Then Exit Sub
+    
     Dim charRange As Range
     Dim targetCell As Range
     Dim indexCell As Range
@@ -439,6 +443,9 @@ Sub TransferData()
     
     Call Worksheets("PartLib Table").ApplyGroupings
     Call Worksheets("PartLib Table").IgnoreErrors
+    
+    Call Worksheets("InspMethods").ResetInspectionValidations
+    Call Worksheets("StandardComments").ResetInspectionValidations
 
 10
     Application.ScreenUpdating = True
@@ -528,6 +535,8 @@ Public Function GetAddress(column As Integer) As String
     GetAddress = vArr(0)
 
 End Function
+
+
 
 
 

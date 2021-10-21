@@ -74,6 +74,8 @@ Public Sub IgnoreErrors()
 End Sub
 
 
+
+
             '***************   Called by UserForms   *********************
 
 'Called by CreateRoutinesForm
@@ -1558,7 +1560,12 @@ Private Sub Worksheet_Change(ByVal target As Range)
                     End If
                     
                     subCell.offset(0, -7).Value = inspType 'set Attribute/Variable
-                    subCell.offset(0, 2).Value = SetGaugePinData(methodCell:=subCell) 'Set Gauge Pin data if applicable
+                    Dim pins_gauges As String
+                    Dim affectedCells As Range
+                    
+                    pins_gauges = SetGaugePinData(methodCell:=subCell)
+                    subCell.offset(0, 2).Value = pins_gauges 'Set Gauge Pin data if applicable
+                    SetChildrenPinsAndGauges target:=subCell, gaugeData:=pins_gauges
                     
                 End If
                 subCell.offset(0, -7).Font.color = RGB(0, 0, 0) 'set Attr/Variable text to black
@@ -1637,7 +1644,7 @@ Private Function SetGaugePinData(methodCell As Range) As String
         Dim iexWS As Worksheet
         
         If InStr(methodCell.offset(0, -3).Value, "_") > 0 Then
-            ballNum = Split(methodCell.offset(0, -3).Value, "_")(1) 'TODO: error handling here in event that it isnt a balloon number [(iv)]
+            ballNum = Split(methodCell.offset(0, -3).Value, "_")(0) 'TODO: error handling here in event that it isnt a balloon number [(iv)]
         Else
             ballNum = methodCell.offset(0, -3).Value
         End If
@@ -1670,6 +1677,8 @@ Private Function SetGaugePinData(methodCell As Range) As String
             conv = 25.4
         Case "in"
             conv = 1
+        Case " "
+            MsgBox "Couldn't find this balloon number in the IEX-DATA sheet"
         Case Else
             MsgBox ("Dimension does not have a recognized unit type")
             GoTo 80
@@ -1782,6 +1791,54 @@ FullFMT:
         SetGaugePinData = "NA"
     End If
 End Function
+
+Private Sub SetChildrenPinsAndGauges(target As Range, gaugeData As String)
+    Dim familyRng As Range
+    Dim subCell As Range
+    Dim parentAddress As String
+    Dim parentBalloon As String
+    
+    parentAddress = target.Address
+    
+    Set familyRng = GetCharOrFamily(target)
+        'if the cell we're checking ISNT the parent of the family....
+    If parentAddress <> familyRng.Cells(1).Address Then Exit Sub
+    
+        'Move to the address of the pins/gauges column
+    parentAddress = Range(parentAddress).offset(0, 2).Address
+    parentAddress = Replace(parentAddress, "$", "")
+    parentBalloon = familyRng.Cells(1).offset(0, -3).Value
+    
+        'If its "NA", then we need to reset the formulas of the children, just in case they have been changed since
+    If gaugeData = "NA" Or gaugeData = "" Then
+        For Each subCell In familyRng
+            If subCell.Address = familyRng.Cells(1).Address Then GoTo nextNAcell
+            subCell.offset(0, 2).Value = ""
+            subCell.offset(0, 2).Formula2 = "=IF(" & parentAddress & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddress & ")"
+
+nextNAcell:
+        Next subCell
+    
+    
+        'If there is anything besides NA, its is likely becuase there is gauge/pin data there in which case
+        'The children should have the value of "Same as [parent_balloon]
+    Else
+        For Each subCell In familyRng
+            If subCell.Address = familyRng.Cells(1).Address Then GoTo nextGAUGEcell
+            subCell.offset(0, 2).Value = ""
+            subCell.offset(0, 2).Formula2 = "=IF(" & parentAddress & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," _
+                                & Chr(34) & "Same as " & parentBalloon & Chr(34) & ")"
+
+nextGAUGEcell:
+        Next subCell
+    
+    
+    End If
+    
+
+End Sub
+
+
 
 
 '***************   Mfg Tolerances   *********************
@@ -2097,21 +2154,6 @@ Public Function GetHiddenValue(checkForm As String) As String
     
     
 End Function
-
-Private Sub testHiddenValue()
-    Dim rng As Range
-    Set rng = Range("a2:A50")
-    Debug.Print (rng.Address)
-    Debug.Print (rng.offset(0, 3).Address)
-
-End Sub
-
-
-
-
-
-
-
 
 
 

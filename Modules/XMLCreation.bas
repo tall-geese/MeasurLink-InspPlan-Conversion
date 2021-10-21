@@ -126,6 +126,8 @@ Public Sub CreateXML(featureArr() As Variant, partNum As String, rev As String, 
     characteristics.appendChild charNomsNode
     characteristics.appendChild charItemsNode
     
+    On Error GoTo valErr
+    
     'i=1 to (ubound(testArr, 2)
     For i = 1 To UBound(featureArr, 2) '<--- iterate through our list of features
         'CharacteristicDefinitions
@@ -235,7 +237,12 @@ Public Sub CreateXML(featureArr() As Variant, partNum As String, rev As String, 
 '    doc.transformNodeToObject styles, output
     
 '    Set ts = fso.CreateTextFile(ThisWorkbook.path & "\Output\New_Test.QIF")
-    Set ts = fso.CreateTextFile(ThisWorkbook.path & "\Output\" & partNum & "_" & rev & "_" & routineName & "_" & "CREATE" & ".QIF")  'TODO: also include the routine in here
+    
+    'TODO set a fso error handler here
+    
+    On Error GoTo IOErr
+    
+    Set ts = fso.CreateTextFile(ThisWorkbook.path & "\Output\" & partNum & "\" & partNum & "_" & rev & "_" & routineName & "_" & "CREATE" & ".QIF") 'TODO: also include the routine in here
     Dim writer As MSXML2.MXXMLWriter60
     Set writer = New MSXML2.MXXMLWriter60
     Dim reader As MSXML2.SAXXMLReader60
@@ -248,6 +255,16 @@ Public Sub CreateXML(featureArr() As Variant, partNum As String, rev As String, 
     ts.Write (writer.output)
     ts.Close
     
+    Exit Sub
+    
+valErr:
+    MsgBox "Couldn't parse a value for " & featureArr(0, i) & vbCrLf & "For the Part Number: " & partNum, vbCritical
+    Err.Raise Number:=vbObjectError + 1000
+
+IOErr:
+    MsgBox "Couldn't Write the Ouput file" & vbCrLf & "You may not have the proper read/write permissions" & vbCrLf _
+             & "Or the Part Number may contain an illegal character for Windows", vbCritical
+    Err.Raise Number:=vbObjectError + 1100
 
 End Sub
 
@@ -276,4 +293,7 @@ Sub testArr()
     Debug.Print ("check this out")
 
 End Sub
+
+
+
 

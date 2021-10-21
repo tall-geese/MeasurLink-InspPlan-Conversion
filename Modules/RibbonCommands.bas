@@ -27,7 +27,11 @@ Public Sub ExportQIF(ByRef control As IRibbonControl)
     Dim featureArr() As Variant
     Dim routineArr() As String
     Dim partArr() As String
+    Dim routineWarnings() As String
     Dim rev As String
+    Dim fso As FileSystemObject
+    Set fso = New FileSystemObject
+    
     
     routineArr = Worksheets("PartLib Table").GetRoutineListing()
     If (Not routineArr) = -1 Then
@@ -41,45 +45,86 @@ Public Sub ExportQIF(ByRef control As IRibbonControl)
         Exit Sub
     End If
     
-'    partNum = Worksheets("START HERE").Range("C8").Value 'TODO: we need the logic for multiple part numbers
     rev = Worksheets("START HERE").Range("C10").Value
     If rev = "" Then
         MsgBox "Nothing was set in the Revision field in the START HERE page"
         Exit Sub
     End If
     
-    For i = 0 To UBound(routineArr)
-        For j = 0 To UBound(partArr)
+        'Create the output folder if one doe not exist
+    On Error GoTo IOerror
+    If Not fso.FolderExists(ThisWorkbook.path & "\Output") Then
+        Dim result As Integer
+        result = MsgBox("There is no Output folder" & vbCrLf & "Would you like to create one?", vbYesNo)
+        If result <> vbYes Then Exit Sub
+        
+        fso.CreateFolder (ThisWorkbook.path & "\Output")
+    End If
+
+   
+        'Create the partNumber folder for QIF files belonging to that partNumber
+    For i = 0 To UBound(partArr)
+        On Error GoTo IOerror
+        Worksheets("START HERE").Range("C8").Value = partArr(i)
+            
+        If fso.FolderExists(ThisWorkbook.path & "\Output\" & partArr(i)) Then
+            fso.DeleteFolder (ThisWorkbook.path & "\Output\" & partArr(i))
+        End If
+        
+        fso.CreateFolder (ThisWorkbook.path & "\Output\" & partArr(i))
+    
+        For j = 0 To UBound(routineArr)
             'Setting the part number in the START HERE page, deliberately not turning off events
             'The reason is becuase some features will be conditionally hidden when we have certain part Numbers set
             'When they are hidden, CollectFeaturesForExport should pass over them
-            Worksheets("START HERE").Range("C8").Value = partArr(j)
             
-            featureArr = Worksheets("PartLib Table").CollectFeaturesForExport(routineArr(i))
+            
+            featureArr = Worksheets("PartLib Table").CollectFeaturesForExport(routineArr(j))
+                'If a routine didnt have any features set for inspection, let the user know, but only once per unique Routine name
             If (Not featureArr) = -1 Then
-                MsgBox ("Didnt find any characteristics for " & vbCrLf & routineArr(i) & vbCrLf & "No Output")
+                If (Not routineWarnings) = -1 Then
+                    MsgBox ("Didnt find any characteristics for " & vbCrLf & routineArr(j) & vbCrLf & "No Output")
+                    ReDim Preserve routineWarnings(0)
+                    routineWarnings(0) = routineArr(j)
+                Else
+                    Dim k As Integer
+                    Dim rtFound As Boolean
+                    For k = 0 To UBound(routineWarnings)
+                        If routineWarnings(k) = routineArr(j) Then rtFound = True
+                    Next k
+                    
+                    If rtFound = False Then
+                        MsgBox ("Didnt find any characteristics for " & vbCrLf & routineArr(j) & vbCrLf & "No Output")
+                        ReDim Preserve routineWarnings(UBound(routineWarnings) + 1)
+                        routineWarnings(UBound(routineWarnings)) = routineArr(j)
+                    End If
+                    
+                End If
                 GoTo Cont
             End If
             
-            'TODO: change to include in teh routine name
-            Call XMLCreation.CreateXML(featureArr, partArr(j), rev, routineArr(i))
+            On Error GoTo XMLerror
+            
+            Call XMLCreation.CreateXML(featureArr, partArr(i), rev, routineArr(j))
 Cont:
         Next j
     Next i
     
     
-    
-    'TODO: put in the logic for iteration through our part numbers in the variables tab or
-    'allowing the user to enter in either a range or select the applicable part numbers
-    
-    'TODO: need the logic for grabbing the desired routines as well
-    'User should be able to choose one or all of them
-    
-    'When we creating a routine, we should be iterating through each feature
-    'if if they have Anything in the cell that intersects our routine, then it belongs in there
-    
       
 20
+    Exit Sub
+    
+    
+IOerror:
+    MsgBox "Couldn't Create/Delete directories" & vbCrLf & "You may not have the proper read/write permissions" & vbCrLf _
+                & "Or the part number may contain an illegal character for Windows", vbCritical
+                
+    Exit Sub
+    
+XMLerror:
+    Exit Sub
+
 End Sub
 
 
@@ -423,21 +468,6 @@ Public Sub SetMfgTolerance(ByRef control As IRibbonControl)
 End Sub
 
 
-'******************   Apply Custom Sort Btn  ***********************
-Public Sub ApplyCustomSort(ByRef control As IRibbonControl)
-    Set partWS = Worksheets("PartLib Table")
-    
-    If ActiveSheet.Name = partWS.Name Then
-        partWS.Activate
-    End If
-    
-    Call partWS.SortFeatures
-
-End Sub
-
-    
-
-
 
 
 
@@ -572,6 +602,8 @@ End Sub
 Public Sub DisableEvents_Toggle(ByRef control As Office.IRibbonControl, ByRef isPressed As Boolean)
     Application.EnableEvents = Not (isPressed)
 End Sub
+
+
 
 
 
