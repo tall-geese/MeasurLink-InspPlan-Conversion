@@ -161,7 +161,7 @@ Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps
                     routineName = routines(j)(k)
                     
                         'Ignore if it matches a skip routine
-                    If StrLikeCollItem(skipCollection, routineName) Then GoTo skipRt
+                    If StrLikeCollItem(skipCollection, routineName) Then GoTo skipRT
                     'IF there are multiple operations, add it if it matches that appropriate operation type
                 If multipleOperations Then
                     Dim splitRt() As String
@@ -198,7 +198,7 @@ Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps
 addRT:
                     routineLabelCap = routineLabelCap & lead & routines(j)(k) & ","
                 End If
-skipRt:
+skipRT:
             Next k
         Next j
         

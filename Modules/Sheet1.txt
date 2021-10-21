@@ -1148,6 +1148,7 @@ Public Sub AssignAsInspection(charAddy As String, ByVal frequency As String, rou
         'For each of the given frequencies, we should see if there is a match with the given routine
     freqs = Split(frequency, ",")
     Dim i As Integer
+    Dim method As String
     For i = 0 To UBound(freqs)
     
             'Some routines are specific to an inspection method, in that case that the inspection method is present for this characteristic....
@@ -1156,22 +1157,36 @@ Public Sub AssignAsInspection(charAddy As String, ByVal frequency As String, rou
         
         Case "GRAM-00XX (RAM) · Program"
             If freqs(i) = "BENCH" Then freqs(i) = "RAMPROG"
+            method = "RAMPROG"
         Case "GOMS-000X (Sylvac)"
-            If freqs(i) = "BENCH" Then freqs(i) = "SYLVAC"
+            If freqs(i) <> "1XSHIFT" Then freqs(i) = "SYLVAC"
+            method = "SYLVAC"
         Case "GCMM-000X (CMM) · Var.Meas.", "GCMM-000X (CMM) · Var.Meas."
             If freqs(i) = "BENCH" Then freqs(i) = "CMM"
+            method = "CMM"
         Case "Comparator / Var.Meas."
             If freqs(i) = "BENCH" Then freqs(i) = "COMPAR"
+            method = "COMPAR"
         Case "GRAM-00XX (RAM) · Pass / Fail", "GRAM-00XX (RAM) · Var.Meas."
+            method = "RAM"
             If freqs(i) = "BENCH" Then freqs(i) = "RAM"
         End Select
         
+            'If the fixed frequency appears in the routine we're checking against
         If InStr(routineName, freqs(i)) > 0 Then
+                'RAM needs to be handled specially since it could be confused with RAMPROG
+            If method = "RAM" And InStr(routineName, "RAMPROG") > 0 Then GoTo skipRT
+        
+setCheck:
             Application.EnableEvents = False
             Set crossTarget = crossTarget.offset(0, GetCol(routineName) - crossTarget.column)
             crossTarget.Value = "X"
+        ElseIf method <> "" Then
+                'If the routine happens to be a FAI of the insp Method, then it should also always be checked
+            If InStr(routineName, "FA_" & method) > 0 Then GoTo setCheck
+            
         End If
-
+skipRT:
     Next i
     
 10
@@ -1586,7 +1601,7 @@ End Sub
 
 '***************   Inspection Methods   *********************
 
-Private Function AssignInspType(Method As String) As String
+Private Function AssignInspType(method As String) As String
     Dim valSheet As Worksheet
     On Error GoTo 10
     Set valSheet = Worksheets("Data Validations")
@@ -1594,7 +1609,7 @@ Private Function AssignInspType(Method As String) As String
     Dim workingRange As Range
     Set workingRange = valSheet.Range("$E$2:$F$" & valSheet.Range("F2").End(xlDown).Row)
     Dim inspType As Variant
-    inspType = Application.WorksheetFunction.VLookup(Method, workingRange, 2, False)
+    inspType = Application.WorksheetFunction.VLookup(method, workingRange, 2, False)
     AssignInspType = inspType
     
 
@@ -2090,6 +2105,8 @@ Private Sub testHiddenValue()
     Debug.Print (rng.offset(0, 3).Address)
 
 End Sub
+
+
 
 
 
