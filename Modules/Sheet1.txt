@@ -1202,6 +1202,79 @@ parseErr:
 
 End Sub
 
+
+
+'Called by RibbonCommands (ApplyCustomSort)
+Public Sub SortFeatures()
+    'Warning that sorting will probably break formulas and references
+    Dim result As Integer
+    result = MsgBox("Sorting Features will potentionally break any validation references to the Characteristics" & vbCrLf _
+                & "You should only sort before getting ready to export Routines" & vbCrLf & vbCrLf _
+                & "Sort Features?", vbYesNo, "Custom Sort")
+    If result <> vbYes Then Exit Sub
+
+    Application.EnableEvents = False
+
+    Dim listRng As Range
+    Set listRng = Worksheets("Data Validations").Range("K2:K48")
+    
+    Dim simpleVar As Variant
+    simpleVar = listRng
+    Application.AddCustomList ListArray:=simpleVar
+    
+    
+    On Error GoTo cmmErr
+        'In order to keep the CMM data grouped together, we need to manually change the inspection type for Any "Attribute"'s to "Variable"
+    Dim indRange As Range
+    Set indRange = Range("A4:A" & Range("A4").End(xlDown).Row)
+    Dim subCell As Range
+    For Each subCell In indRange
+        If subCell.offset(0, 13).Value = "GCMM-000X (CMM) · Pass / Fail" Then
+            subCell.offset(0, 6).Value = "Variable"
+        End If
+    Next subCell
+    
+    On Error GoTo sortErr
+        'Sorting Logic, We use a custom sorting list on the Inspection Methods in Order to make
+    With Me.Sort
+        .SortFields.Clear
+        .setRange Rows("3:499")
+        
+        .SortFields.Add Key:=Cells(3, GetCol("Inspection Type")), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+        .SortFields.Add Key:=Cells(3, GetCol("INSPECTION METHOD")), SortOn:=xlSortOnValues, CustomOrder:=Application.CustomListCount, _
+                                DataOption:=xlSortNormal
+        
+        .SortFields.Add Key:=Cells(3, GetCol("Characteristic Name")), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+        
+        .Header = xlYes
+        .MatchCase = False
+        
+        .Apply
+    
+    End With
+    
+    
+    On Error GoTo cmmErr
+        'Reset those CMM inspections to the correct Inspection Type
+    Set indRange = Range("A4:A" & Range("A4").End(xlDown).Row)
+    For Each subCell In indRange
+        If subCell.offset(0, 13).Value = "GCMM-000X (CMM) · Pass / Fail" Then
+            subCell.offset(0, 6).Value = "Attribute"
+        End If
+    Next subCell
+      
+10
+    Application.EnableEvents = True
+    Exit Sub
+    
+cmmErr:
+    MsgBox "Err when looking for CMM Inspection Methods and Changing Types", vbCritical
+    GoTo 10
+sortErr:
+    MsgBox "Error on Sorting", vbCritical
+    GoTo 10
+End Sub
+
     
         '*********   Deprecated  ***************
 ''Called by RibbonCommands.OptimizeOffsetables

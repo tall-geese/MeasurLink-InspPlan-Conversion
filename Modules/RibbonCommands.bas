@@ -468,6 +468,18 @@ Public Sub SetMfgTolerance(ByRef control As IRibbonControl)
 End Sub
 
 
+'******************   Apply Custom Sort Btn  ***********************
+Public Sub ApplyCustomSort(ByRef control As IRibbonControl)
+    Set partWS = Worksheets("PartLib Table")
+    
+    If ActiveSheet.Name = partWS.Name Then
+        partWS.Activate
+    End If
+    
+    Call partWS.SortFeatures
+
+End Sub
+
 
 
 
