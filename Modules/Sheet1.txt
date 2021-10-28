@@ -1965,7 +1965,11 @@ continue:
     Dim commentRange As Range
     Set commentRange = charRange.offset(0, 10)
     If Not (InStr(commentRange.Value, "Mfg. Tol") > 0) Then
-        commentRange.Value = commentRange.Value & "Mfg. Tol."
+        If commentRange.Value = "NA" Or commentRange.Value = "" Then
+            commentRange.Value = "Mfg. Tol."
+        Else
+            commentRange.Value = commentRange.Value & ", Mfg. Tol."
+        End If
     End If
     
 End Sub

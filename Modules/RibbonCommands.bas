@@ -197,6 +197,7 @@ Public Sub ImportRoutineMap(ByRef control As IRibbonControl)
     
     On Error GoTo featErr
     
+    Call ThisWorkbook.Worksheets("PartLib Table").Outline.ShowLevels(RowLevels:=2)
     Call ThisWorkbook.Worksheets("PartLib Table").ImportRoutineMap(featuresArr, readWB.Name, readWB.path)
 10
     On Error Resume Next
@@ -349,7 +350,7 @@ Public Sub HideFeaturesCondForm(ByRef control As IRibbonControl)
     'set a mfg tolerance for the feature in the given row
     If ActiveSheet.Name = partWS.Name Then
         If TypeName(Selection) = "Range" Then
-            Dim label As String
+            Dim Label As String
             Dim featureCol As Collection
             Set featureCol = New Collection
             Dim subCell As Range
@@ -371,9 +372,9 @@ Cont:
             
             If featureCol.Count = 0 Then Exit Sub
             If featureCol.Count = 1 Then
-                label = featureCol.Item(1).Value
+                Label = featureCol.Item(1).Value
             Else
-                label = "*Multiple*"
+                Label = "*Multiple*"
             End If
             
             
@@ -419,7 +420,7 @@ Cont:
                 'If the selected features are not already hidden
             Else
                 Load HideFeatureCond
-                HideFeatureCond.FeatureLabel.Caption = label
+                HideFeatureCond.FeatureLabel.Caption = Label
                 
                 'Store the address of each applicable cell in the userform
 '                Dim feature As Range
@@ -611,12 +612,34 @@ End Sub
 '**************   Dev Tools   ***********************
 '****************************************************
 
+'******************   Disable Events Btn  ***********************
+
 Public Sub DisableEvents_Toggle(ByRef control As Office.IRibbonControl, ByRef isPressed As Boolean)
     Application.EnableEvents = Not (isPressed)
 End Sub
 
+'******************   Version History Btn  ***********************
 
+Public Sub ShowVersionHistory(ByRef control As IRibbonControl)
+'    MsgBox "show history"
+    Load ChangeLogForm
+    Dim changeLogText As String
+    With ThisWorkbook.VBProject.VBComponents("DataSources").CodeModule
+        changeLogText = (.Lines(23, .CountOfDeclarationLines))
+    End With
+    ChangeLogForm.changeLabel = changeLogText
+    Debug.Print (Len(changeLogText))
+'    ChangeLogForm.ScrollHeight = Len(changeLogText) / 8
+    ChangeLogForm.ScrollHeight = ChangeLogForm.changeLabel.Height
 
+    ChangeLogForm.Show
+    Unload ChangeLogForm
+End Sub
+
+Public Sub GetVersionLabel(ByRef control As Office.IRibbonControl, ByRef Label As Variant)
+
+   Label = "Version: " & DataSources.VERSION & vbCrLf & "Change History"
+End Sub
 
 
 

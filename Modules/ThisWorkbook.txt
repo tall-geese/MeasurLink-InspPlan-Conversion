@@ -177,7 +177,7 @@ Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps
                     
                     ElseIf uniqueOps(i) = "RECEIVE" Then    'FI_OPXX_RECINSP...
                         splitRt = Split(routineName, "_")
-                        If splitRt(UBound(splitRt)) = "RECISNP" Then GoTo addRT
+                        If splitRt(UBound(splitRt)) = "RECINSP" Then GoTo addRT
                     
                     ElseIf InStr(uniqueOps(i), "SWISS") > 0 Then  'FA_FIRST2, IP_1XSHIFT2....
                         If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And (HasNumber(routineName)) _
@@ -226,7 +226,7 @@ skipRT:
         'BEGIN CREATING THE FORM CONTROLS...
     
         'Create label for the characteristics
-        Dim lbl As MSForms.label
+        Dim lbl As MSForms.Label
         Set lbl = MapRoutinesForm.Controls.Add("Forms.Label.1", "chLbl" & i) 'TODO: This 1 in the label name will need to generated variable
         With lbl
             .Width = 210
@@ -255,7 +255,7 @@ skipRT:
         routineLabelHeight = routineLabelHeight + (10 * (Application.WorksheetFunction.Floor_Math(Len(routineLabelCap) / 30)))
         
         'Create label for the routines to go inside the frame
-        Dim lbl2 As MSForms.label
+        Dim lbl2 As MSForms.Label
         Set lbl2 = frm.Controls.Add("Forms.Label.1", "rtLbl" & i)
         With lbl2
             .Width = 200
@@ -349,7 +349,7 @@ Public Function BuildRoutineForm(routines() As Variant, colors() As Variant, frm
     
     
     If Not IsMissing(instructions) Then
-        Dim lblCtrl As MSForms.label
+        Dim lblCtrl As MSForms.Label
         Set lblCtrl = DelRoutinesForm.Controls.Add("Forms.Label.1", "instrLabel")
         With lblCtrl
             .Top = 1
