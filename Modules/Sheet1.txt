@@ -1208,10 +1208,15 @@ End Sub
 Public Sub SortFeatures()
     'Warning that sorting will probably break formulas and references
     Dim result As Integer
-    result = MsgBox("Sorting Features will potentionally break any validation references to the Characteristics" & vbCrLf _
+    result = MsgBox("Sorting Features will remove groupings for children" _
+                & "and will potentionally break any validation references to the Characteristics" & vbCrLf _
                 & "You should only sort before getting ready to export Routines" & vbCrLf & vbCrLf _
                 & "Sort Features?", vbYesNo, "Custom Sort")
     If result <> vbYes Then Exit Sub
+    Outline.ShowLevels RowLevels:=2
+    On Error Resume Next
+    Rows("1:400").Ungroup
+    On Error GoTo 0
 
     Application.EnableEvents = False
 
