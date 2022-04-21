@@ -27,7 +27,7 @@ Attribute VB_Name = "HTTPconnections"
 '**************   Main Routine   ********************
 '****************************************************
 
-Public Function send_http(url As String, method As String, payload As String, Optional q_params As Variant) As String
+Public Function send_http(url As String, method As String, payload As String, Optional q_params As Variant, Optional api_key As Variant) As String
     On Error GoTo HTTP_Err:
 
     Dim req As ServerXMLHTTP60
@@ -52,6 +52,11 @@ Public Function send_http(url As String, method As String, payload As String, Op
         .Open method, url, False   'We can do this asyncronously??
         .setRequestHeader "Content-Type", "application/json;charset=utf-8"
         .setRequestHeader "Accept", "application/json;charset=utf-8"
+        
+        If Not IsMissing(api_key) Then
+            .setRequestHeader "X-Request-ID", api_key
+        End If
+        
         .send payload
     End With
 
@@ -72,9 +77,9 @@ HTTP_Err:
     If req.readyState < 4 Then
         Err.Raise Number:=vbObjectError + 6010, Description:="send_http Error" & vbCrLf & vbCrLf & "No response from the server. The server may be down or the API service may not be running"
 
-    ElseIf req.Status = 406 Or req.Status = 400 Then
+    ElseIf req.Status = 406 Or req.Status = 400 Or req.Status = 404 Then
         'Adding a user: Either not in QA department or they have already been reigstered
-        Err.Raise Number:=vbObjectError + 6100, Description:=req.responseText
+        Err.Raise Number:=vbObjectError + 6000 + req.Status, Description:=req.responseText
     Else
         'Unhandled HTTP Errors, Likely for Internal Server 500
         Err.Raise Number:=vbObjectError + 6000, Description:="send_http Error" & vbCrLf & headers & vbCrLf & "Status:" & req.Status & vbTab & req.statusText _
@@ -103,10 +108,12 @@ Public Function GetPartsInfo(part_numbers() As String) As Object
     Exit Function
     
 GetPartsInfo_Err:
-    If Err.Number = vbObjectError + 6000 Or Err.Number = vbObjectError + 6010 Then  'If HTTP response not 200 OK
-        MsgBox Err.Description, vbCritical
+    If Err.Number = vbObjectError + 6000 Then  'Unhandled Exceptions Like Internal Server Error
+        MsgBox Err.Description
+    ElseIf Err.Number = vbObjectError + 6010 Then  'Server Not Responding
+        MsgBox Err.Description, vbExclamation
     Else
-        MsgBox "Error Occured Func: HTTPConnections.GetPartsInfo() when parsing JSON" & vbCrLf & vbCrLf & Err.Description, vbCritical
+        MsgBox "Unexpected Exception Occured Func: HTTPConnections.GetPartsInfo() when parsing JSON" & vbCrLf & vbCrLf & Err.Description, vbCritical
     End If
 End Function
 
@@ -136,16 +143,44 @@ Public Sub AddCurrentUser()
     Exit Sub
     
 AddUser_Err:
-    If Err.Number = vbObjectError + 6000 Or Err.Number = vbObjectError + 6010 Then   'HTTP Response, Unhandled Error Code
+    If Err.Number = vbObjectError + 6000 Then  'Unhandled Exceptions like Internal Server Error
+        MsgBox Err.Description, vbCritical
+    ElseIf Err.Number = vbObjectError + 6010 Then   'Server /API service is down
         MsgBox Err.Description, vbCritical
     ElseIf Err.Number = vbObjectError + 6100 Then   'HTTP Repsonse, User Not allowed to be added.
         Set returnMsg = JsonConverter.ParseJson(Err.Description)
         
         MsgBox "User: " & Environ("Username") & " could not be registered, see the response below" & vbCrLf & vbCrLf & returnMsg("detail"), vbCritical
     Else
-        MsgBox "Error Occured Func: HTTPConnections.AddCurrentUser()" & vbCrLf & vbCrLf & Err.Description, vbCritical
+        MsgBox "Unexpected Exception Occured Func: HTTPConnections.AddCurrentUser()" & vbCrLf & vbCrLf & Err.Description, vbCritical
     End If
 End Sub
+
+
+Public Function AddCustomFields(payload As String, api_key As String) As String
+    'TODO: need to update this to add the Header with the user API key
+    
+    On Error GoTo addCustomFieldsErr:
+
+    Dim resp As String
+    resp = send_http(url:=DataSources.JPMCML_FIELDS_ADD, method:=DataSources.HTTP_POST, payload:=payload, api_key:=api_key)
+
+    AddCustomFields = resp
+    
+    Exit Function
+
+addCustomFieldsErr:
+        
+    If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
+        MsgBox Err.Description, vbExclamation
+        
+    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'Custom Field already exists, that means our Userform is not working as intended
+        MsgBox Err.Description, vbCritical
+        
+    Else   'Unhandle Exceptions
+        MsgBox "Unexpected Exception Occured Func: HTTPConnections.AddCustomFields()" & vbCrLf & vbCrLf & Err.Description, vbCritical
+    End If
+End Function
 
 
 
@@ -207,9 +242,13 @@ End Function
 
 
 Private Sub test()
-    Dim a() As Variant
-    ReDim Preserve a(0, 0 To 2)
-    ReDim Preserve a(0, UBound(a, 2) + 1)
+    Dim a As String
+    a = "asdfads"
+    test2 something:=a
+End Sub
+
+Private Sub test2(Optional something As Variant)
+    Debug.Print IsMissing(something)
 
 End Sub
 

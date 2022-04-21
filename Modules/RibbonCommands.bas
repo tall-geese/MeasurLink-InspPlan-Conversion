@@ -772,6 +772,10 @@ End Sub
 
 '******************   Add Custom Fields Button ***********************
 Public Sub AddCustomFields_OnAction(ByRef control As Office.IRibbonControl)
+    'Check that the User is even allowed to do this action first
+    If Get_API_Key() = vbNullString Then Exit Sub
+
+
     'Load up the INSERTform and fetch the values that we want to insert
 
     Dim json_parts_api As Object, json_parts_map As Object
@@ -800,7 +804,6 @@ insert_form_Err:
 End Sub
 
     'Passed back by the INSERTform after it closes
-        'Remove items from the json object according to the mapping
 Public Sub ParseArray_ForUpload(json_parts_info As Object)
     Dim output As String, backup As String
     output = JsonConverter.ConvertToJson(json_parts_info, Whitespace:=3)
@@ -822,24 +825,29 @@ Public Sub ParseArray_ForUpload(json_parts_info As Object)
     output = Replace(output, Chr(34) & "customFieldId" & Chr(34) & ": 16", _
                             Chr(34) & "customField" & Chr(34) & ":Char. Description")
 
-
+    
+    'Give the user a last chance to review the Fields they are about to insert.
     Load INSERTview
     INSERTview.json_label.Caption = output
     INSERTview.ScrollHeight = INSERTview.json_label.Height + 90
     
     INSERTview.Show
     
+    'If the user said to proceed with adding the fields
     If add_custom_fields_valid Then
         add_custom_fields_valid = False
-        
-        MsgBox "we chose to add here"
     Else
-        MsgBox "didnt add the info"
         Exit Sub
     End If
     
-    'At the end here, we can choose to either present this information in a worksheet
-        'Or just upload it to the db, sending an http request and be done with it....
+    Dim api_key As String, resp As String
+    api_key = Get_API_Key()
+    resp = HTTPconnections.AddCustomFields(payload:=backup, api_key:=api_key)
+    
+    If resp <> vbNullString Then
+        MsgBox "Custom Fields Added Successfully!", vbInformation
+    End If
+    
 End Sub
 
 
@@ -1015,6 +1023,33 @@ Public Function GetParts_or_SetError() As String() ' ->  Returns Part Numbers wi
 
 End Function
 
+
+Private Function Get_API_Key() As String '-> Returns contents of Key file or vbNullString
+    Dim fso As FileSystemObject
+    Set fso = New FileSystemObject
+    
+    Dim user_path As String
+    user_path = fso.BuildPath("C:\Users\", Environ("Username"))
+    
+    If user_path = vbNullString Then
+        MsgBox "Couldn't Locate the Documents Directory for this User", vbCritical
+        Exit Function
+    End If
+    
+    user_path = fso.BuildPath(user_path, "Documents")
+    user_path = fso.BuildPath(user_path, DataSources.API_KEY_FILE_NAME)
+    
+    If Not fso.FileExists(user_path) Then
+        MsgBox "Couldn't locate an API_key file to supply," & vbCrLf & vbCrLf _
+            & "Make sure to first request one with the 'Get API Key' Button" & vbCrLf _
+            & "and follow instructions sent in the email. " & vbCrLf _
+            & "See me if it is still happening", vbInformation
+        Exit Function
+    End If
+
+    Get_API_Key = fso.OpenTextFile(user_path, ForReading).ReadAll()
+
+End Function
 
 
 
