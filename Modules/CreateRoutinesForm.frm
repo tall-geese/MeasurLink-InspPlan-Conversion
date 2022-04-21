@@ -68,7 +68,7 @@ Private Sub CreateRoutinesButton_Click()
         End If
     Next colorCtrl
     
-    'TODO: dont forget to grab teh machining operation as well
+    'TODO: dont forget to grab the machining operation as well
     machiningOp = Me.OperationTextBox.Value
     Unload Me
     Call Worksheets("PartLib Table").SetRoutines(routineArr, selectedColor, opTag, machiningOp)
@@ -211,7 +211,7 @@ End Sub
 Private Sub CommandButton1_Click()
     Me.CommandButton1.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton1.Name Then
+        If ctrl.name <> Me.CommandButton1.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -219,7 +219,7 @@ End Sub
 Private Sub CommandButton2_Click()
     Me.CommandButton2.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton2.Name Then
+        If ctrl.name <> Me.CommandButton2.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -227,7 +227,7 @@ End Sub
 Private Sub CommandButton3_Click()
     Me.CommandButton3.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton3.Name Then
+        If ctrl.name <> Me.CommandButton3.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -235,7 +235,7 @@ End Sub
 Private Sub CommandButton4_Click()
     Me.CommandButton4.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton4.Name Then
+        If ctrl.name <> Me.CommandButton4.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -243,7 +243,7 @@ End Sub
 Private Sub CommandButton5_Click()
     Me.CommandButton5.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton5.Name Then
+        If ctrl.name <> Me.CommandButton5.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -251,7 +251,7 @@ End Sub
 Private Sub CommandButton6_Click()
     Me.CommandButton6.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton6.Name Then
+        If ctrl.name <> Me.CommandButton6.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -259,7 +259,7 @@ End Sub
 Private Sub CommandButton7_Click()
     Me.CommandButton7.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton7.Name Then
+        If ctrl.name <> Me.CommandButton7.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -267,7 +267,7 @@ End Sub
 Private Sub CommandButton8_Click()
     Me.CommandButton8.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton8.Name Then
+        If ctrl.name <> Me.CommandButton8.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -275,7 +275,7 @@ End Sub
 Private Sub CommandButton9_Click()
     Me.CommandButton9.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton9.Name Then
+        If ctrl.name <> Me.CommandButton9.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -283,7 +283,7 @@ End Sub
 Private Sub CommandButton10_Click()
     Me.CommandButton10.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton10.Name Then
+        If ctrl.name <> Me.CommandButton10.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -291,7 +291,7 @@ End Sub
 Private Sub CommandButton11_Click()
     Me.CommandButton11.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton11.Name Then
+        If ctrl.name <> Me.CommandButton11.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -299,7 +299,7 @@ End Sub
 Private Sub CommandButton12_Click()
     Me.CommandButton12.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton12.Name Then
+        If ctrl.name <> Me.CommandButton12.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -307,7 +307,7 @@ End Sub
 Private Sub CommandButton13_Click()
     Me.CommandButton13.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton13.Name Then
+        If ctrl.name <> Me.CommandButton13.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -315,7 +315,7 @@ End Sub
 Private Sub CommandButton14_Click()
     Me.CommandButton14.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton14.Name Then
+        If ctrl.name <> Me.CommandButton14.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -323,7 +323,7 @@ End Sub
 Private Sub CommandButton15_Click()
     Me.CommandButton15.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton15.Name Then
+        If ctrl.name <> Me.CommandButton15.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -331,7 +331,7 @@ End Sub
 Private Sub CommandButton16_Click()
     Me.CommandButton16.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton16.Name Then
+        If ctrl.name <> Me.CommandButton16.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -339,7 +339,7 @@ End Sub
 Private Sub CommandButton17_Click()
     Me.CommandButton17.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton17.Name Then
+        If ctrl.name <> Me.CommandButton17.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -347,7 +347,7 @@ End Sub
 Private Sub CommandButton18_Click()
     Me.CommandButton18.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton18.Name Then
+        If ctrl.name <> Me.CommandButton18.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -355,7 +355,7 @@ End Sub
 Private Sub CommandButton19_Click()
     Me.CommandButton19.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton19.Name Then
+        If ctrl.name <> Me.CommandButton19.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -363,7 +363,7 @@ End Sub
 Private Sub CommandButton20_Click()
     Me.CommandButton20.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton20.Name Then
+        If ctrl.name <> Me.CommandButton20.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl
@@ -371,7 +371,7 @@ End Sub
 Private Sub CommandButton21_Click()
     Me.CommandButton21.Locked = True
     For Each ctrl In Me.PaletteFrame.Controls
-        If ctrl.Name <> Me.CommandButton21.Name Then
+        If ctrl.name <> Me.CommandButton21.name Then
             ctrl.Locked = Falsed
         End If
     Next ctrl

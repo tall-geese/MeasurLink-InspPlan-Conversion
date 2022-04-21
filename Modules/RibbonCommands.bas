@@ -9,13 +9,36 @@ Attribute VB_Name = "RibbonCommands"
 '*************************************************************
 
 
-Dim cusRibbon As IRibbonUI
+Private cusRibbon As IRibbonUI
+
+Private ribbonMsg As String
+
+Private partCombo_Enabled As Boolean
+Private partCombo_PartList() As String
+Private partCombo_TextField As String
+
+Private json_parts_info As Object 'JSON object returned from API
+Private json_part_lib As Object  'JSON object made by PartLib.Build_JSON_of_Parts
+
+Private toggle_viewCustomFields As Boolean
+
+Public add_custom_fields_valid As Boolean
 
 
 
 Public Sub Ribbon_OnLoad(uiRibbon As IRibbonUI)
     Set cusRibbon = uiRibbon
     cusRibbon.ActivateTab "mlTab"
+End Sub
+
+Private Sub InvalidateControl(controlName As String)
+    On Error Resume Next
+    cusRibbon.InvalidateControl controlName
+    If cusRibbon Is Nothing Then
+        MsgBox "Reference to the Excel Ribbon has been lost and Custom Ribbon Controls may not function properly" & vbCrLf & vbCrLf _
+            & "This can happen after an Error occurs or certain parts of the code have been edited" & vbCrLf _
+            & "Save your work and re-open the workbook and try again", vbExclamation
+    End If
 End Sub
 
 '****************************************************
@@ -77,7 +100,7 @@ Public Sub ExportQIF(ByRef control As IRibbonControl)
             'Setting the part number in the START HERE page, deliberately not turning off events
             'The reason is becuase some features will be conditionally hidden when we have certain part Numbers set
             'When they are hidden, CollectFeaturesForExport should pass over them
-            
+            Dim k As Integer
             
             featureArr = Worksheets("PartLib Table").CollectFeaturesForExport(routineArr(j))
                 'If a routine didnt have any features set for inspection, let the user know, but only once per unique Routine name
@@ -87,7 +110,6 @@ Public Sub ExportQIF(ByRef control As IRibbonControl)
                     ReDim Preserve routineWarnings(0)
                     routineWarnings(0) = routineArr(j)
                 Else
-                    Dim k As Integer
                     Dim rtFound As Boolean
                     For k = 0 To UBound(routineWarnings)
                         If routineWarnings(k) = routineArr(j) Then rtFound = True
@@ -101,6 +123,24 @@ Public Sub ExportQIF(ByRef control As IRibbonControl)
                     
                 End If
                 GoTo Cont
+            End If
+            
+            
+            'stop here to check, if we have a FI_DIM routine or we have a RECINSP operation then
+            'if we have only attribute features, then we should error and let the user know, but still can continue....
+            
+            If InStr(routineArr(j), "FI_DIM") > 0 Or InStr(routineArr(j), "RECINSP") > 0 Then
+                Dim hasVariable As Boolean
+                For k = 1 To UBound(featureArr, 2)
+                    If featureArr(1, k) = "Variable" Then hasVariable = True
+                Next k
+                
+                If Not hasVariable Then
+                    MsgBox "Routine: " & routineArr(j) & vbCrLf & "has no variable features for inspection" & vbCrLf & vbCrLf _
+                            & "Double check, as this is most likely incorrect", vbInformation
+                End If
+                
+                hasVariable = False
             End If
             
             On Error GoTo XMLerror
@@ -198,7 +238,7 @@ Public Sub ImportRoutineMap(ByRef control As IRibbonControl)
     On Error GoTo featErr
     
     Call ThisWorkbook.Worksheets("PartLib Table").Outline.ShowLevels(RowLevels:=2)
-    Call ThisWorkbook.Worksheets("PartLib Table").ImportRoutineMap(featuresArr, readWB.Name, readWB.path)
+    Call ThisWorkbook.Worksheets("PartLib Table").ImportRoutineMap(featuresArr, readWB.name, readWB.path)
 10
     On Error Resume Next
     readWB.Close SaveChanges:=False
@@ -255,7 +295,7 @@ End Sub
 
 Public Sub InsertValidationValue(ByRef control As IRibbonControl)
     If ActiveCell.Value = "" Then Exit Sub
-    If ActiveSheet.Name = "PartLib Table" Then
+    If ActiveSheet.name = "PartLib Table" Then
         Dim targetCol As Integer
         targetCol = ActiveCell.column
         
@@ -289,9 +329,9 @@ End Sub
 
 Public Sub PivotFeature(ByRef control As IRibbonControl)
     
-    If ActiveSheet.Name = "PartLib Table" Then
+    If ActiveSheet.name = "PartLib Table" Then
         Call Worksheets("PartLib Table").PivotOnFeature
-    ElseIf ActiveSheet.Name = "PivotFeature" Then
+    ElseIf ActiveSheet.name = "PivotFeature" Then
         Worksheets("PartLib Table").Activate
     End If
 End Sub
@@ -300,7 +340,7 @@ End Sub
 
 Public Sub AddChildFeatures(ByRef control As IRibbonControl)
     
-    If ActiveSheet.Name <> "PartLib Table" Then Exit Sub
+    If ActiveSheet.name <> "PartLib Table" Then Exit Sub
     Call Worksheets("PartLib Table").AddFeatureInstances(ActiveCell)
     
 End Sub
@@ -312,12 +352,12 @@ Public Sub BuildVariableFeatureForm(ByRef control As IRibbonControl)
     Set partWS = Worksheets("PartLib Table")
     
     'set a mfg tolerance for the feature in the given row
-    If ActiveSheet.Name = partWS.Name Then
+    If ActiveSheet.name = partWS.name Then
         If Not partWS.IsInImmutableRange(ActiveCell) Then
         
             Load ConditionalFeature
             
-            Set inspCell = ActiveCell.offset(0, partWS.GetCol("Characteristic Name") - ActiveCell.column)
+            Set inspCell = ActiveCell.Offset(0, partWS.GetCol("Characteristic Name") - ActiveCell.column)
             If inspCell.Value = "" Then Exit Sub
             ConditionalFeature.FeatureLabel.Caption = inspCell.Value
             
@@ -348,7 +388,7 @@ Public Sub HideFeaturesCondForm(ByRef control As IRibbonControl)
     Set partWS = Worksheets("PartLib Table")
     
     'set a mfg tolerance for the feature in the given row
-    If ActiveSheet.Name = partWS.Name Then
+    If ActiveSheet.name = partWS.name Then
         If TypeName(Selection) = "Range" Then
             Dim Label As String
             Dim featureCol As Collection
@@ -358,7 +398,7 @@ Public Sub HideFeaturesCondForm(ByRef control As IRibbonControl)
                 If Not partWS.IsInImmutableRange(subCell) Then
                     Dim featureCell As Range
                     'We're going to index from the Characteristic Cell
-                    Set featureCell = subCell.offset(0, partWS.GetCol("Characteristic Name") - subCell.column)
+                    Set featureCell = subCell.Offset(0, partWS.GetCol("Characteristic Name") - subCell.column)
                     'Ignore cells w/o Characteristic Names
                     If featureCell.Value = "" And featureCell.formula = "" Then GoTo Cont
                     
@@ -402,7 +442,7 @@ Cont:
             
                 'If the selected features are hidden features
             If hiddenAlready Then
-                result = MsgBox("Some of the Features Selected appear to be conditionally hiddem" & vbCrLf _
+                result = MsgBox("Some of the Features Selected appear to be conditionally hidden" & vbCrLf _
                                 & "Would you like to attempt to remove conditional hiding from these features?", vbYesNo)
                 If result = vbNo Then Exit Sub
                 
@@ -459,10 +499,10 @@ Public Sub SetMfgTolerance(ByRef control As IRibbonControl)
     Set partWS = Worksheets("PartLib Table")
     
     'set a mfg tolerance for the feature in the given row
-    If ActiveSheet.Name = partWS.Name Then
+    If ActiveSheet.name = partWS.name Then
         If Not partWS.IsInImmutableRange(ActiveCell) Then
            Dim inspCell As Range
-           Set inspCell = ActiveCell.offset(0, partWS.GetCol("Inspection Method") - ActiveCell.column)
+           Set inspCell = ActiveCell.Offset(0, partWS.GetCol("Inspection Method") - ActiveCell.column)
            Call partWS.LoadMfgTol(inspCell, 0, 0)
         End If
     End If
@@ -473,7 +513,7 @@ End Sub
 Public Sub ApplyCustomSort(ByRef control As IRibbonControl)
     Set partWS = Worksheets("PartLib Table")
     
-    If ActiveSheet.Name = partWS.Name Then
+    If ActiveSheet.name = partWS.name Then
         partWS.Activate
     End If
     
@@ -529,36 +569,65 @@ Public Sub OptimizeInspections(ByRef control As IRibbonControl)
     Dim routines() As Variant
     Dim colors() As Variant
     
+    'Collection of routines that we should handle differently
+        'Used for the ALL or FAIs Operations
+    Dim skipCollection As Collection
+    Set skipCollection = New Collection
+    skipCollection.Add ("FA_LASR")
+    skipCollection.Add ("FI_CMM")
+    skipCollection.Add ("FI_RAM")
+    skipCollection.Add ("FI_SYLVAC")
+    skipCollection.Add ("FI_COMPAR")
+    
+    Dim FACollection As Collection
+    Set FACollection = New Collection
+    FACollection.Add ("FA_FIRST")
+    FACollection.Add ("FA_VIS")
+    FACollection.Add ("FA_MINI")
+    
+    Dim allRts As Collection
+    Set allRts = New Collection
+    allRts.Add ("FA_FIRST")
+    allRts.Add ("FA_MINI")
+    allRts.Add ("IP_BENCH")
+    allRts.Add ("FA_VIS")
+    allRts.Add ("FI_DIM")
+    allRts.Add ("FI_VIS")
+    
+    
+    
+        'Assert we have information filled out, and grab the characteristics and operations
     If Worksheets("PartLib Table").IsValidForInspection(charArr, uniqueOps) Then
         routines = Worksheets("PartLib Table").GetRoutinesAndColors(colors)
         
         'Constructing the form...
             'if the amount of unique Operations is 0 or 1, Then we only need to build a single frame of the applicable routines
             'and list the balloon numbers affected above it
-        If Not (ThisWorkbook.BuildOptimizeInspectionForm(charArr, uniqueOps, routines)) Then Exit Sub
-            'For each opName in orutines
-            Dim i As Integer
-            Dim j As Integer
-            Dim k As Integer
-                'Cleanup the routines from any previous mapping
-            For i = 1 To UBound(routines, 1)
-                'SWISS/MILL = routines(i,0)
-                'Array of routineNames = routines(i,1)(k)
-                For j = 0 To UBound(routines(i, 1))
-                    Worksheets("PartLib Table").ClearRoutineMapping (routines(i, 1)(j))  'Begin with erasing all of the old mappings
-                Next j
-            Next i
-            For i = 0 To UBound(charArr)
-                For j = 1 To UBound(routines, 1)
-                    If charArr(i, 4) = routines(j, 0) Then  'If character belongs to the assigned operation (like SWISS)
-                        For k = 0 To UBound(routines(j, 1))  'Then for each of the routines in that block
-                                'Evaluate need for inspection for the given routine and frequency(ies) and method
-                            Worksheets("PartLib Table").AssignAsInspection charAddy:=charArr(i, 5), frequency:=charArr(i, 3), _
-                                                            routineName:=CStr(routines(j, 1)(k)), inspMethod:=charArr(i, 2)
-                        Next k
-                    End If
-                Next j
-            Next i
+        If Not (ThisWorkbook.BuildOptimizeInspectionForm(charArr, uniqueOps, routines, skipCollection, FACollection, allRts)) Then Exit Sub
+        'For each opName in orutines
+        Dim i As Integer
+        Dim j As Integer
+        Dim k As Integer
+            'Cleanup the routines from any previous mapping
+        For i = 1 To UBound(routines, 1)
+            'SWISS/MILL = routines(i,0)
+            'Array of routineNames = routines(i,1)(k)
+            For j = 0 To UBound(routines(i, 1))
+                Worksheets("PartLib Table").ClearRoutineMapping (routines(i, 1)(j))  'Begin with erasing all of the old mappings
+            Next j
+        Next i
+        For i = 0 To UBound(charArr)
+            For j = 1 To UBound(routines, 1)
+                If charArr(i, 4) = routines(j, 0) Then  'If character belongs to the assigned operation (like SWISS)
+                    For k = 0 To UBound(routines(j, 1))  'Then for each of the routines in that block
+                            'Evaluate need for inspection for the given routine and frequency(ies) and method
+                        Worksheets("PartLib Table").AssignAsInspection charAddy:=charArr(i, 5), frequency:=charArr(i, 3), _
+                                                        routineName:=CStr(routines(j, 1)(k)), inspMethod:=charArr(i, 2), _
+                                                        operation:=charArr(i, 4)
+                    Next k
+                End If
+            Next j
+        Next i
     End If
 
 End Sub
@@ -607,6 +676,244 @@ End Sub
 'End Sub
 
 
+'****************************************************
+'************   Custom Fields   *********************
+'****************************************************
+
+'******************  ViewCustomFields ToggleButton   ***********************
+
+Public Sub viewCustomFields_Toggle(ByRef control As Office.IRibbonControl, ByRef isPressed As Boolean)
+    
+    toggle_viewCustomFields = isPressed
+    
+    Dim partNums() As String
+    partNums = GetParts_or_SetError()
+    
+    'If the toggle button was un-pressed or the list of part numbers was not valid
+    If Not toggle_viewCustomFields Or (Not partNums) = -1 Then
+        ResetViewControls
+        Exit Sub
+    End If
+        
+    'Otherwise its a valid list of partNumbers
+    ClearRibbonNotification
+    partCombo_Enabled = True
+    
+    
+    On Error GoTo Json_Parts_err
+    
+    Set json_parts_info = HTTPconnections.GetPartsInfo(partNums)
+    If json_parts_info Is Nothing Then
+        ResetViewControls notification_msg:="     Error:    Parts Don't Exist in MeasurLink ?"
+        Exit Sub
+    End If
+    
+    partCombo_PartList = partNums
+    partCombo_TextField = partNums(0)
+
+    InvalidateControl "partCombo"
+    
+    Dim first_part As Object
+    With ThisWorkbook.Worksheets("View_CustomFields")
+        .Visible = True
+        .Activate
+        Debug.Print (json_parts_info Is Nothing)
+        Set first_part = json_parts_info(GetPartIndex(partNums(0), json_parts_info))
+        .LoadPartInformation first_part
+    End With
+    
+    Exit Sub
+
+Json_Parts_err:
+    If Err.Number = vbObjectError + 5100 Then   'The first part in the list didnt have anything returned from MeasurLink
+        MsgBox "Information on Part#: " & Text & vbCrLf & "Not Found in MeasurLink", vbInformation
+    ElseIf Err.Number = vbObjectError + 6000 Then  'Error sending Http
+        MsgBox "HTTP Err: viewCustomFields_Toggle" & vbCrLf & Err.Description
+    Else
+        MsgBox Err.Description
+    End If
+
+End Sub
+
+
+Public Sub viewCustomFields_OnGetPressed(ByRef control As IRibbonControl, ByRef ReturnedValue As Variant)
+    ReturnedValue = toggle_viewCustomFields
+End Sub
+
+'Called by View_CustomFields when hiding as well as other functions around here
+Public Sub ResetViewControls(Optional notification_msg As String)
+    'Reset Variables
+    Erase partCombo_PartList
+    Set json_parts_info = Nothing
+    
+    'Set optional error message to user
+    If notification_msg = vbNullString Then notification_msg = " "
+    ribbonMsg = notification_msg
+    
+    'Reset controls variables
+    toggle_viewCustomFields = False
+    partCombo_Enabled = False
+    partCombo_TextField = vbNullString
+    
+    'Reload the controls
+    InvalidateControl "notificationLabel"
+    InvalidateControl "partCombo"
+    InvalidateControl "viewCustomFields"
+    
+    'Hide the CustomFields Sheet if not hidden already
+    ThisWorkbook.Worksheets("View_CustomFields").Visible = False
+End Sub
+
+Public Sub ClearRibbonNotification()
+    ribbonMsg = " "
+    InvalidateControl "notificationLabel"
+End Sub
+
+
+'******************   Add Custom Fields Button ***********************
+Public Sub AddCustomFields_OnAction(ByRef control As Office.IRibbonControl)
+    'Load up the INSERTform and fetch the values that we want to insert
+
+    Dim json_parts_api As Object, json_parts_map As Object
+    Dim partNums() As String
+    
+    partNums = GetParts_or_SetError()
+    If (Not partNums) = -1 Then Exit Sub
+    
+    Set json_parts_api = HTTPconnections.GetPartsInfo(partNums)
+    Set json_parts_map = Worksheets("PartLib Table").Build_JSON_of_Parts(partNums)
+    
+    On Error GoTo insert_form_Err
+    
+    Load INSERTform
+    
+    INSERTform.BuildListArray json_parts_api, json_parts_map
+    
+    INSERTform.Show
+    
+    'Can we see what the exit status was? Do they actually want to go and
+        'Insert the values or did they just close out of the form??
+    
+    Exit Sub
+insert_form_Err:
+    MsgBox Err.Number & vbCrLf & Err.Description
+End Sub
+
+    'Passed back by the INSERTform after it closes
+        'Remove items from the json object according to the mapping
+Public Sub ParseArray_ForUpload(json_parts_info As Object)
+    Dim output As String, backup As String
+    output = JsonConverter.ConvertToJson(json_parts_info, Whitespace:=3)
+    backup = output
+    
+    'Make a copy that is human readable
+    output = Replace(output, Chr(34) & "customFieldId" & Chr(34) & ": 13", _
+                            Chr(34) & "customField" & Chr(34) & ":Balloon")
+    output = Replace(output, Chr(34) & "customFieldId" & Chr(34) & ": 15", _
+                            Chr(34) & "customField" & Chr(34) & ":Pins/Gauges")
+    output = Replace(output, Chr(34) & "customFieldId" & Chr(34) & ": 3", _
+                            Chr(34) & "customField" & Chr(34) & ":Attribute Tolerance")
+    output = Replace(output, Chr(34) & "customFieldId" & Chr(34) & ": 8", _
+                            Chr(34) & "customField" & Chr(34) & ":Comments")
+    output = Replace(output, Chr(34) & "customFieldId" & Chr(34) & ": 11", _
+                            Chr(34) & "customField" & Chr(34) & ":Insp. Method")
+    output = Replace(output, Chr(34) & "customFieldId" & Chr(34) & ": 12", _
+                            Chr(34) & "customField" & Chr(34) & ":Insp. Frequency")
+    output = Replace(output, Chr(34) & "customFieldId" & Chr(34) & ": 16", _
+                            Chr(34) & "customField" & Chr(34) & ":Char. Description")
+
+
+    Load INSERTview
+    INSERTview.json_label.Caption = output
+    INSERTview.ScrollHeight = INSERTview.json_label.Height + 90
+    
+    INSERTview.Show
+    
+    If add_custom_fields_valid Then
+        add_custom_fields_valid = False
+        
+        MsgBox "we chose to add here"
+    Else
+        MsgBox "didnt add the info"
+        Exit Sub
+    End If
+    
+    'At the end here, we can choose to either present this information in a worksheet
+        'Or just upload it to the db, sending an http request and be done with it....
+End Sub
+
+
+'******************   PartNumber ComboBox ***********************
+
+Public Sub partCombo_OnChange(ByRef control As Office.IRibbonControl, ByRef Text As Variant)
+    
+    'Check if this was a valid input (User chose value from the drop-down list)
+    If Not IsNumeric(Application.Match(Text, partCombo_PartList, 0)) Then GoTo reset_controls
+    On Error GoTo Json_Part_err
+    
+    ThisWorkbook.Worksheets("View_CustomFields").LoadPartInformation json_parts_info(GetPartIndex(CStr(Text), json_parts_info))
+    
+    Exit Sub
+    
+    'If we got here, then we couldnt find the part in the part list, we should i guess reset everything???
+reset_controls:
+    ResetViewControls
+    MsgBox "Not A Valid Input", vbInformation
+    Exit Sub
+    
+Json_Part_err:
+    If Err.Number = vbObjectError + 5100 Then
+        ThisWorkbook.Worksheets("View_CustomFields").Cleanup
+        MsgBox "Information on Part#: " & Text & vbCrLf & "Not Found in MeasurLink", vbInformation
+    Else
+        MsgBox Err.Description, vbCritical
+    End If
+End Sub
+
+Public Sub partCombo_OnGetEnabled(ByRef control As IRibbonControl, ByRef Enabled As Variant)
+    Enabled = partCombo_Enabled
+End Sub
+
+Public Sub partCombo_OnGetItemCount(ByRef control As Office.IRibbonControl, ByRef Count As Variant)
+
+    If Not Not partCombo_PartList Then
+        Count = UBound(partCombo_PartList) + 1
+    End If
+End Sub
+
+Public Sub partCombo_OnGetItemLabel(ByRef control As Office.IRibbonControl, ByRef index As Integer, ByRef ItemLabel As Variant)
+    'After we initialize the partNumber list
+    ItemLabel = partCombo_PartList(index)
+End Sub
+
+Public Sub partCombo_OnGetItemID(ByRef control As Office.IRibbonControl, ByRef index As Integer, ByRef ItemID As Variant)
+    'Need to reference by ID? I guess not
+End Sub
+
+Public Sub partCombo_OnGetText(ByRef control As Office.IRibbonControl, ByRef Text As Variant)
+    'when we don't have anything selected, use the placeholder text
+    If partCombo_TextField <> vbNullString Then
+        Text = partCombo_TextField
+    Else
+        Text = "[SELECT PART NUMBER]"
+    End If
+
+End Sub
+
+
+'******************   RibbonMsg Label ***********************
+
+Public Sub notificationLabel_OnGetLabel(ByRef control As Office.IRibbonControl, ByRef Label As Variant)
+   Label = ribbonMsg
+End Sub
+
+
+
+'******************  Get API Key Button   ***********************
+Public Sub GetAPIkey_OnAction(ByRef control As Office.IRibbonControl)
+    HTTPconnections.AddCurrentUser
+End Sub
+
 
 '****************************************************
 '**************   Dev Tools   ***********************
@@ -640,6 +947,81 @@ Public Sub GetVersionLabel(ByRef control As Office.IRibbonControl, ByRef Label A
 
    Label = "Version: " & DataSources.VERSION & vbCrLf & "Change History"
 End Sub
+
+
+
+
+'****************************************************
+'***********   HelperFunctions   *******************
+'****************************************************
+
+Public Sub ClearComboVariables()
+    partCombo_Enabled = False
+    Erase partCombo_PartList
+    partCombo_TextField = vbNullString
+      
+       
+    InvalidateControl "notificationLabel"
+    InvalidateControl "partCombo"
+
+End Sub
+
+Private Function GetPartIndex(partNum As String, json As Object) As Integer
+    Dim i As Integer, part As Object
+    i = 1
+    For Each part In json
+        Debug.Print (part("name"))
+        If part("name") = partNum Then
+            GetPartIndex = i
+            Exit Function
+        End If
+        i = i + 1
+    Next part
+
+    Err.Raise Number:=vbObjectError + 5100, Description:="No Results returned by MeasurLink for this Part Number, Nothing to return"
+End Function
+
+Public Function GetParts_or_SetError() As String() ' ->  Returns Part Numbers with _Rev appended or Empty Array
+    'Gets Part numbers from Variables and does some validation work required for the Custom Fields Group
+    
+    Dim rev As String
+    rev = ThisWorkbook.Worksheets("START HERE").GetRevision()
+    Dim partNums() As String
+    partNums = ThisWorkbook.Worksheets("Variables").GetPartNumbers()
+    
+    'If there arent part numbers
+    If (Not partNums) = -1 Then
+        ResetViewControls notification_msg:="     Error:    No Part Numbers"
+        Exit Function
+        
+    'If part numbers aren't unique
+    ElseIf Not ThisWorkbook.Worksheets("Variables").IsUniquePartNumbers() Then
+        ResetViewControls notification_msg:="     Error:    Non-Unique Part Numbers"
+        Exit Function
+    'If no Revision filled out on the START HERE page
+    ElseIf rev = vbNullString Then
+        ResetViewControls notification_msg:="     Error:    No Revision on START HERE"
+        Exit Function
+    'Otherwise its a valid list of partNumbers
+    Else
+        ClearRibbonNotification
+        
+        Dim i As Integer
+        For i = 0 To UBound(partNums)
+            partNums(i) = partNums(i) & "_" & rev  'Format it for PartNumbers in MeasurLink, must be PartNum_Rev
+        Next i
+        GetParts_or_SetError = partNums
+    End If
+
+End Function
+
+
+
+
+
+
+
+
 
 
 

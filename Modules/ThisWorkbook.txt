@@ -57,6 +57,7 @@ Public Function StrInColl(col As Collection, val As String) As Boolean
     For Each subitem In col
         If subitem = val Then
             StrInColl = True
+            Exit Function
         End If
     Next subitem
 End Function
@@ -66,16 +67,27 @@ Public Function StrLikeCollItem(col As Collection, val As String) As Boolean
     For Each subitem In col
         If (InStr(val, subitem) > 0) Then
             StrLikeCollItem = True
+            Exit Function
+        End If
+    Next subitem
+End Function
+
+Public Function CollItemLikeStr(col As Collection, val As String) As Boolean
+    If col.Count = 0 Then Exit Function
+    For Each subitem In col
+        If (InStr(subitem, val) > 0) Then
+            CollItemLikeStr = True
+            Exit Function
         End If
     Next subitem
 End Function
 
 
-Public Sub SetBorders(target As Range)
-    target.Borders(xlEdgeTop).Weight = xlThin
-    target.Borders(xlEdgeBottom).Weight = xlThin
-    target.Borders(xlEdgeLeft).Weight = xlThin
-    target.Borders(xlEdgeRight).Weight = xlThin
+Public Sub SetBorders(Target As Range)
+    Target.Borders(xlEdgeTop).Weight = xlThin
+    Target.Borders(xlEdgeBottom).Weight = xlThin
+    Target.Borders(xlEdgeLeft).Weight = xlThin
+    Target.Borders(xlEdgeRight).Weight = xlThin
 End Sub
 
 Public Function GetNumericSuffix(partNum As String) As String
@@ -103,22 +115,9 @@ End Function
 
 '*****************    Build Optimize Inspections Form      *****************
 ' Called by RibbonCommands.OptimizeInspections
-Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps As Collection, ByRef routines() As Variant)
+Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps As Collection, ByRef routines() As Variant, _
+                                            skipCollection As Collection, FACollection As Collection, allRts As Collection) As Boolean
 
-        'Routines we should never include
-    Dim skipCollection As Collection
-    Set skipCollection = New Collection
-    skipCollection.Add ("FA_FIRST")
-    skipCollection.Add ("FI_DIM")
-    skipCollection.Add ("FA_LASR")
-    skipCollection.Add ("IP_ASSY")
-    skipCollection.Add ("FA_FIRST_ASSY")
-    skipCollection.Add ("FI_VIS")
-    skipCollection.Add ("FI_CMM")
-    skipCollection.Add ("FI_RAM")
-    skipCollection.Add ("FI_SYLVAC")
-    skipCollection.Add ("FI_COMPAR")
-    
     Load MapRoutinesForm
     
     Dim multipleOperations As Boolean
@@ -165,32 +164,71 @@ Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps
                     'IF there are multiple operations, add it if it matches that appropriate operation type
                 If multipleOperations Then
                     Dim splitRt() As String
+                    Dim opName As String
+                    Dim opNumber As String
                     
-                        'Need to select on the Operation Name, but cant actually select here
-                    If uniqueOps(i) = "SWISS" Then   'FA_FIRST, IP_1XSHIFT, ....
-                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And Not (HasNumber(routineName)) _
-                         And InStr(routineName, "MILL") = 0 Then GoTo addRT
+                    opName = uniqueOps(i)
+                    If IsNumeric(Right(opName, 1)) Then
+                        opNumber = Right(opName, 1)
+                        opName = Left(opName, Len(opName) - 1)
+                    End If
+                    
+                    
+                        'Need to select on the Operation Name, but cant actually use a SELECT statement here
+                    If opName = "ALL" Then
+                        If StrLikeCollItem(allRts, routineName) Then GoTo addRT
                         
-                    ElseIf uniqueOps(i) = "MILL" Then   'FA_FIRST_MILL, IP_1XSHIFT_MILL....
-                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And Not (HasNumber(routineName)) _
-                         And InStr(routineName, "MILL") > 0 Then GoTo addRT
+                    ElseIf opName = "FAIs" Then
+                        If StrLikeCollItem(FACollection, routineName) Then GoTo addRT
+                                                
+                    ElseIf opName = "SWISS" And opNumber = "" Then   'FA_FIRST, IP_1XSHIFT, ....
+                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And InStr(routineName, "MILL") = 0 Then
+                            If Not (InStr(routineName, "FA_FIRST_ASSY") > 0) And Not (InStr(routineName, "IP_ASSY") > 0) And Not (InStr(routineName, "FA_LASR") > 0) Then
+                                splitRt = Split(routineName, "_")
+                                If Not (IsNumeric(Right(splitRt(1), 1))) Then
+                                    GoTo addRT
+                                End If
+                            End If
+                        End If
+                        
+                    ElseIf opName = "MILL" And opNumber = "" Then   'FA_FIRST_MILL, IP_1XSHIFT_MILL....
+                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And InStr(routineName, "MILL") > 0 Then
+                                splitRt = Split(routineName, "_")
+                                If Not (IsNumeric(Right(splitRt(1), 1))) Then
+                                    GoTo addRT
+                                End If
+                        End If
                     
-                    ElseIf uniqueOps(i) = "RECEIVE" Then    'FI_OPXX_RECINSP...
+                    ElseIf opName = "RECEIVE" And opNumber = "" Then    'FI_OPXX_RECINSP...
                         splitRt = Split(routineName, "_")
                         If splitRt(UBound(splitRt)) = "RECINSP" Then GoTo addRT
                     
-                    ElseIf InStr(uniqueOps(i), "SWISS") > 0 Then  'FA_FIRST2, IP_1XSHIFT2....
-                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And (HasNumber(routineName)) _
-                         And InStr(routineName, "MILL") = 0 Then GoTo addRT
+                    ElseIf InStr(opName, "SWISS") > 0 Then  'FA_FIRST2, IP_1XSHIFT2....
+                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And InStr(routineName, "MILL") = 0 Then
+                            If Not (InStr(routineName, "FA_FIRST_ASSY") > 0) And Not (InStr(routineName, "IP_ASSY") > 0) And Not (InStr(routineName, "FA_LASR") > 0) Then
+                                splitRt = Split(routineName, "_")
+                                If Right(splitRt(1), 1) = opNumber Then
+                                    GoTo addRT
+                                End If
+                            End If
+                        End If
                     
-                    ElseIf InStr(uniqueOps(i), "MILL") > 0 Then     'FA_FIRST2_MILL, IP_BENCH2_MILL
-                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And (HasNumber(routineName)) _
-                         And InStr(routineName, "MILL") > 0 Then GoTo addRT
+                    ElseIf InStr(opName, "MILL") > 0 Then     'FA_FIRST2_MILL, IP_BENCH2_MILL
+                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And InStr(routineName, "MILL") > 0 Then
+                            If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And InStr(routineName, "MILL") > 0 Then
+                                splitRt = Split(routineName, "_")
+                                If Right(splitRt(1), 1) = opNumber Then
+                                    GoTo addRT
+                                End If
+                            End If
+                        End If
                     
-                    ElseIf InStr(uniqueOps(i), "RECEIVE") > 0 Then     'FI_OPXX_RECINSP2, FI_OPXX_RECINSP3....
+                    ElseIf InStr(opName, "RECEIVE") > 0 Then     'FI_OPXX_RECINSP2, FI_OPXX_RECINSP3....
                         splitRt = Split(routineName, "_")
-                        If splitRt(UBound(splitRt)) = Replace(uniqueOps(i), "RECEIVE", "RECINSP") Then GoTo addRT
-                    
+                        If splitRt(UBound(splitRt)) = "RECINSP" & opNumber Then GoTo addRT
+                        
+                    ElseIf opName = "ASSEM" Then     'FA_FIRST_ASSY, IP_ASSY or FA_LASR
+                        If routineName = "FA_FIRST_ASSY" Or routineName = "IP_ASSY" Or routineName = "FA_LASR" Then GoTo addRT
                     Else
                     
                     End If
@@ -198,6 +236,9 @@ Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps
 addRT:
                     routineLabelCap = routineLabelCap & lead & routines(j)(k) & ","
                 End If
+                
+                opName = ""
+                opNumber = ""
 skipRT:
             Next k
         Next j
@@ -301,6 +342,208 @@ skipRts:
     BuildOptimizeInspectionForm = True
     
 End Function
+
+
+
+'        Old / Deprecated
+
+''*****************    Build Optimize Inspections Form      *****************
+'' Called by RibbonCommands.OptimizeInspections
+'Public Function BuildOptimizeInspectionForm(ByRef charArr() As String, uniqueOps As Collection, ByRef routines() As Variant) As Boolean
+'
+'        'Routines we should never include
+'    Dim skipCollection As Collection
+'    Set skipCollection = New Collection
+'    skipCollection.Add ("FA_LASR")
+'    skipCollection.Add ("FI_CMM")
+'    skipCollection.Add ("FI_RAM")
+'    skipCollection.Add ("FI_SYLVAC")
+'    skipCollection.Add ("FI_COMPAR")
+'
+'    Load MapRoutinesForm
+'
+'    Dim multipleOperations As Boolean
+'    If uniqueOps.Count > 1 Then multipleOperations = True
+'
+'    Dim i As Integer
+'    Dim j As Integer
+'    Dim k As Integer
+'
+'    For i = 1 To uniqueOps.Count
+'
+'        Dim ballLabelCap As String
+'        ballLabelCap = ""
+'        Dim ballLabelHeight As Integer
+'        ballLabelHeight = 10  'Default label height, should fit a single row of text
+'
+'        Dim routineLabelCap As String
+'        routineLabelCap = ""
+'        Dim routineLabelHeight As Integer
+'        routineLabelHeight = 10  'Default label height,
+'
+'        Dim lead As String
+'
+'
+'            'Each characteristic that matches opName add the strings together
+'        For j = 0 To UBound(charArr, 1)
+'            If j <> 0 Then lead = " "
+'            If charArr(j, 4) = uniqueOps(i) Or multipleOperations = False Then
+'                ballLabelCap = ballLabelCap & lead & charArr(j, 0) & ","
+'            End If
+'        Next j
+'
+'        lead = ""
+'
+'            'For each routine
+'        For j = 0 To UBound(routines)
+'            For k = 0 To UBound(routines(j))
+'                If k <> 0 And routineLabelCap <> "" Then lead = " "
+'                    Dim routineName As String
+'                    routineName = routines(j)(k)
+'
+'                        'Ignore if it matches a skip routine
+'                    If StrLikeCollItem(skipCollection, routineName) Then GoTo skipRT
+'                    'IF there are multiple operations, add it if it matches that appropriate operation type
+'                If multipleOperations Then
+'                    Dim splitRt() As String
+'
+'                        'Need to select on the Operation Name, but cant actually select here
+'                    If uniqueOps(i) = "SWISS" Then   'FA_FIRST, IP_1XSHIFT, ....
+'                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And Not (HasNumber(routineName)) _
+'                         And InStr(routineName, "MILL") = 0 Then GoTo addRT
+'
+'                    ElseIf uniqueOps(i) = "MILL" Then   'FA_FIRST_MILL, IP_1XSHIFT_MILL....
+'                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And Not (HasNumber(routineName)) _
+'                         And InStr(routineName, "MILL") > 0 Then GoTo addRT
+'
+'                    ElseIf uniqueOps(i) = "RECEIVE" Then    'FI_OPXX_RECINSP...
+'                        splitRt = Split(routineName, "_")
+'                        If splitRt(UBound(splitRt)) = "RECINSP" Then GoTo addRT
+'
+'                    ElseIf InStr(uniqueOps(i), "SWISS") > 0 Then  'FA_FIRST2, IP_1XSHIFT2....
+'                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And (HasNumber(routineName)) _
+'                         And InStr(routineName, "MILL") = 0 Then GoTo addRT
+'
+'                    ElseIf InStr(uniqueOps(i), "MILL") > 0 Then     'FA_FIRST2_MILL, IP_BENCH2_MILL
+'                        If (InStr(routineName, "FA") > 0 Or InStr(routineName, "IP") > 0) And (HasNumber(routineName)) _
+'                         And InStr(routineName, "MILL") > 0 Then GoTo addRT
+'
+'                    ElseIf InStr(uniqueOps(i), "RECEIVE") > 0 Then     'FI_OPXX_RECINSP2, FI_OPXX_RECINSP3....
+'                        splitRt = Split(routineName, "_")
+'                        If splitRt(UBound(splitRt)) = Replace(uniqueOps(i), "RECEIVE", "RECINSP") Then GoTo addRT
+'
+'                    ElseIf uniqueOps(i) = "ASSEM" Then     'FA_FIRST_ASSY, IP_ASSY or FA_LASR
+'                        If routineName = "FA_FIRST_ASSY" Or routineName = "IP_ASSY" Or routineName = "FA_LASR" Then GoTo addRT
+'                    Else
+'
+'                    End If
+'                Else  'if there's only one op, then just add everything
+'addRT:
+'                    routineLabelCap = routineLabelCap & lead & routines(j)(k) & ","
+'                End If
+'skipRT:
+'            Next k
+'        Next j
+'
+'            'If there are no valid routines for this op, exit function
+'        If Replace(routineLabelCap, " ", "") = "" Then
+'            MsgBox uniqueOps(i) & " is listed to one or more characteristics" & vbCrLf _
+'                & "but there are no applicable routines to assign to it", vbCritical
+'
+'            Exit Function
+'        End If
+'
+'        'Remove the commas at the end
+'        If Mid(routineLabelCap, Len(routineLabelCap), 1) = "," Then
+'            routineLabelCap = Mid(routineLabelCap, 1, Len(routineLabelCap) - 1)
+'        End If
+'        If Mid(ballLabelCap, Len(ballLabelCap), 1) = "," Then
+'            ballLabelCap = Mid(ballLabelCap, 1, Len(ballLabelCap) - 1)
+'        End If
+'
+'        ballLabelCap = "Balloons: " & ballLabelCap
+'
+'        'Adjust the height as the characters wrap around
+'        ballLabelHeight = ballLabelHeight + (10 * (Application.WorksheetFunction.Floor_Math(Len(ballLabelCap) / 60)))
+'
+'        'BEGIN CREATING THE FORM CONTROLS...
+'
+'        'Create label for the characteristics
+'        Dim lbl As MSForms.Label
+'        Set lbl = MapRoutinesForm.Controls.Add("Forms.Label.1", "chLbl" & i) 'TODO: This 1 in the label name will need to generated variable
+'        With lbl
+'            .Width = 210
+'            .Left = 18
+'            If i <> 1 Then
+'                .Top = MapRoutinesForm.Controls("rtFrm" & (i - 1)).Top + MapRoutinesForm.Controls("rtFrm" & (i - 1)).Height
+'            Else
+'                .Top = 78
+'            End If
+'            .Height = ballLabelHeight
+'            .Caption = ballLabelCap
+'        End With
+'
+'        'Create Frame for the routines
+'        Dim frm As MSForms.Frame
+'        Set frm = MapRoutinesForm.Controls.Add("Forms.Frame.1", "rtFrm" & i)
+'        With frm
+'            .Width = 210
+'            .Left = 18
+'            .Top = lbl.Top + lbl.Height + 3
+'            .Caption = uniqueOps(i)
+'            .Height = 25
+'        End With
+'
+'        'Adjust the height of the label as the chracters wrap around
+'        routineLabelHeight = routineLabelHeight + (10 * (Application.WorksheetFunction.Floor_Math(Len(routineLabelCap) / 30)))
+'
+'        'Create label for the routines to go inside the frame
+'        Dim lbl2 As MSForms.Label
+'        Set lbl2 = frm.Controls.Add("Forms.Label.1", "rtLbl" & i)
+'        With lbl2
+'            .Width = 200
+'            .Left = 3
+'            .Top = 5
+'            .Height = routineLabelHeight
+'            .Caption = routineLabelCap
+'        End With
+'                'Adjust the frame height to cover the size of our label
+'        frm.Height = frm.Height + lbl2.Height
+'
+'
+'    Next i
+'
+'
+'
+'        'Bring the button down underneath the frame
+'    MapRoutinesForm.MapRoutinesBtn.Top = MapRoutinesForm.Controls("rtFrm" & i - 1).Top + MapRoutinesForm.Controls("rtFrm" & i - 1).Height + 5
+'    MapRoutinesForm.Height = MapRoutinesForm.MapRoutinesBtn.Height + MapRoutinesForm.MapRoutinesBtn.Top + 40
+'    MapRoutinesForm.Show
+'
+'    If MapRoutinesForm.Tag <> "True" Then Exit Function
+'
+'    'Create new routines() array with opName first, then the routines applicable to the opName() second
+'    Erase routines
+'    ReDim Preserve routines(1 To (uniqueOps.Count), 0 To 1)
+'
+'    For i = 1 To uniqueOps.Count
+'        routines(i, 0) = uniqueOps(i)
+'        Dim rtCaption As String
+'        rtCaption = MapRoutinesForm.Controls("rtLbl" & i).Caption
+'        rtCaption = Replace(rtCaption, " ", "")
+'        If rtCaption = "" Then GoTo skipRts
+'        routines(i, 1) = Split(rtCaption, ",")
+'skipRts:
+'    Next i
+'
+'    Unload MapRoutinesForm
+'
+'    'Set the characteristic and routine information so PartLib will know what to optimize
+'
+'
+'    BuildOptimizeInspectionForm = True
+'
+'End Function
 
 
 
@@ -477,7 +720,7 @@ Sub testWBPath()
     Dim fso As FileSystemObject
     Set fso = New FileSystemObject
     Debug.Print (ThisWorkbook.path)
-    Debug.Print (ThisWorkbook.Name)
+    Debug.Print (ThisWorkbook.name)
     Debug.Print (fso.GetFileName(ThisWorkbook.path))
     
     
@@ -503,9 +746,12 @@ End Sub
 
 
 
+
 '
 'Sub events()
 '    Application.EnableEvents = True
 'End Sub
 
 'Called by PartLib
+
+
