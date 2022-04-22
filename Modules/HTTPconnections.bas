@@ -55,6 +55,7 @@ Public Function send_http(url As String, method As String, payload As String, Op
         
         If Not IsMissing(api_key) Then
             .setRequestHeader "X-Request-ID", api_key
+            .setRequestHeader "Authorization", Environ("Username")
         End If
         
         .send payload

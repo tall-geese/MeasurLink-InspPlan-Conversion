@@ -856,14 +856,19 @@ End Sub
 Public Sub partCombo_OnChange(ByRef control As Office.IRibbonControl, ByRef Text As Variant)
     
     'Check if this was a valid input (User chose value from the drop-down list)
-    If Not IsNumeric(Application.Match(Text, partCombo_PartList, 0)) Then GoTo reset_controls
-    On Error GoTo Json_Part_err
+    If IsError(Application.Match(Text, partCombo_PartList, 0)) Then GoTo reset_controls
     
+    On Error GoTo Part_Handle_Err
+    Dim part_norev As String
+    part_norev = Split(CStr(Text), "_")(0)
+    ThisWorkbook.Worksheets("START HERE").SetPartNumber partNum:=part_norev
+    
+    On Error GoTo Json_Part_err
     ThisWorkbook.Worksheets("View_CustomFields").LoadPartInformation json_parts_info(GetPartIndex(CStr(Text), json_parts_info))
     
     Exit Sub
     
-    'If we got here, then we couldnt find the part in the part list, we should i guess reset everything???
+    'If we got here, then we couldnt find the part in the part list, we should reset everything
 reset_controls:
     ResetViewControls
     MsgBox "Not A Valid Input", vbInformation
@@ -876,6 +881,14 @@ Json_Part_err:
     Else
         MsgBox Err.Description, vbCritical
     End If
+    
+    Exit Sub
+    
+Part_Handle_Err:
+    MsgBox "There was an issue either setting the Part Number on the START HERE page, " & vbCrLf _
+        & "Or we had an issue with splitting the Revision from the PartNum_Rev format" & vbCrLf & vbCrLf _
+        & "Double check that the START HERE page is not protected"
+
 End Sub
 
 Public Sub partCombo_OnGetEnabled(ByRef control As IRibbonControl, ByRef Enabled As Variant)
@@ -960,7 +973,7 @@ End Sub
 
 
 '****************************************************
-'***********   HelperFunctions   *******************
+'***********   HelperFunctions   ********************
 '****************************************************
 
 Public Sub ClearComboVariables()
