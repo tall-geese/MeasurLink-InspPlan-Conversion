@@ -953,7 +953,7 @@ Public Sub ShowVersionHistory(ByRef control As IRibbonControl)
     Load ChangeLogForm
     Dim changeLogText As String
     With ThisWorkbook.VBProject.VBComponents("DataSources").CodeModule
-        changeLogText = (.Lines(23, .CountOfDeclarationLines))
+        changeLogText = (.Lines(48, .CountOfDeclarationLines))
     End With
     ChangeLogForm.changeLabel = changeLogText
     Debug.Print (Len(changeLogText))

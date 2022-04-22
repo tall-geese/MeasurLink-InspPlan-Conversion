@@ -52,7 +52,7 @@ Private Sub BuildFormulasButton_Click()
             Err.Raise Number:=vbObjectError + 1000, Description:="Upper value"
         End If
     End If
-    'If a feature it checked off and we have a selection in the adjacent comboBox, then construct the variable formula
+    'If a feature is checked off and we have a selection in the adjacent comboBox, then construct the variable formula
     For i = 1 To 8
         If Me.Controls("CheckBox" & i).Value = True And Me.Controls("ComboBox" & i) <> vbNullString Then
             Call Worksheets("PartLib Table").ApplyFormula(targetCol:=Me.Controls("ColLabel" & i), varCol:=Me.Controls("ComboBox" & i))
@@ -106,6 +106,14 @@ Private Sub Checkbox8_Click()
 End Sub
 
 
+
+Private Sub ColLabel7_Click()
+
+End Sub
+
+Private Sub ComboBox7_Change()
+
+End Sub
 
 '----Lower-----
 
