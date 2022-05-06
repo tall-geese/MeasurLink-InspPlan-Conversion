@@ -159,7 +159,6 @@ End Sub
 
 
 Public Function AddCustomFields(payload As String, api_key As String) As String
-    'TODO: need to update this to add the Header with the user API key
     
     On Error GoTo addCustomFieldsErr:
 
@@ -175,11 +174,35 @@ addCustomFieldsErr:
     If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
         MsgBox Err.Description, vbExclamation
         
-    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'Custom Field already exists, that means our Userform is not working as intended
+    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'Custom Field already exists, Internal Server Error
         MsgBox Err.Description, vbCritical
         
     Else   'Unhandle Exceptions
         MsgBox "Unexpected Exception Occured Func: HTTPConnections.AddCustomFields()" & vbCrLf & vbCrLf & Err.Description, vbCritical
+    End If
+End Function
+
+Public Function UpdateCustomFields(payload As String, api_key As String) As String
+    
+    On Error GoTo updateCustomFieldsErr:
+
+    Dim resp As String
+    resp = send_http(url:=DataSources.JPMCML_FIELDS_UPDATE, method:=DataSources.HTTP_PUT, payload:=payload, api_key:=api_key)
+
+    UpdateCustomFields = resp
+        
+    Exit Function
+
+updateCustomFieldsErr:
+        
+    If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
+        MsgBox Err.Description, vbExclamation
+        
+    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'User not allowed, Internal Server Error
+        MsgBox Err.Description, vbCritical
+        
+    Else   'Unhandle Exceptions
+        MsgBox "Unexpected Exception Occured Func: HTTPConnections.UpdateCustomFields()" & vbCrLf & vbCrLf & Err.Description, vbCritical
     End If
 End Function
 

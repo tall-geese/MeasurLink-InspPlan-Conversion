@@ -23,7 +23,7 @@ Private json_part_lib As Object  'JSON object made by PartLib.Build_JSON_of_Part
 Private toggle_viewCustomFields As Boolean
 
 Public add_custom_fields_valid As Boolean
-
+Public udpate_custom_fields_valid As Boolean
 
 
 Public Sub Ribbon_OnLoad(uiRibbon As IRibbonUI)
@@ -803,8 +803,42 @@ insert_form_Err:
     MsgBox Err.Number & vbCrLf & Err.Description
 End Sub
 
+
+'******************   Update Custom Fields Button ***********************
+Public Sub UpdateCustomFields_OnAction(ByRef control As Office.IRibbonControl)
+    'Check that the User is even allowed to do this action first
+    If Get_API_Key() = vbNullString Then Exit Sub
+
+
+    'Load up the UPDATEform and fetch the values that we want to update
+
+    Dim json_parts_api As Object, json_parts_map As Object
+    Dim partNums() As String
+    
+    partNums = GetParts_or_SetError()
+    If (Not partNums) = -1 Then Exit Sub
+    
+    Set json_parts_api = HTTPconnections.GetPartsInfo(partNums)
+    Set json_parts_map = Worksheets("PartLib Table").Build_JSON_of_Parts(partNums)
+    
+    On Error GoTo update_form_Err
+    
+    Load UPDATEform
+    
+    UPDATEform.BuildListArray json_parts_api, json_parts_map
+    
+    UPDATEform.Show
+    
+    'Can we see what the exit status was? Do they actually want to go and
+        'Insert the values or did they just close out of the form??
+    
+    Exit Sub
+update_form_Err:
+    MsgBox Err.Number & vbCrLf & Err.Description
+End Sub
+
     'Passed back by the INSERTform after it closes
-Public Sub ParseArray_ForUpload(json_parts_info As Object)
+Public Sub ParseArray_ForINSERT(json_parts_info As Object)
     Dim output As String, backup As String
     output = JsonConverter.ConvertToJson(json_parts_info, Whitespace:=3)
     backup = output
@@ -846,6 +880,88 @@ Public Sub ParseArray_ForUpload(json_parts_info As Object)
     
     If resp <> vbNullString Then
         MsgBox "Custom Fields Added Successfully!", vbInformation
+    End If
+    
+End Sub
+
+
+    'Passed back by the INSERTform after it closes
+Public Sub ParseArray_ForUPDATE(json_update_values As Object, json_parts_api As Object)
+
+        'Make a clone of what we're trying to update
+    Dim view_json As Object: Dim payload As String
+    
+    payload = JsonConverter.ConvertToJson(json_update_values)
+    Set view_json = JsonConverter.ParseJson(payload)
+    
+    
+    For Each view_part In view_json
+        For Each api_part In json_parts_api
+            If view_part("name") = api_part("name") Then  'Find matching Parts
+                For Each view_feat In view_part("features")
+                    For Each api_feat In api_part("features")
+                        If view_feat("name") = api_feat("name") Then  'Find matching Features
+                            For Each view_cf In view_feat("custom_fields")
+                                For Each api_cf In api_feat("custom_fields")
+                                    If view_cf("customFieldId") = api_cf("customFieldId") Then  'Find matching customFields
+                                        view_cf("value") = api_cf("value") & " -> " & view_cf("value")   'Show the [FROM -> TO]
+                                        GoTo next_cf
+                                    End If
+                                Next api_cf
+next_cf:
+                            Next view_cf
+                            GoTo next_feat
+                        End If
+                    Next api_feat
+next_feat:
+                Next view_feat
+                GoTo next_part
+            End If
+        Next api_part
+next_part:
+    Next view_part
+    
+    
+    Dim view_output As String
+    view_output = JsonConverter.ConvertToJson(view_json, Whitespace:=3)
+    
+    'Make a copy that is human readable
+    view_output = Replace(view_output, Chr(34) & "customFieldId" & Chr(34) & ": 13", _
+                            Chr(34) & "customField" & Chr(34) & ":Balloon")
+    view_output = Replace(view_output, Chr(34) & "customFieldId" & Chr(34) & ": 15", _
+                            Chr(34) & "customField" & Chr(34) & ":Pins/Gauges")
+    view_output = Replace(view_output, Chr(34) & "customFieldId" & Chr(34) & ": 3", _
+                            Chr(34) & "customField" & Chr(34) & ":Attribute Tolerance")
+    view_output = Replace(view_output, Chr(34) & "customFieldId" & Chr(34) & ": 8", _
+                            Chr(34) & "customField" & Chr(34) & ":Comments")
+    view_output = Replace(view_output, Chr(34) & "customFieldId" & Chr(34) & ": 11", _
+                            Chr(34) & "customField" & Chr(34) & ":Insp. Method")
+    view_output = Replace(view_output, Chr(34) & "customFieldId" & Chr(34) & ": 12", _
+                            Chr(34) & "customField" & Chr(34) & ":Insp. Frequency")
+    view_output = Replace(view_output, Chr(34) & "customFieldId" & Chr(34) & ": 16", _
+                            Chr(34) & "customField" & Chr(34) & ":Char. Description")
+
+    
+    'Give the user a last chance to review the Fields they are about to insert.
+    Load UPDATEview
+    UPDATEview.json_label.Caption = view_output
+    UPDATEview.ScrollHeight = UPDATEview.json_label.Height + 90
+    
+    UPDATEview.Show
+    
+    'If the user said to proceed with adding the fields
+    If udpate_custom_fields_valid Then
+        udpate_custom_fields_valid = False
+    Else
+        Exit Sub
+    End If
+    
+    Dim api_key As String, resp As String
+    api_key = Get_API_Key()
+    resp = HTTPconnections.UpdateCustomFields(payload:=payload, api_key:=api_key)
+    
+    If resp <> vbNullString Then
+        MsgBox "Custom Fields Updated Successfully!", vbInformation
     End If
     
 End Sub

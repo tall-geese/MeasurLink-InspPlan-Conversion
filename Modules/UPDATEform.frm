@@ -1,14 +1,14 @@
 VERSION 5.00
-Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} INSERTform 
-   Caption         =   "INSERT Custom Field Information"
+Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UPDATEform 
+   Caption         =   "UPDATE Custom Field Information"
    ClientHeight    =   7605
    ClientLeft      =   120
    ClientTop       =   465
    ClientWidth     =   10230
-   OleObjectBlob   =   "INSERTform.frx":0000
+   OleObjectBlob   =   "UPDATEform.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
-Attribute VB_Name = "INSERTform"
+Attribute VB_Name = "UPDATEform"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
@@ -16,12 +16,13 @@ Attribute VB_Exposed = False
 
 '*************************************************************
 '*************************************************************
-'*                  INSERT Form
+'*                  UPDATE Form
 '*
 '*************************************************************
 '*************************************************************
 
 Private json_routine_map As Object
+Private json_routine_api As Object
 Private listen_clk_events As Boolean
 Private listParts() As Variant 'Representation of what is going on in our listBoxes
 'listParts  <--Parts Array
@@ -33,60 +34,6 @@ Private listParts() As Variant 'Representation of what is going on in our listBo
         'listParts(2, i)(2, j)  <-- CustomFields Array
             'listFields(2, i)(2, j)(0, k)  <-- Custom Field ID
             'listFields(2, i)(2, j)(1, k)  <-- list_selection_status
-            
-            
-        '*******************************************
-        '*********   Methods List   ****************
-        '*******************************************
-'   [Initialize]
-
-'BuildListArray
-'    GetPartIndex
-'    init_lists
-'
-'    ResetLists
-'    ReLoadParts
-'    ReLoadFeatures
-'    ReLoadFields
-'
-'    CF_Change
-'    Feat_Change
-'    Part_Change
-'
-'   [GUI Controls]
-
-'PartListBox_Click
-'PartListBox_DblClick
-'
-'FeatureListBox_Click
-'FeatureListBox_DblClick
-'
-'Balloon_Button_Click
-'Description_Button_Click
-'Comments_Button_Click
-'Frequency_Button_Click
-'Insp_Method_Button_Click
-'Pins_Gauges_Button_Click
-'Attr_Tol_Button_Click
-'
-'    switch_cf_and_reload
-'
-'HelpButton_Click
-'PartListRefresh_Click
-'FeatureListRefresh_Click
-'FieldListRefresh_Click
-'PartListDelete_Click
-'FeatureListDelete_Click
-'FieldListDelete_Click
-'
-'CopyFields_Button_Click
-'CopyFeatures_Button_Click
-'
-'
-'   [Terminate]
-
-'InsertSelectionButton_Click
-
 
 
 '************************************************************
@@ -100,13 +47,14 @@ Public Sub BuildListArray(json_parts_api As Object, json_parts_map As Object)
     On Error GoTo buildListArrErr
 
     Set json_routine_map = json_parts_map
+    Set json_routine_api = json_parts_api
     
     If json_parts_map.Count = 0 Or json_parts_api.Count = 0 Then
         Err.Raise Number:=vbObjectError + 7000, Description:="None of the parts in the Variables tab exist in the Database yet!" & vbCrLf _
                         & "You must create QIF files first and Import them before you can Upload Custom Field information"
     End If
     
-    'Go through the Part Names, everything we want to insert should have a matching part returned
+    'Go through the Part Names, everything we want to update should have a matching part returned
     Dim part_dict_rm As Object, part_dict_api As Object
     For Each part_dict_rm In json_parts_map
         For Each part_dict_api In json_parts_api
@@ -215,51 +163,46 @@ next_map_feat:
                 GoTo nextfeat
             End If
             
-            'This is the bread and butter, db has no custom fields and we want to add everything  we can
+            'There aren't any custom fields to update on the database for this feat
             If feat_api("custom_fields").Count = 0 Then
-                Dim cf As Object
-                For Each cf In feat_rm("custom_fields")
-                    For k = 0 To UBound(listFields, 2)
-                        If cf("customFieldId") = listFields(0, k) Then
-                            listFields(1, k) = DataSources.ITEM_SELECTED
-                        End If
-                    Next k
-                Next cf
+                For k = 0 To UBound(listFields, 2)
+                    listFields(1, k) = DataSources.ITEM_NOT_APPLICABLE
+                Next k
                 
                 listParts(2, i)(2, j) = listFields
                 
                 GoTo nextfeat
             End If
             
-            'All the custom fields for this feature exist already...
-            If feat_api("custom_fields").Count = 7 Then
-                listParts(2, i)(1, j) = DataSources.ITEM_NOT_APPLICABLE
-                listParts(2, i)(2, j) = listFields
-                GoTo nextfeat
-            End If
+            ' All the custom fields for this feature exist already...
+            ' If feat_api("custom_fields").Count = 7 Then
+                ' listParts(2, i)(1, j) = DataSources.ITEM_NOT_APPLICABLE
+                ' listParts(2, i)(2, j) = listFields
+                ' GoTo nextfeat
+            ' End If
     
             'Otherwise, there are some customFields we can upload and some we can't becuase they are occupied
             Dim cf_rm As Object, cf_api As Object
             For Each cf_rm In feat_rm("custom_fields")
                 For Each cf_api In feat_api("custom_fields")
                     If cf_rm("customFieldId") = cf_api("customFieldId") Then
-                        'Found a match, that means that we cant add anything. Leave status as [---]
-                        GoTo next_cf
+                        'Found a match, make it so that it is selected
+                        For k = 0 To UBound(listFields, 2)
+                            If cf_rm("customFieldId") = listFields(0, k) Then
+                                listFields(1, k) = DataSources.ITEM_SELECTED
+                                GoTo next_cf
+                            End If
+                        Next k
                     End If
                 Next cf_api
                 
-                'No match found, change status so it can be Inserted
-                For k = 0 To UBound(listFields, 2)
-                    If cf_rm("customFieldId") = listFields(0, k) Then
-                        listFields(1, k) = DataSources.ITEM_SELECTED
-                    End If
-                Next k
 next_cf:
+            
             Next cf_rm
             
             listParts(2, i)(2, j) = listFields
             
-            'If all the Custom Fields are Invalid or Not Found, then change the Feature to be Invalid as well
+                        'If all the Custom Fields are Invalid or Not Found, then change the Feature to be Invalid as well
             Dim na_fields As Integer
             For k = 0 To UBound(listFields, 2)
                 If listFields(1, k) = DataSources.ITEM_NOT_APPLICABLE Or listFields(1, k) = DataSources.ITEM_NOT_FOUND Then
@@ -301,7 +244,7 @@ nextfeat:
     Exit Sub
     
 buildListArrErr:
-    MsgBox "Encountered a problem at INSERTform.BuildListArray()" & vbCrLf & Err.Description, vbCritical
+    MsgBox "Encountered a problem at UPDATEform.BuildListArray()" & vbCrLf & Err.Description, vbCritical
     
     
     
@@ -347,7 +290,7 @@ Private Sub init_lists()
     Exit Sub
     
 initListErr:
-    MsgBox "Encountered Error at INSERTform.Init_Lists()" & vbCrLf & Err.Description, vbCritical
+    MsgBox "Encountered Error at UPDATEform.Init_Lists()" & vbCrLf & Err.Description, vbCritical
     
 End Sub
 
@@ -689,8 +632,8 @@ Private Sub HelpButton_Click()
         & "[   ] - The Value Not Selected and will not be added to MeasurLink" & vbCrLf _
         & vbCrLf _
         & "The Following 2 Values cannot be changed" & vbCrLf & vbCrLf _
-        & "[---] - The MeasurLink database already has a value for this custom field, or all fields for this feature. You can't insert one." & vbCrLf _
-        & "[???] - A Value can be inserted into the databse, but we couldn't find one on the PartLib Table.", vbInformation
+        & "[---] - The MeasurLink database doesnt have a value for this custom field, or all fields for this feature. You can't Update anything." & vbCrLf _
+        & "[???] - A Value can be Updated on the databse, but we couldn't find one on the PartLib Table.", vbInformation
 
 End Sub
 
@@ -960,7 +903,7 @@ End Sub
 
 
 
-Private Sub InsertSelectionButton_Click()
+Private Sub UpdateSelectionButton_Click()
     'Manipulate the JSON object stored by removing unselected or not applicable items
     
     'Remove Parts as necessary
@@ -1044,13 +987,13 @@ nextfeat:
 nextpart:
     Next part_ind
     
-    Dim dupe_json As Object
+    Dim dupe_json As Object, dupe_api As Object
     Set dupe_json = json_routine_map  'make a backup before it becomes unloaded
+    Set dupe_api = json_routine_api
     
     Unload Me
     
-    ParseArray_ForINSERT json_parts_info:=dupe_json
-    
+    ParseArray_ForUPDATE json_update_values:=dupe_json, json_parts_api:=dupe_api
     Exit Sub
         
     
