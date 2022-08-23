@@ -27,7 +27,7 @@ Attribute VB_Name = "HTTPconnections"
 '**************   Main Routine   ********************
 '****************************************************
 
-Public Function send_http(url As String, method As String, payload As String, Optional q_params As Variant, Optional api_key As Variant) As String
+Public Function send_http(url As String, method As String, Optional payload As String, Optional q_params As Variant, Optional api_key As Variant) As String
     On Error GoTo HTTP_Err:
 
     Dim req As ServerXMLHTTP60
@@ -50,7 +50,9 @@ Public Function send_http(url As String, method As String, payload As String, Op
     With req
         'Set request headers here...
         .Open method, url, False   'We can do this asyncronously??
-        .setRequestHeader "Content-Type", "application/json;charset=utf-8"
+        If method <> DataSources.HTTP_GET Then
+            .setRequestHeader "Content-Type", "application/json;charset=utf-8"
+        End If
         .setRequestHeader "Accept", "application/json;charset=utf-8"
         
         If Not IsMissing(api_key) Then
@@ -205,6 +207,56 @@ updateCustomFieldsErr:
         MsgBox "Unexpected Exception Occured Func: HTTPConnections.UpdateCustomFields()" & vbCrLf & vbCrLf & Err.Description, vbCritical
     End If
 End Function
+
+Public Function GetCellConfiguration(api_key As String) As String
+        
+    On Error GoTo GetCellConfig:
+
+    Dim resp As String
+    resp = send_http(url:=DataSources.JPMCML_GET_CELLS_CONFIG, method:=DataSources.HTTP_GET, api_key:=api_key)
+
+    GetCellConfiguration = resp
+        
+    Exit Function
+
+GetCellConfig:
+        
+    If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
+        MsgBox Err.Description, vbExclamation
+        
+    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'User not allowed, Internal Server Error
+        MsgBox Err.Description, vbCritical
+        
+    Else   'Unhandle Exceptions
+        MsgBox "Unexpected Exception Occured Func: HTTPConnections.GetCellConfiguration()" & vbCrLf & vbCrLf & Err.Description, vbCritical
+    End If
+End Function
+
+
+Public Function UpdateCellConfiguration(config_json As String, api_key As String) As String
+        
+    On Error GoTo updateCellConfig:
+
+    Dim resp As String
+    resp = send_http(url:=DataSources.JPMCML_UPDATE_CELLS_CONFIG, method:=DataSources.HTTP_PUT, payload:=config_json, api_key:=api_key)
+
+    UpdateCellConfiguration = resp
+        
+    Exit Function
+
+updateCellConfig:
+        
+    If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
+        MsgBox Err.Description, vbExclamation
+        
+    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'User not allowed, Internal Server Error
+        MsgBox Err.Description, vbCritical
+        
+    Else   'Unhandle Exceptions
+        MsgBox "Unexpected Exception Occured Func: HTTPConnections.UpdateCellConfiguration()" & vbCrLf & vbCrLf & Err.Description, vbCritical
+    End If
+End Function
+
 
 
 

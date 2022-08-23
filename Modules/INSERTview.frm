@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} INSERTview 
    Caption         =   "Information to INSERT"
-   ClientHeight    =   7515
-   ClientLeft      =   120
-   ClientTop       =   465
-   ClientWidth     =   8880.001
+   ClientHeight    =   2448
+   ClientLeft      =   -36
+   ClientTop       =   -120
+   ClientWidth     =   1836
    OleObjectBlob   =   "INSERTview.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -21,5 +21,4 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
     If CloseMode <> 0 Then
         RibbonCommands.add_custom_fields_valid = True
     End If
-
 End Sub

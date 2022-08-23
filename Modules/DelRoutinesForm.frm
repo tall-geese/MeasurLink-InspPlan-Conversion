@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} DelRoutinesForm 
    Caption         =   "Select Routines to Delete"
-   ClientHeight    =   255
-   ClientLeft      =   120
-   ClientTop       =   450
-   ClientWidth     =   7755
+   ClientHeight    =   48
+   ClientLeft      =   -36
+   ClientTop       =   -192
+   ClientWidth     =   1668
    OleObjectBlob   =   "DelRoutinesForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

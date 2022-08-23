@@ -11,8 +11,6 @@ Attribute VB_Name = "RibbonCommands"
 
 Private cusRibbon As IRibbonUI
 
-Private ribbonMsg As String
-
 Private partCombo_Enabled As Boolean
 Private partCombo_PartList() As String
 Private partCombo_TextField As String
@@ -192,7 +190,7 @@ Public Sub ImportRoutineMap(ByRef control As IRibbonControl)
         .Show
         
         If .SelectedItems.Count = 0 Then Exit Sub
-        wbPath = .SelectedItems.Item(1)
+        wbPath = .SelectedItems.item(1)
     End With
     
     
@@ -357,7 +355,7 @@ Public Sub BuildVariableFeatureForm(ByRef control As IRibbonControl)
         
             Load ConditionalFeature
             
-            Set inspCell = ActiveCell.Offset(0, partWS.GetCol("Characteristic Name") - ActiveCell.column)
+            Set inspCell = ActiveCell.offset(0, partWS.GetCol("Characteristic Name") - ActiveCell.column)
             If inspCell.Value = "" Then Exit Sub
             ConditionalFeature.FeatureLabel.Caption = inspCell.Value
             
@@ -390,7 +388,7 @@ Public Sub HideFeaturesCondForm(ByRef control As IRibbonControl)
     'set a mfg tolerance for the feature in the given row
     If ActiveSheet.name = partWS.name Then
         If TypeName(Selection) = "Range" Then
-            Dim Label As String
+            Dim label As String
             Dim featureCol As Collection
             Set featureCol = New Collection
             Dim subCell As Range
@@ -398,7 +396,7 @@ Public Sub HideFeaturesCondForm(ByRef control As IRibbonControl)
                 If Not partWS.IsInImmutableRange(subCell) Then
                     Dim featureCell As Range
                     'We're going to index from the Characteristic Cell
-                    Set featureCell = subCell.Offset(0, partWS.GetCol("Characteristic Name") - subCell.column)
+                    Set featureCell = subCell.offset(0, partWS.GetCol("Characteristic Name") - subCell.column)
                     'Ignore cells w/o Characteristic Names
                     If featureCell.Value = "" And featureCell.formula = "" Then GoTo Cont
                     
@@ -412,9 +410,9 @@ Cont:
             
             If featureCol.Count = 0 Then Exit Sub
             If featureCol.Count = 1 Then
-                Label = featureCol.Item(1).Value
+                label = featureCol.item(1).Value
             Else
-                Label = "*Multiple*"
+                label = "*Multiple*"
             End If
             
             
@@ -452,7 +450,7 @@ Cont:
                     
                     For Each ind In hiddenIndexes
                         Dim featCell As Range
-                        Set featCell = featureCol.Item(ind)
+                        Set featCell = featureCol.item(ind)
                         Call Worksheets("PartLib Table").UnsetHiding(featCell:=featCell)
                     Next ind
                 End If
@@ -460,7 +458,7 @@ Cont:
                 'If the selected features are not already hidden
             Else
                 Load HideFeatureCond
-                HideFeatureCond.FeatureLabel.Caption = Label
+                HideFeatureCond.FeatureLabel.Caption = label
                 
                 'Store the address of each applicable cell in the userform
 '                Dim feature As Range
@@ -486,7 +484,7 @@ Cont:
     Exit Sub
 
 resetFeatErr:
-    MsgBox "Something went wrong with " & featureCol.Item(ind) & vbCrLf & "couldn't strip the value", vbCritical
+    MsgBox "Something went wrong with " & featureCol.item(ind) & vbCrLf & "couldn't strip the value", vbCritical
     GoTo 10
     Exit Sub
 
@@ -502,7 +500,7 @@ Public Sub SetMfgTolerance(ByRef control As IRibbonControl)
     If ActiveSheet.name = partWS.name Then
         If Not partWS.IsInImmutableRange(ActiveCell) Then
            Dim inspCell As Range
-           Set inspCell = ActiveCell.Offset(0, partWS.GetCol("Inspection Method") - ActiveCell.column)
+           Set inspCell = ActiveCell.offset(0, partWS.GetCol("Inspection Method") - ActiveCell.column)
            Call partWS.LoadMfgTol(inspCell, 0, 0)
         End If
     End If
@@ -696,7 +694,6 @@ Public Sub viewCustomFields_Toggle(ByRef control As Office.IRibbonControl, ByRef
     End If
         
     'Otherwise its a valid list of partNumbers
-    ClearRibbonNotification
     partCombo_Enabled = True
     
     
@@ -704,7 +701,7 @@ Public Sub viewCustomFields_Toggle(ByRef control As Office.IRibbonControl, ByRef
     
     Set json_parts_info = HTTPconnections.GetPartsInfo(partNums)
     If json_parts_info Is Nothing Then
-        ResetViewControls notification_msg:="     Error:    Parts Don't Exist in MeasurLink ?"
+        ResetViewControls
         Exit Sub
     End If
     
@@ -741,14 +738,11 @@ Public Sub viewCustomFields_OnGetPressed(ByRef control As IRibbonControl, ByRef 
 End Sub
 
 'Called by View_CustomFields when hiding as well as other functions around here
-Public Sub ResetViewControls(Optional notification_msg As String)
+Public Sub ResetViewControls()
     'Reset Variables
     Erase partCombo_PartList
     Set json_parts_info = Nothing
     
-    'Set optional error message to user
-    If notification_msg = vbNullString Then notification_msg = " "
-    ribbonMsg = notification_msg
     
     'Reset controls variables
     toggle_viewCustomFields = False
@@ -756,17 +750,11 @@ Public Sub ResetViewControls(Optional notification_msg As String)
     partCombo_TextField = vbNullString
     
     'Reload the controls
-    InvalidateControl "notificationLabel"
     InvalidateControl "partCombo"
     InvalidateControl "viewCustomFields"
     
     'Hide the CustomFields Sheet if not hidden already
     ThisWorkbook.Worksheets("View_CustomFields").Visible = False
-End Sub
-
-Public Sub ClearRibbonNotification()
-    ribbonMsg = " "
-    InvalidateControl "notificationLabel"
 End Sub
 
 
@@ -972,7 +960,7 @@ End Sub
 Public Sub partCombo_OnChange(ByRef control As Office.IRibbonControl, ByRef Text As Variant)
     
     'Check if this was a valid input (User chose value from the drop-down list)
-    If IsError(Application.Match(Text, partCombo_PartList, 0)) Then GoTo reset_controls
+    If IsError(Application.match(Text, partCombo_PartList, 0)) Then GoTo reset_controls
     
     On Error GoTo Part_Handle_Err
     Dim part_norev As String
@@ -1038,18 +1026,60 @@ Public Sub partCombo_OnGetText(ByRef control As Office.IRibbonControl, ByRef Tex
 End Sub
 
 
-'******************   RibbonMsg Label ***********************
-
-Public Sub notificationLabel_OnGetLabel(ByRef control As Office.IRibbonControl, ByRef Label As Variant)
-   Label = ribbonMsg
-End Sub
-
-
-
 '******************  Get API Key Button   ***********************
 Public Sub GetAPIkey_OnAction(ByRef control As Office.IRibbonControl)
     HTTPconnections.AddCurrentUser
 End Sub
+
+
+
+'******************  Map Routine Stations Button   ***********************
+Public Sub StationMapping_OnAction(ByRef control As Office.IRibbonControl)
+    'Check that the User is even allowed to do this action first
+    Dim key As String
+    key = Get_API_Key()
+    If key = vbNullString Then Exit Sub
+
+    Dim fso As FileSystemObject: Set fso = New FileSystemObject
+    Dim config As String, content As String, json_config As Object, json_content As Object
+    'config = fso.OpenTextFile(ThisWorkbook.path & "\" & "content.json", ForReading).ReadAll()
+    config = HTTPconnections.GetCellConfiguration(key)
+        'We need to remove the leding and trailing " characters, this is all becuase we are returning a file from the API, not a model
+    config = Right(config, Len(config) - 1)
+    config = Left(config, Len(config) - 1)
+    config = Replace(config, "\", "")  'Also these escaped spaces
+    
+    content = fso.OpenTextFile(ThisWorkbook.path & "\" & "body.json", ForReading).ReadAll()
+    Set json_config = JsonConverter.ParseJson(config)
+    Set json_content = JsonConverter.ParseJson(content)
+    
+    ThisWorkbook.Build_StationMappingForm json_config:=json_config, json_content:=json_content
+    
+    'Get the json for the form and pass it onto the Workbook,
+        'Which is what should be used for building the module
+        
+    'We can either use this function to go ahead and proceed with the mapping,
+        'if the exit status is alright (see similar functions above)
+    'Or we can have another form here that shows the User a text representation
+        'Of the things they are about to add and asks if they want to proceed.
+        
+    
+End Sub
+
+    'Called by StationModify to Change the layout of cells and stations
+Public Sub UpdateConfig(json As Collection)
+    Dim json_config As String, resp As String
+    json_config = JsonConverter.ConvertToJson(json)
+    resp = HTTPconnections.UpdateCellConfiguration(json_config, Get_API_Key())
+    
+    MsgBox "Cells / Stations Updated Successfully", vbInformation
+
+End Sub
+
+
+
+
+
 
 
 '****************************************************
@@ -1080,9 +1110,9 @@ Public Sub ShowVersionHistory(ByRef control As IRibbonControl)
     Unload ChangeLogForm
 End Sub
 
-Public Sub GetVersionLabel(ByRef control As Office.IRibbonControl, ByRef Label As Variant)
+Public Sub GetVersionLabel(ByRef control As Office.IRibbonControl, ByRef label As Variant)
 
-   Label = "Version: " & DataSources.VERSION & vbCrLf & "Change History"
+   label = "Version: " & DataSources.VERSION & vbCrLf & "Change History"
 End Sub
 
 
@@ -1097,8 +1127,6 @@ Public Sub ClearComboVariables()
     Erase partCombo_PartList
     partCombo_TextField = vbNullString
       
-       
-    InvalidateControl "notificationLabel"
     InvalidateControl "partCombo"
 
 End Sub
@@ -1128,20 +1156,22 @@ Public Function GetParts_or_SetError() As String() ' ->  Returns Part Numbers wi
     
     'If there arent part numbers
     If (Not partNums) = -1 Then
-        ResetViewControls notification_msg:="     Error:    No Part Numbers"
+        MsgBox "No Parts found in Variables Sheet", vbInformation
+        ResetViewControls
         Exit Function
         
     'If part numbers aren't unique
     ElseIf Not ThisWorkbook.Worksheets("Variables").IsUniquePartNumbers() Then
-        ResetViewControls notification_msg:="     Error:    Non-Unique Part Numbers"
+        MsgBox "Non-Unique Part Numbers Found on Variables", vbInformation
+        ResetViewControls
         Exit Function
     'If no Revision filled out on the START HERE page
     ElseIf rev = vbNullString Then
-        ResetViewControls notification_msg:="     Error:    No Revision on START HERE"
+        MsgBox "No Revision Found on START HERE", vbInformation
+        ResetViewControls
         Exit Function
     'Otherwise its a valid list of partNumbers
     Else
-        ClearRibbonNotification
         
         Dim i As Integer
         For i = 0 To UBound(partNums)
@@ -1179,6 +1209,9 @@ Private Function Get_API_Key() As String '-> Returns contents of Key file or vbN
     Get_API_Key = fso.OpenTextFile(user_path, ForReading).ReadAll()
 
 End Function
+
+
+
 
 
 

@@ -7,6 +7,8 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
+
+
 '*************************************************************
 '*************************************************************
 '*                  ThisWorkbook
@@ -267,7 +269,7 @@ skipRT:
         'BEGIN CREATING THE FORM CONTROLS...
     
         'Create label for the characteristics
-        Dim lbl As MSForms.Label
+        Dim lbl As MSForms.label
         Set lbl = MapRoutinesForm.Controls.Add("Forms.Label.1", "chLbl" & i) 'TODO: This 1 in the label name will need to generated variable
         With lbl
             .Width = 210
@@ -296,7 +298,7 @@ skipRT:
         routineLabelHeight = routineLabelHeight + (10 * (Application.WorksheetFunction.Floor_Math(Len(routineLabelCap) / 30)))
         
         'Create label for the routines to go inside the frame
-        Dim lbl2 As MSForms.Label
+        Dim lbl2 As MSForms.label
         Set lbl2 = frm.Controls.Add("Forms.Label.1", "rtLbl" & i)
         With lbl2
             .Width = 200
@@ -557,7 +559,7 @@ Public Function BuildRoutineForm(routines() As Variant, colors() As Variant, frm
     On Error GoTo frmErr
     Load DelRoutinesForm
     Dim myFrame As MSForms.Frame
-    Dim chkbx As MSForms.CheckBox
+    Dim chkbx As MSForms.checkBox
     Dim ctl As MSForms.control
     Dim btn As btnClass
     Dim spacing As Integer
@@ -592,7 +594,7 @@ Public Function BuildRoutineForm(routines() As Variant, colors() As Variant, frm
     
     
     If Not IsMissing(instructions) Then
-        Dim lblCtrl As MSForms.Label
+        Dim lblCtrl As MSForms.label
         Set lblCtrl = DelRoutinesForm.Controls.Add("Forms.Label.1", "instrLabel")
         With lblCtrl
             .Top = 1
@@ -688,70 +690,177 @@ delErr:
 
 End Function
 
-
-Sub testColl()
-    Dim a As Collection
-    Set a = New Collection
-    a.Add "Hello"
-    a.Add "goodbye"
-    a.Add "sup"
+Public Sub Build_StationMappingForm(json_config As Object, json_content As Object)
+    'Take the json_config that tells us how many cells and what values we should have in them and create the form from that
+    'Should also set the json_config in the form, in case the user wants to be able to update the form's cells and machines
+        
+        
+    Load StationMapping
     
-    a.Remove (1)
-
-    Debug.Print (a.Item(1))
+    StationMapping.Unravel json_content:=json_content
+    
+    
+    'List of Values for our ComboBoxes
+    Dim cells() As Variant, resources() As Variant, CustomCheckBoxes As Collection
+    Set CustomCheckBoxes = New Collection
+    
+    Dim re As RegExp: Set re = New RegExp
+    re.Global = False: re.IgnoreCase = True
+    re.Pattern = "rgb\((.*)\)"
+    
+    ReDim Preserve resources(json_config.Count - 1)
+    ReDim Preserve cells(json_config.Count - 1)
+    
+    'Create a frame for each Cell and a checkbox / label for each Station
+    Dim cell As Dictionary
+    Dim i As Integer: Dim j As Integer
+    For i = 1 To json_config.Count
+        Set cell = json_config(i)
+        cells(i - 1) = cell("name")
+        'resources(i - 1, 1) = cell("stations")
+        resources(i - 1) = Create_ResourceList(cell("stations"))
+        
+        Dim cell_frame As MSForms.Frame
+        Set cell_frame = StationMapping.StationFrame.Controls.Add("Forms.Frame.1", cell("name"))
+        With cell_frame
+                'If its one of the first two frames, just give it an intial value
+            If i <= 2 Then
+                .Top = 5
+            Else 'Otherwise need to offset from the bottom of the previous control
+                Dim contr As MSForms.Frame
+                Set contr = StationMapping.Controls(json_config(i - 2)("name"))
+                .Top = 5 + contr.Top + contr.Height
+            End If
+            .Height = 27 * cell("stations").Count
+            Dim bonusHeight As Integer
+            bonusHeight = ((cell("stations").Count) ^ 1.82) * (-1)
+            'bonusHeight = bonusHeight * (-1)
+            .Height = .Height + bonusHeight
+            
+            .Font.Bold = False
+            .Font.Size = 7
+            .Width = 180
+            .Left = 6 + (((i - 1) Mod 2) * 186)
+            .Caption = cell("name")
+            .BackColor = Parse_Color(cell("color"), re)
+        End With
+        
+        'Add in the CheckBoxes and Labels for each Station in the Cell
+        For j = 1 To cell("stations").Count
+            Dim station As Dictionary: Set station = cell("stations")(j)
+            Dim checkContr As MSForms.checkBox, checkBoxEvents As checkboxClass
+            Set checkContr = cell_frame.Controls.Add("Forms.CheckBox.1")
+            With checkContr
+            'With cell_frame.Controls.Add("Forms.CheckBox.1")
+                .Height = 10
+                .Width = 10
+                .Top = 6 + 18 * (j - 1)
+                .Left = 6
+                .Tag = station("resource")
+                .name = "check_" & station("name")
+            End With
+            Set checkBoxEvents = New checkboxClass
+            Set checkBoxEvents.cbEvents = checkContr
+            Set checkBoxEvents.box = checkContr
+            checkBoxEvents.station_name = station("name")
+            CustomCheckBoxes.Add checkBoxEvents
+            
+            With cell_frame.Controls.Add("Forms.Label.1")
+                .Top = 6 + 18 * (j - 1)
+                .Left = 20
+                .Width = 80
+                .Height = 10
+                .Caption = station("name")
+                .name = "label_" & station("name")
+                .Tag = station("name")
+            End With
+        Next j
+        
+    Next i
+    
+    'Set the Scroll Height of the Containing Frame
+    Dim lastHeight As Integer
+    For i = 0 To 1
+        'Get whatever is lower of the last two Cell Frames that we added
+        With StationMapping.StationFrame.Controls(json_config(json_config.Count - i)("name"))
+            If i = 0 Then
+                lastHeight = .Top + .Height
+            Else
+                lastHeight = Application.WorksheetFunction.Max(lastHeight, .Top + .Height)
+            End If
+        End With
+    Next i
+    StationMapping.StationFrame.ScrollHeight = lastHeight + 15
+    
+    
+    'Add our Cells to the first ComboBox
+    StationMapping.CellComboBox.list = cells
+    StationMapping.Set_Data cells, resources, json_config
+    
+    StationMapping.Show vbModeless
+    
 
 End Sub
 
+Private Function Create_ResourceList(stations As Collection) As Variant()
+    'Create Array of the UNIQUE occuring Resource Names
+    
+    Dim output() As Variant: Dim item As Dictionary: Dim i As Integer
+    ReDim Preserve output(0)
+    output(0) = "ALL"
+    
+    For Each item In stations
+        For i = 0 To UBound(output)
+            If output(i) = item("resource") Then GoTo continue_coll
+        Next i
+        ReDim Preserve output(UBound(output) + 1)
+        output(UBound(output)) = item("resource")
+continue_coll:
+    Next item
 
-Sub testSplit()
-    Dim readWB As Workbook
-    Set readWB = Me
-    Dim verCode As String
-    With readWB.VBProject.VBComponents("DataSources").CodeModule
-'        On Error GoTo verErr
-        verCode = Split(Split(.Lines(1, .CountOfDeclarationLines), "Const VERSION = " & Chr(34))(1), Chr(34))(0)
-    End With
+    Create_ResourceList = output
 
-    Debug.Print (verCode)
+End Function
+
+Private Function Parse_Color(color_string As String, re As RegExp) As Long
+    'Get color value from a string "rgb(255,255,255)"
+
+    Dim match As MatchCollection
+    Set match = re.Execute(color_string)
+    Dim vals() As String
+    vals = Split(Replace(match(0).SubMatches(0), " ", ""), ",")
+    Parse_Color = RGB(CInt(vals(0)), CInt(vals(1)), CInt(vals(2)))
+
+End Function
+
+
+Public Sub Temp_close_form()
+    StationMapping.Hide
 
 End Sub
 
-Sub testWBPath()
+Public Sub test_form()
+    Load StationModify
+    StationModify.Show vbModeless
+End Sub
+
+Public Sub test_like()
     Dim fso As FileSystemObject
     Set fso = New FileSystemObject
-    Debug.Print (ThisWorkbook.path)
-    Debug.Print (ThisWorkbook.name)
-    Debug.Print (fso.GetFileName(ThisWorkbook.path))
+    Dim stream As TextStream
+    Dim json As String
     
+    json = fso.OpenTextFile(ThisWorkbook.path & "\content.json", ForReading).ReadAll()
+    Dim json_config As Object
+    Set json_config = JsonConverter.ParseJson(json)
     
-
-End Sub
-
-Sub testArr()
-    Dim a() As String
-    ReDim Preserve a(0 To 0, 0 To 4)
-    a(0, 1) = "hey"
-    
-    ReDim Preserve a(0 To 1, 0 To 5)
-
-
-
-'If (Not featureArr) = -1 Then
-'                    ReDim Preserve featureArr(0 To 4, 1 To 1)
-'                Else
-'                    ReDim Preserve featureArr(0 To 4, 1 To UBound(featureArr, 2) + 1)
-'                End If
+    Set stream = fso.CreateTextFile(ThisWorkbook.path & "\config.json", True, True)
+    stream.Write (JsonConverter.ConvertToJson(json_config))
 
 End Sub
 
 
 
 
-'
-'Sub events()
-'    Application.EnableEvents = True
-'End Sub
-
-'Called by PartLib
 
 

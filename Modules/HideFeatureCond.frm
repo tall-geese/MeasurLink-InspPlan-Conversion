@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} HideFeatureCond 
    Caption         =   "Hide Feature(s) Conditionally"
-   ClientHeight    =   4380
-   ClientLeft      =   120
-   ClientTop       =   450
-   ClientWidth     =   7335
+   ClientHeight    =   1404
+   ClientLeft      =   -36
+   ClientTop       =   -192
+   ClientWidth     =   1524
    OleObjectBlob   =   "HideFeatureCond.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -87,14 +87,14 @@ Private Sub BuildHiddenFormulasButton_Click()
         If partNumCol.Count = 1 Then
                 'Output of...
                 '=IF('START HERE'!$C$8=1642652,"",
-            formula = "=IF('START HERE'!$C$8=" & Chr(34) & partNumCol.Item(1) & Chr(34) & "," & Chr(34) & Chr(34) & ","
+            formula = "=IF('START HERE'!$C$8=" & Chr(34) & partNumCol.item(1) & Chr(34) & "," & Chr(34) & Chr(34) & ","
         ElseIf partNumCol.Count > 1 Then
                 'Output of....
                 '=IF(OR('START HERE'!$C$8=1642652,'START HERE'!$C$8=1642653),"",
             formula = "=IF(OR("
             For Each partNum In partNumCol
                 formula = formula & "'START HERE'!$C$8=" & Chr(34) & partNum & Chr(34)
-                If Not (partNumCol.Item(partNumCol.Count) = partNum) Then
+                If Not (partNumCol.item(partNumCol.Count) = partNum) Then
                     formula = formula & ","
                 End If
             Next partNum

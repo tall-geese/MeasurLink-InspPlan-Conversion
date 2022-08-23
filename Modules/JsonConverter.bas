@@ -482,9 +482,9 @@ Private Function json_ParseObject(json_String As String, ByRef json_Index As Lon
             json_Key = json_ParseKey(json_String, json_Index)
             json_NextChar = json_Peek(json_String, json_Index)
             If json_NextChar = "[" Or json_NextChar = "{" Then
-                Set json_ParseObject.Item(json_Key) = json_ParseValue(json_String, json_Index)
+                Set json_ParseObject.item(json_Key) = json_ParseValue(json_String, json_Index)
             Else
-                json_ParseObject.Item(json_Key) = json_ParseValue(json_String, json_Index)
+                json_ParseObject.item(json_Key) = json_ParseValue(json_String, json_Index)
             End If
         Loop
     End If
@@ -1029,7 +1029,7 @@ End Function
 Public Function ConvertToIso(utc_LocalDate As Date) As String
     On Error GoTo utc_ErrorHandling
 
-    ConvertToIso = VBA.format$(ConvertToUtc(utc_LocalDate), "yyyy-mm-ddTHH:mm:ss.000Z")
+    ConvertToIso = VBA.Format$(ConvertToUtc(utc_LocalDate), "yyyy-mm-ddTHH:mm:ss.000Z")
 
     Exit Function
 
@@ -1052,11 +1052,11 @@ Private Function utc_ConvertDate(utc_Value As Date, Optional utc_ConvertToUtc As
 
     If utc_ConvertToUtc Then
         utc_ShellCommand = "date -ur `date -jf '%Y-%m-%d %H:%M:%S' " & _
-            "'" & VBA.format$(utc_Value, "yyyy-mm-dd HH:mm:ss") & "' " & _
+            "'" & VBA.Format$(utc_Value, "yyyy-mm-dd HH:mm:ss") & "' " & _
             " +'%s'` +'%Y-%m-%d %H:%M:%S'"
     Else
         utc_ShellCommand = "date -jf '%Y-%m-%d %H:%M:%S %z' " & _
-            "'" & VBA.format$(utc_Value, "yyyy-mm-dd HH:mm:ss") & " +0000' " & _
+            "'" & VBA.Format$(utc_Value, "yyyy-mm-dd HH:mm:ss") & " +0000' " & _
             "+'%Y-%m-%d %H:%M:%S'"
     End If
 
