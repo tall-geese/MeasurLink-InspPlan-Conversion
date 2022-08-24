@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} StationModify 
    Caption         =   "Modify Available Cells and Stations"
-   ClientHeight    =   6912
-   ClientLeft      =   0
-   ClientTop       =   -12
-   ClientWidth     =   11196
+   ClientHeight    =   6816
+   ClientLeft      =   -30
+   ClientTop       =   -105
+   ClientWidth     =   11280
    OleObjectBlob   =   "StationModify.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -134,20 +134,8 @@ next_cell:
     If cell_coll.Count = 0 Then Exit Sub
     
     RibbonCommands.UpdateConfig json:=cell_coll
+    Unload Me
     
-    
-'    'Pass the Json to the Workbook to change the Content of the cells....
-    
-
-
-
-'    Debug.Print JsonConverter.ConvertToJson(cell_coll)
-'    Dim fso As FileSystemObject
-'    Set fso = New FileSystemObject
-'    Dim stream As TextStream
-'
-'    Set stream = fso.CreateTextFile(ThisWorkbook.path & "\out.json", Overwrite:=True, Unicode:=True)
-'    stream.Write (JsonConverter.ConvertToJson(cell_coll))
 
 End Sub
 
@@ -162,11 +150,15 @@ End Sub
 Private Sub AddCell_Click()
     Dim cell_name As String
     cell_name = Me.TextBox_Cell.Value
+    cell_name = Replace(cell_name, "\", "")
+    
+    Me.TextBox_Cell.Value = ""
+    
     If cell_name = vbNullString Or cell_name = CELL_TEXT_DEFAULT Then
         MsgBox "Enter a Cell Name", vbInformation
         Exit Sub
-    
     End If
+    
 
     Dim color As Long
     color = Me.ChangeCellColors.ForeColor
@@ -278,7 +270,17 @@ End Sub
 
 Private Sub AddStation_Click()
     'If they didnt fill out information, then quit out
-    If Me.TextBox_Station = vbNullString Or Me.TextBox_Resource = vbNullString Or Me.TextBox_Resource.Value = RESOURCE_TEXT_DEFAULT Or Me.TextBox_Station = STATION_TEXT_DEFUALT Then
+    Dim station As String, resource As String
+    station = Me.TextBox_Station.Value
+    resource = Me.TextBox_Resource.Value
+    
+    station = Replace(station, "\", "")
+    resource = Replace(resource, "\", "")
+    
+    Me.TextBox_Station.Value = ""
+    Me.TextBox_Resource.Value = ""
+    
+    If station = vbNullString Or resource = vbNullString Or resource = RESOURCE_TEXT_DEFAULT Or station = STATION_TEXT_DEFUALT Then
         MsgBox "You need to Enter Information", vbInformation
         Exit Sub
     End If
@@ -287,18 +289,18 @@ Private Sub AddStation_Click()
         MsgBox "No Cell Selected", vbInformation
         Exit Sub
     End If
-       
+    
     Dim stations() As Variant, upper As Integer
     stations = listCells(2, Me.Cell_listBox.ListIndex)
     If (Not stations) = -1 Then
         ReDim Preserve stations(1, 0)
-        stations(0, 0) = Me.TextBox_Station.Value
-        stations(1, 0) = Me.TextBox_Resource.Value
+        stations(0, 0) = station
+        stations(1, 0) = resource
     Else
         upper = UBound(stations, 2) + 1
         ReDim Preserve stations(1, upper)
-        stations(0, upper) = Me.TextBox_Station.Value
-        stations(1, upper) = Me.TextBox_Resource.Value
+        stations(0, upper) = station
+        stations(1, upper) = resource
     End If
     
     listCells(2, Me.Cell_listBox.ListIndex) = stations

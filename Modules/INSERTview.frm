@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} INSERTview 
    Caption         =   "Information to INSERT"
-   ClientHeight    =   2448
-   ClientLeft      =   -36
-   ClientTop       =   -120
-   ClientWidth     =   1836
+   ClientHeight    =   1980
+   ClientLeft      =   -105
+   ClientTop       =   -390
+   ClientWidth     =   930
    OleObjectBlob   =   "INSERTview.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

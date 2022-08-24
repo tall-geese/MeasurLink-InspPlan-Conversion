@@ -86,7 +86,7 @@ HTTP_Err:
     Else
         'Unhandled HTTP Errors, Likely for Internal Server 500
         Err.Raise Number:=vbObjectError + 6000, Description:="send_http Error" & vbCrLf & headers & vbCrLf & "Status:" & req.Status & vbTab & req.statusText _
-            & vbCrLf & "RequestBody: " & vbCrLf & payload & vbCrLf & vbclrf
+            & vbCrLf & "RequestBody: " & vbCrLf & req.responseText & vbCrLf & vbclrf
     End If
 End Function
 
@@ -208,9 +208,63 @@ updateCustomFieldsErr:
     End If
 End Function
 
+Public Function GetPartsMapping(part_numbers() As String) As String
+        
+    On Error GoTo getPartsMappingError:
+    
+    Dim payload As String
+    payload = JsonConverter.ConvertToJson(part_numbers)
+
+    Dim resp As String
+    resp = send_http(url:=DataSources.JPMCML_GET_STATION_MAPPING, method:=DataSources.HTTP_POST, payload:=payload)
+
+    GetPartsMapping = resp
+        
+    Exit Function
+
+getPartsMappingError:
+        
+    If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
+        MsgBox Err.Description, vbExclamation
+        
+    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'User not allowed, Internal Server Error
+        MsgBox Err.Description, vbCritical
+        
+    Else   'Unhandle Exceptions
+        MsgBox "Unexpected Exception Occured Func: HTTPConnections.GetPartsMapping()" & vbCrLf & vbCrLf & Err.Description, vbCritical
+    End If
+End Function
+
+Public Function AddMappings(payload As String, api_key As String) As String
+        
+    On Error GoTo addMappingsError:
+
+    Dim resp As String
+    resp = send_http(url:=DataSources.JPMCML_ADD_STATION_MAPPING, method:=DataSources.HTTP_POST, payload:=payload, api_key:=api_key)
+
+    AddMappings = resp
+    
+    MsgBox "Mappings Added!", vbInformation
+        
+    Exit Function
+
+addMappingsError:
+        
+    If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
+        MsgBox Err.Description, vbExclamation
+        
+    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'User not allowed, Internal Server Error
+        MsgBox Err.Description, vbCritical
+        
+    Else   'Unhandle Exceptions
+    
+        MsgBox "Unexpected Exception Occured Func: HTTPConnections.AddMappings()" & vbCrLf & vbCrLf & Err.Description, vbCritical
+    End If
+End Function
+
 Public Function GetCellConfiguration(api_key As String) As String
         
-    On Error GoTo GetCellConfig:
+    On Error GoTo cellConfigError:
 
     Dim resp As String
     resp = send_http(url:=DataSources.JPMCML_GET_CELLS_CONFIG, method:=DataSources.HTTP_GET, api_key:=api_key)
@@ -219,7 +273,7 @@ Public Function GetCellConfiguration(api_key As String) As String
         
     Exit Function
 
-GetCellConfig:
+cellConfigError:
         
     If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
         MsgBox Err.Description, vbExclamation
@@ -235,16 +289,18 @@ End Function
 
 Public Function UpdateCellConfiguration(config_json As String, api_key As String) As String
         
-    On Error GoTo updateCellConfig:
+    On Error GoTo updateCellError:
 
     Dim resp As String
     resp = send_http(url:=DataSources.JPMCML_UPDATE_CELLS_CONFIG, method:=DataSources.HTTP_PUT, payload:=config_json, api_key:=api_key)
 
     UpdateCellConfiguration = resp
+    
+    MsgBox "Cells / Stations Updated Successfully", vbInformation
         
     Exit Function
 
-updateCellConfig:
+updateCellError:
         
     If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
         MsgBox Err.Description, vbExclamation

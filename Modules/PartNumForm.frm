@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} PartNumForm 
    Caption         =   "Part Number Select"
-   ClientHeight    =   768
-   ClientLeft      =   -300
-   ClientTop       =   -1020
-   ClientWidth     =   984
+   ClientHeight    =   615
+   ClientLeft      =   -390
+   ClientTop       =   -1290
+   ClientWidth     =   495
    OleObjectBlob   =   "PartNumForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

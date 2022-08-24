@@ -274,49 +274,49 @@ End Sub
 
 '***************   Import New Data Validations Btn  *********************
 
-Public Sub ImportDataValidations(ByRef control As IRibbonControl)
-    Call ImportValidationValues
-End Sub
-
-
-        '*********   Deprecated  ***************
-'***************   Set Data Validations Btn  *********************
-
-'Public Sub LoadDataValidations(ByRef control As IRibbonControl)
-'    Call Validations.OpenDataValidations
-'    Call Validations.SetDataValidations
+'Public Sub ImportDataValidations(ByRef control As IRibbonControl)
+'    Call ImportValidationValues
 'End Sub
-
-
-
-'***************   Insert New Validation Value Btn  *********************
-
-Public Sub InsertValidationValue(ByRef control As IRibbonControl)
-    If ActiveCell.Value = "" Then Exit Sub
-    If ActiveSheet.name = "PartLib Table" Then
-        Dim targetCol As Integer
-        targetCol = ActiveCell.column
-        
-        'We only allow additions from the Comments or InspMethods column currently
-        If targetCol <> 13 And targetCol <> 14 Then
-            MsgBox ("You may only insert Comments or Inspection Methods")
-            Exit Sub
-        End If
-        Call Validations.OpenDataValidations 'if not open, then open it
-        If Not Validations.ValidationValueExists(inputVal:=ActiveCell.Value, targetCol:=ActiveCell.column) Then
-            Dim userPass As String
-                'TODO: change this up to a userform so we can hide the value displayed
-            userPass = InputBox("Input Password for RoutineMapDataValidations", "Validations Password")
-            If userPass = "" Then Exit Sub
-            
-            'open the wb in write mode, save the changes and open again in read mode
-            Call Validations.InsertNewValidation(newVal:=ActiveCell.Value, targetCol:=ActiveCell.column, userPass:=userPass)
-            Call Validations.CloseDataValidations(saveWB:=True)
-            Call ImportValidationValues
-        End If
-    End If
-
-End Sub
+'
+'
+'        '*********   Deprecated  ***************
+''***************   Set Data Validations Btn  *********************
+'
+''Public Sub LoadDataValidations(ByRef control As IRibbonControl)
+''    Call Validations.OpenDataValidations
+''    Call Validations.SetDataValidations
+''End Sub
+'
+'
+'
+''***************   Insert New Validation Value Btn  *********************
+'
+'Public Sub InsertValidationValue(ByRef control As IRibbonControl)
+'    If ActiveCell.Value = "" Then Exit Sub
+'    If ActiveSheet.name = "PartLib Table" Then
+'        Dim targetCol As Integer
+'        targetCol = ActiveCell.column
+'
+'        'We only allow additions from the Comments or InspMethods column currently
+'        If targetCol <> 13 And targetCol <> 14 Then
+'            MsgBox ("You may only insert Comments or Inspection Methods")
+'            Exit Sub
+'        End If
+'        Call Validations.OpenDataValidations 'if not open, then open it
+'        If Not Validations.ValidationValueExists(inputVal:=ActiveCell.Value, targetCol:=ActiveCell.column) Then
+'            Dim userPass As String
+'                'TODO: change this up to a userform so we can hide the value displayed
+'            userPass = InputBox("Input Password for RoutineMapDataValidations", "Validations Password")
+'            If userPass = "" Then Exit Sub
+'
+'            'open the wb in write mode, save the changes and open again in read mode
+'            Call Validations.InsertNewValidation(newVal:=ActiveCell.Value, targetCol:=ActiveCell.column, userPass:=userPass)
+'            Call Validations.CloseDataValidations(saveWB:=True)
+'            Call ImportValidationValues
+'        End If
+'    End If
+'
+'End Sub
 
 
 '****************************************************
@@ -1039,30 +1039,50 @@ Public Sub StationMapping_OnAction(ByRef control As Office.IRibbonControl)
     Dim key As String
     key = Get_API_Key()
     If key = vbNullString Then Exit Sub
+    
+    Dim part_nums() As String
+    part_nums = GetParts_SubsetOrAll()
+    If (Not part_nums) = -1 Then Exit Sub
+    
+    
+    If UBound(part_nums) > 0 Then
+        Dim result As Integer
+        result = MsgBox("With Multiple Part Numbers, this could take Several Minutes" & vbCrLf & vbCrLf & "Continue with Mapping?", vbYesNo)
+        If result <> vbYes Then Exit Sub
+    End If
+    
 
     Dim fso As FileSystemObject: Set fso = New FileSystemObject
     Dim config As String, content As String, json_config As Object, json_content As Object
-    'config = fso.OpenTextFile(ThisWorkbook.path & "\" & "content.json", ForReading).ReadAll()
+    
     config = HTTPconnections.GetCellConfiguration(key)
+    If config = vbNullString Then Exit Sub
         'We need to remove the leding and trailing " characters, this is all becuase we are returning a file from the API, not a model
     config = Right(config, Len(config) - 1)
     config = Left(config, Len(config) - 1)
     config = Replace(config, "\", "")  'Also these escaped spaces
+
+    content = HTTPconnections.GetPartsMapping(part_nums)
+    If content = vbNullString Then Exit Sub
     
-    content = fso.OpenTextFile(ThisWorkbook.path & "\" & "body.json", ForReading).ReadAll()
     Set json_config = JsonConverter.ParseJson(config)
     Set json_content = JsonConverter.ParseJson(content)
-    
+
     ThisWorkbook.Build_StationMappingForm json_config:=json_config, json_content:=json_content
     
-    'Get the json for the form and pass it onto the Workbook,
-        'Which is what should be used for building the module
-        
-    'We can either use this function to go ahead and proceed with the mapping,
-        'if the exit status is alright (see similar functions above)
-    'Or we can have another form here that shows the User a text representation
-        'Of the things they are about to add and asks if they want to proceed.
-        
+End Sub
+
+    'Called by StationMapping after the QE has submitted
+Public Sub AddFeatureMapping(json As Object)
+    Dim payload As String, resp As String
+    payload = JsonConverter.ConvertToJson(json)
+    
+'    Dim fso As FileSystemObject
+'    Set fso = New FileSystemObject
+'    fso.CreateTextFile(ThisWorkbook.path & "\out.json", Overwrite:=True, Unicode:=True).Write payload
+    
+    resp = HTTPconnections.AddMappings(payload:=payload, api_key:=Get_API_Key())
+    
     
 End Sub
 
@@ -1072,8 +1092,6 @@ Public Sub UpdateConfig(json As Collection)
     json_config = JsonConverter.ConvertToJson(json)
     resp = HTTPconnections.UpdateCellConfiguration(json_config, Get_API_Key())
     
-    MsgBox "Cells / Stations Updated Successfully", vbInformation
-
 End Sub
 
 
@@ -1099,7 +1117,7 @@ Public Sub ShowVersionHistory(ByRef control As IRibbonControl)
     Load ChangeLogForm
     Dim changeLogText As String
     With ThisWorkbook.VBProject.VBComponents("DataSources").CodeModule
-        changeLogText = (.Lines(48, .CountOfDeclarationLines))
+        changeLogText = (.Lines(51, .CountOfDeclarationLines))
     End With
     ChangeLogForm.changeLabel = changeLogText
     Debug.Print (Len(changeLogText))
@@ -1181,6 +1199,38 @@ Public Function GetParts_or_SetError() As String() ' ->  Returns Part Numbers wi
     End If
 
 End Function
+
+Public Function GetParts_SubsetOrAll() As String() ' ->  Returns Part Numbers with _Rev appended or Empty Array
+    'Gets Part numbers from Variables and does some validation work required for the Custom Fields Group
+    
+    Dim rev As String
+    rev = ThisWorkbook.Worksheets("START HERE").GetRevision()
+    Dim partNums() As String
+    
+    
+    'If part numbers aren't unique
+    If Not ThisWorkbook.Worksheets("Variables").IsUniquePartNumbers() Then
+        MsgBox "Non-Unique Part Numbers Found on Variables", vbInformation
+        ResetViewControls
+        Exit Function
+    'If no Revision filled out on the START HERE page
+    ElseIf rev = vbNullString Then
+        MsgBox "No Revision Found on START HERE", vbInformation
+        ResetViewControls
+        Exit Function
+    'Otherwise its a valid list of partNumbers
+    Else
+        partNums = Worksheets("Variables").GetPartNumberOrNumbers()
+        
+        Dim i As Integer
+        For i = 0 To UBound(partNums)
+            partNums(i) = partNums(i) & "_" & rev  'Format it for PartNumbers in MeasurLink, must be PartNum_Rev
+        Next i
+        GetParts_SubsetOrAll = partNums
+    End If
+
+End Function
+
 
 
 Private Function Get_API_Key() As String '-> Returns contents of Key file or vbNullString

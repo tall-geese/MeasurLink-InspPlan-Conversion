@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} StationMapping 
    Caption         =   "StationMapping"
-   ClientHeight    =   11148
+   ClientHeight    =   11160
    ClientLeft      =   120
-   ClientTop       =   336
-   ClientWidth     =   9084.001
+   ClientTop       =   330
+   ClientWidth     =   9090.001
    OleObjectBlob   =   "StationMapping.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -42,6 +42,7 @@ Private Const PLACEHOLDER = "Cell / Resource Combinations to Map"
 Private active_rt As Variant
 Private events_enabled As Boolean
 Private cell_structure As Object
+Public event_controls As Collection
 
 
 
@@ -82,6 +83,7 @@ Private Sub Apply_Loadout_Button_Click()
     
     If Me.Loadout_TextBox.Text = PLACEHOLDER Then Exit Sub
     
+        
     'Validate we have Part and Routine(s) selected
     Dim part_ind As Integer, rt_inds() As Variant
     Dim i As Integer
@@ -144,6 +146,10 @@ Private Sub Apply_Loadout_Button_Click()
     ft_list = listMaps(2, Me.PartListBox.ListIndex)(2, active_rt)
     FillStationView feats_arr:=ft_list
     
+    Me.Loadout_TextBox.Text = PLACEHOLDER
+    Me.CellComboBox.Value = ""
+    Me.ResourceComboBox.Value = ""
+    
     Call EvalSelectionStatus
     
     Exit Sub
@@ -156,13 +162,13 @@ End Sub
 
 Private Sub SubmitMappingsButton_Click()
     'TODO: move the code over from the settings button
-    Dim json As Object, fso As FileSystemObject, stream As TextStream
+    Dim json As Collection, fso As FileSystemObject, stream As TextStream
     Set json = Ravel()
-    Set fso = New FileSystemObject
-    Set stream = fso.CreateTextFile(ThisWorkbook.path & "\out.json", Overwrite:=True, Unicode:=True)
-    stream.Write (JsonConverter.ConvertToJson(json))
-
-    Call ThisWorkbook.Temp_close_form
+    If json.Count = 0 Then Exit Sub
+    
+    Unload Me
+    RibbonCommands.AddFeatureMapping json:=json
+    
 End Sub
 
 Private Sub Loadout_Clear_Button_Click()
@@ -273,7 +279,7 @@ Private Sub RoutinesButton_ClearAll_Click()
     
     On Error Resume Next
     Dim i As Integer
-    For i = 0 To UBound(Me.RoutineListBox.list, 2)
+    For i = 0 To UBound(Me.RoutineListBox.list)
         Me.RoutineListBox.Selected(i) = False
     Next i
     On Error GoTo 0
@@ -287,7 +293,7 @@ Private Sub RoutinesButton_SelectAll_Click()
     
     On Error Resume Next
     Dim i As Integer
-    For i = 0 To UBound(Me.RoutineListBox.list, 2)
+    For i = 0 To UBound(Me.RoutineListBox.list)
         Me.RoutineListBox.Selected(i) = True
     Next i
     On Error GoTo 0
@@ -416,6 +422,7 @@ Private Sub UserForm_Activate()
     cols = Array(0, 1)
     parts = SliceCols(listMaps, cols)
     parts = Application.Transpose(parts)
+    parts = Force2D(parts)
     Me.PartListBox.list = parts
     Toggle_CheckBoxes Enabled:=False
     events_enabled = True
@@ -822,8 +829,7 @@ Public Sub Unravel(json_content As Object)
                 For Each mapping In feat("mappings")
                     Dim maps() As Variant, feats() As Variant, rt_feats() As Variant
                 
-                    If rtList(0, i) <> mapping("routine")("name") Then GoTo cont_maps
-                    
+                    If rtList(0, i) <> Split(mapping("routine")("name"), part("name") & "_")(1) Then GoTo cont_maps
                     rt_feats = rtList(2, i)
                     If IsArrayEmpty(rt_feats) Then
                         ReDim Preserve feats(2, 0)
@@ -893,7 +899,7 @@ cont_feats:
 End Sub
 
 'Called by ThisWorkbook.Build_StationMappingForm()
-Public Function Ravel() As Object
+Public Function Ravel() As Collection
     'Turn the listMaps() array back into a JSON format.
     'Remember to skip anything that isnt marked as being changed, and anything that has 0 or -1 at the value for the station
     Set parts_out = New Collection
@@ -918,7 +924,6 @@ Public Function Ravel() As Object
                 mappings = features(2, k)
                 If (Not mappings) = -1 Then GoTo cont_fts
                 
-                'This could be better consolidated, but whatever
                 For m = 0 To UBound(mappings, 2)
                     If mappings(2, m) = 1 Then
                         Dim feats_copy As Collection
@@ -1058,11 +1063,13 @@ Public Sub MapToRoutines(station As String, rt_inds() As Variant, Optional part_
                 End If
             Else 'Otherwise, we need iterate till we either find the station, or realize we need to append on a station
                 For m = 0 To UBound(maps_arr, 2)
-                    If maps_arr(0, m) = station And maps_arr(2, m) <> -1 Then
-                        If (Not checkBox_Hook) Or (checkBox_Value = True) Then
-                            maps_arr(2, m) = 1
-                        Else
-                            maps_arr(2, m) = 0
+                    If maps_arr(0, m) = station Then
+                        If maps_arr(2, m) <> -1 Then
+                            If (Not checkBox_Hook) Or (checkBox_Value = True) Then
+                                maps_arr(2, m) = 1
+                            Else
+                                maps_arr(2, m) = 0
+                            End If
                         End If
                         GoTo cont_feats
                     End If

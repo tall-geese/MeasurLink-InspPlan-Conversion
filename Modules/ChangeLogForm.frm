@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} ChangeLogForm 
    Caption         =   "ChangeLog"
-   ClientHeight    =   2400
-   ClientLeft      =   -36
-   ClientTop       =   -192
-   ClientWidth     =   2448
+   ClientHeight    =   4800
+   ClientLeft      =   -105
+   ClientTop       =   -480
+   ClientWidth     =   12120
    OleObjectBlob   =   "ChangeLogForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

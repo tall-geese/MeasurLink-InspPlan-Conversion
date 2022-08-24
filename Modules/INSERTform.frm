@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} INSERTform 
    Caption         =   "INSERT Custom Field Information"
-   ClientHeight    =   3216
-   ClientLeft      =   0
-   ClientTop       =   -132
-   ClientWidth     =   3180
+   ClientHeight    =   2580
+   ClientLeft      =   -30
+   ClientTop       =   -390
+   ClientWidth     =   1620
    OleObjectBlob   =   "INSERTform.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

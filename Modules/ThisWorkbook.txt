@@ -796,6 +796,7 @@ Public Sub Build_StationMappingForm(json_config As Object, json_content As Objec
     'Add our Cells to the first ComboBox
     StationMapping.CellComboBox.list = cells
     StationMapping.Set_Data cells, resources, json_config
+    Set StationMapping.event_controls = CustomCheckBoxes
     
     StationMapping.Show vbModeless
     
@@ -832,33 +833,6 @@ Private Function Parse_Color(color_string As String, re As RegExp) As Long
     Parse_Color = RGB(CInt(vals(0)), CInt(vals(1)), CInt(vals(2)))
 
 End Function
-
-
-Public Sub Temp_close_form()
-    StationMapping.Hide
-
-End Sub
-
-Public Sub test_form()
-    Load StationModify
-    StationModify.Show vbModeless
-End Sub
-
-Public Sub test_like()
-    Dim fso As FileSystemObject
-    Set fso = New FileSystemObject
-    Dim stream As TextStream
-    Dim json As String
-    
-    json = fso.OpenTextFile(ThisWorkbook.path & "\content.json", ForReading).ReadAll()
-    Dim json_config As Object
-    Set json_config = JsonConverter.ParseJson(json)
-    
-    Set stream = fso.CreateTextFile(ThisWorkbook.path & "\config.json", True, True)
-    stream.Write (JsonConverter.ConvertToJson(json_config))
-
-End Sub
-
 
 
 

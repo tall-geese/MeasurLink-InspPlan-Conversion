@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UPDATEform 
    Caption         =   "UPDATE Custom Field Information"
-   ClientHeight    =   2484
-   ClientLeft      =   0
-   ClientTop       =   -132
-   ClientWidth     =   2124
+   ClientHeight    =   5070
+   ClientLeft      =   -30
+   ClientTop       =   -390
+   ClientWidth     =   6405
    OleObjectBlob   =   "UPDATEform.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
