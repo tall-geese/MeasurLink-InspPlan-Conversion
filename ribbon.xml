@@ -1,0 +1,142 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="RibbonCommands.Ribbon_OnLoad">
+	<ribbon startFromScratch="false">
+		<tabs>
+			<tab id="mlTab" label="MeasurLink">
+				<group id="grppart" label="Import / Export">
+					<button id="ExportQIF" 
+						label="Export to QIF" 
+						imageMso="RevertXSLTMenu"
+						size="large"
+						enabled="true"
+						onAction="RibbonCommands.ExportQIF"/>
+					<button id="RoutineMapImport" 
+						label="Import Routine Map" 
+						imageMso="AdpDiagramAddRelatedTables"
+						size="large"
+						enabled="true"
+						onAction="RibbonCommands.ImportRoutineMap"/>
+				</group>
+				<group id="grpFeatures" label="Features">
+					<button id="PivotFeature" 
+						label="Feature Pivot View" 
+						imageMso="ChartSwitchRowColumn"
+						size="large"
+						enabled="true"
+						onAction="RibbonCommands.PivotFeature"/>
+					<button id="AddChildren" 
+						label="Add Child Instances" 
+						imageMso="AddCellRight"
+						size="large"
+						enabled="true"
+						onAction="RibbonCommands.AddChildFeatures"/>
+					<box id="featuresBox" boxStyle="vertical" >
+						<button id="BuildFormula" 
+							label="Build Variable Feature Formula" 
+							imageMso="ShapeSheetEditFormula"
+							size="normal"
+							enabled="true"
+							onAction="RibbonCommands.BuildVariableFeatureForm"/>
+						<button id="WorkflowVariables10" 
+							label="Hide/Unhide Features Conditionally" 
+							imageMso="WorkflowVariables"
+							size="normal"
+							enabled="true"
+							onAction="RibbonCommands.HideFeaturesCondForm"/>
+						<button id="SetMfgTolerance" 
+							label="Set Manufacturing Tolerance" 
+							imageMso="GroupTransitions"
+							size="normal"
+							enabled="true"
+							onAction="RibbonCommands.SetMfgTolerance"/>
+					</box>
+					<button id="SortFeatures" 
+						label="Apply Custom Sort" 
+						imageMso="SortCustomExcel"
+						size="large"
+						enabled="true"
+						onAction="RibbonCommands.ApplyCustomSort"/>					
+				</group>
+				<group id="grpRoutines" label="Routines">
+					<button id="InsertOperation" 
+						label="Insert Operation" 
+						imageMso="GroupAddOptions"
+						size="large"
+						enabled="true"
+						onAction="RibbonCommands.InsertOperation"/>
+					<button id="DeleteRoutines" 
+						label="Delete Routines" 
+						imageMso="DeleteColumns"
+						size="large"
+						enabled="true"
+						onAction="RibbonCommands.DeleteRoutines"/>
+					<button id="OptimizeSFI" 
+						label="Optimize Inspections" 
+						imageMso="EventOnContextChange"
+						size="large"
+						enabled="true"
+						onAction="RibbonCommands.OptimizeInspections"/>
+				</group>
+				<group id="grpCustom" label="Custom Fields">
+					<box id="updateBox" boxStyle="vertical" >
+						<toggleButton  id="viewCustomFields" 
+							label="View Custom Field Info" 
+							imageMso="ViewDocumentMap"
+							size="normal"
+							enabled="true"
+							onAction="RibbonCommands.viewCustomFields_Toggle"
+							getPressed="RibbonCommands.viewCustomFields_OnGetPressed"/>
+						<button id="AddCustomInfo" 
+							label="Add Custom Fields" 
+							imageMso="NewCustomAction"
+							size="normal"
+							enabled="true"
+							onAction="RibbonCommands.AddCustomFields_OnAction"/>
+						<button id="UpdateCustomInfo" 
+							label="Change Custom Field Info" 
+							imageMso="ChangeConnectedSystem"
+							size="normal"
+							enabled="true"
+							onAction="RibbonCommands.UpdateCustomFields_OnAction"/>
+					</box>			
+					<box id="customBox" boxStyle="vertical" >
+						<button id="GetAPIKey" 
+							label="Get API Key" 
+							imageMso="AdpPrimaryKey"
+							size="normal"
+							enabled="true"
+							onAction="RibbonCommands.GetAPIkey_OnAction"/>
+						<comboBox id="partCombo" 
+                   			 label="PartNumber:" 
+                   			 sizeString="AAAAAAAAAAAAAAAAAA" 
+							 onChange="RibbonCommands.partCombo_OnChange"
+							 getEnabled="RibbonCommands.partCombo_OnGetEnabled"
+							 getItemCount="RibbonCommands.partCombo_OnGetItemCount"
+							 getItemLabel="RibbonCommands.partCombo_OnGetItemLabel"
+							getItemID="RibbonCommands.partCombo_OnGetItemID"
+							 getText="RibbonCommands.partCombo_OnGetText"/> 
+						<button id="stationMapping" 
+							label="Map Routine Stations" 
+							imageMso="GotoSolution"
+							size="normal"
+							enabled="true"
+							onAction="RibbonCommands.StationMapping_OnAction"/>
+					</box>
+				</group>
+
+				<group id="devTab" label="Developer Tools">
+					<toggleButton id="events" 
+						label="Disable Events" 																					
+						imageMso="StopRtlHover" 
+						size="large" 																											
+						onAction="RibbonCommands.DisableEvents_Toggle"/>
+					<button id="versionHistory" 
+						imageMso="ScriptDebugger"
+						size="large"
+						enabled="true"
+						getLabel="RibbonCommands.GetVersionLabel"
+						onAction="RibbonCommands.ShowVersionHistory"/>
+				</group>
+			</tab>
+		</tabs>
+	</ribbon>
+</customUI>

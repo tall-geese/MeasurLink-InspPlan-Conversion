@@ -296,7 +296,7 @@ Public Function UpdateCellConfiguration(config_json As String, api_key As String
 
     UpdateCellConfiguration = resp
     
-    MsgBox "Cells / Stations Updated Successfully", vbInformation
+    MsgBox "Cells / Stations Updated Successfully" & vbCrLf & vbCrLf & "You may need to Reopen this Workbook before seeing the Changes", vbInformation
         
     Exit Function
 

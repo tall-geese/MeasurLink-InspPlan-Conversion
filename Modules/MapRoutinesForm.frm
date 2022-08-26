@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} MapRoutinesForm 
    Caption         =   "Auto Map Routines"
-   ClientHeight    =   1215
-   ClientLeft      =   -300
-   ClientTop       =   -1290
-   ClientWidth     =   525
+   ClientHeight    =   3696
+   ClientLeft      =   -360
+   ClientTop       =   -1572
+   ClientWidth     =   2664
    OleObjectBlob   =   "MapRoutinesForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

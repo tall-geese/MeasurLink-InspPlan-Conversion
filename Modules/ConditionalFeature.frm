@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} ConditionalFeature 
    Caption         =   "ConditionalFeature"
-   ClientHeight    =   2520
-   ClientLeft      =   -30
-   ClientTop       =   -390
-   ClientWidth     =   780
+   ClientHeight    =   7800
+   ClientLeft      =   -96
+   ClientTop       =   -672
+   ClientWidth     =   3768
    OleObjectBlob   =   "ConditionalFeature.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

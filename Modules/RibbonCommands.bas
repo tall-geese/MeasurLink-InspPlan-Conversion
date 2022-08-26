@@ -769,7 +769,7 @@ Public Sub AddCustomFields_OnAction(ByRef control As Office.IRibbonControl)
     Dim json_parts_api As Object, json_parts_map As Object
     Dim partNums() As String
     
-    partNums = GetParts_or_SetError()
+    partNums = GetParts_SubsetOrAll()
     If (Not partNums) = -1 Then Exit Sub
     
     Set json_parts_api = HTTPconnections.GetPartsInfo(partNums)
@@ -803,7 +803,7 @@ Public Sub UpdateCustomFields_OnAction(ByRef control As Office.IRibbonControl)
     Dim json_parts_api As Object, json_parts_map As Object
     Dim partNums() As String
     
-    partNums = GetParts_or_SetError()
+    partNums = GetParts_SubsetOrAll()
     If (Not partNums) = -1 Then Exit Sub
     
     Set json_parts_api = HTTPconnections.GetPartsInfo(partNums)
@@ -1076,10 +1076,6 @@ End Sub
 Public Sub AddFeatureMapping(json As Object)
     Dim payload As String, resp As String
     payload = JsonConverter.ConvertToJson(json)
-    
-'    Dim fso As FileSystemObject
-'    Set fso = New FileSystemObject
-'    fso.CreateTextFile(ThisWorkbook.path & "\out.json", Overwrite:=True, Unicode:=True).Write payload
     
     resp = HTTPconnections.AddMappings(payload:=payload, api_key:=Get_API_Key())
     
