@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} StationColors 
    Caption         =   "Choose Color for the Cell"
-   ClientHeight    =   3168
-   ClientLeft      =   48
-   ClientTop       =   120
-   ClientWidth     =   3252
+   ClientHeight    =   4185
+   ClientLeft      =   -15
+   ClientTop       =   -150
+   ClientWidth     =   6705
    OleObjectBlob   =   "StationColors.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

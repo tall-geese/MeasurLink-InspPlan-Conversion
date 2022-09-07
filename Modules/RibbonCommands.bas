@@ -1092,6 +1092,56 @@ End Sub
 
 
 
+'******************  Create Crystal Reports Button   ***********************
+Public Sub CrystalReports_OnAction(ByRef control As Office.IRibbonControl)
+    
+    'get the API key, check that it isnt equal to null
+    'Get the customer name and check that is isnt nothing
+    'Get the revision and thelist of part numbers with the _Rev concat'ed onto them
+    
+    Dim cust As String, parts() As String, api_key As String
+    
+    api_key = Get_API_Key()
+    cust = Sheets("START HERE").GetCustomerName()
+    If cust = vbNullString Then
+        MsgBox "Customer Name field is Empty", vbCritical
+        Exit Sub
+    End If
+    
+    parts = GetParts_SubsetOrAll()
+    If (Not parts) = -1 Then
+        MsgBox "No Part Numbers found"
+        Exit Sub
+    End If
+    
+    Load CrystalReport_Form
+    CrystalReport_Form.PartNumbers_ListBox.list = parts
+    CrystalReport_Form.Customer_TextBox = cust
+    
+    
+    CrystalReport_Form.Show
+        
+    
+End Sub
+
+'Called by the CrystalReport_Form's Submit button
+Public Sub Submit_Crystal_Reports(customer As String, parts() As Variant, params() As Variant)
+
+    'Take the list of parts and parameters and call the Method to Build the HTTP request
+        
+    Dim json_parts As String, key As String
+    key = Get_API_Key()
+    json_parts = JsonConverter.ConvertToJson(parts)
+        
+    Debug.Print ("stop here again")
+    
+    Dim response As String
+    response = HTTPconnections.CreateCrystalReports(key, customer, json_parts, params)
+
+    Debug.Print "completed the HTTP request"
+End Sub
+
+
 
 
 

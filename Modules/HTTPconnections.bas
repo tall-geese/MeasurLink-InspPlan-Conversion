@@ -43,7 +43,10 @@ Public Function send_http(url As String, method As String, Optional payload As S
         url = url & "?"
         Dim i As Integer
         For i = 0 To UBound(q_params)
-            url = url & q_params(i)(0) & "=" & q_params(i)(1)
+            If i > 0 Then
+                url = url & "&"
+            End If
+            url = url & Replace(q_params(i)(0), " ", "%20") & "=" & Replace(q_params(i)(1), " ", "%20")
         Next i
     End If
     
@@ -310,6 +313,33 @@ updateCellError:
         
     Else   'Unhandle Exceptions
         MsgBox "Unexpected Exception Occured Func: HTTPConnections.UpdateCellConfiguration()" & vbCrLf & vbCrLf & Err.Description, vbCritical
+    End If
+End Function
+
+
+Public Function CreateCrystalReports(api_key As String, customer As String, json_parts As String, params() As Variant) As String
+        
+    On Error GoTo crystalReportsErr:
+
+    Dim resp As String
+    resp = send_http(url:=DataSources.JPMCML_CREATE_REPORTS, method:=DataSources.HTTP_POST, payload:=json_parts, api_key:=api_key, q_params:=params)
+
+    CreateCrystalReports = resp
+    MsgBox "Successfully Scheduled Jobs to Create Reports" & vbCrLf & vbCrLf & "Please allow a few minutes for the server to Generate those Crystal Reports" _
+        & vbCrLf & "If you opted to be notified, you will receive and Email when it has completed"
+            
+    Exit Function
+
+crystalReportsErr:
+        
+    If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
+        MsgBox Err.Description, vbExclamation
+        
+    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'User not allowed, User Bad Request
+        MsgBox Err.Description, vbCritical
+        
+    Else   'Unhandle Exceptions
+        MsgBox "Unexpected Exception Occured Func: HTTPConnections.CreateCrystalReports()" & vbCrLf & vbCrLf & Err.Description, vbCritical
     End If
 End Function
 

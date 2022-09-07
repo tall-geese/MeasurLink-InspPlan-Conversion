@@ -76,7 +76,7 @@
 						enabled="true"
 						onAction="RibbonCommands.OptimizeInspections"/>
 				</group>
-				<group id="grpCustom" label="Custom Fields">
+				<group id="grpCustom" label="DataBase Tools">
 					<box id="updateBox" boxStyle="vertical" >
 						<toggleButton  id="viewCustomFields" 
 							label="View Custom Field Info" 
@@ -106,7 +106,6 @@
 							enabled="true"
 							onAction="RibbonCommands.GetAPIkey_OnAction"/>
 						<comboBox id="partCombo" 
-                   			 label="PartNumber:" 
                    			 sizeString="AAAAAAAAAAAAAAAAAA" 
 							 onChange="RibbonCommands.partCombo_OnChange"
 							 getEnabled="RibbonCommands.partCombo_OnGetEnabled"
@@ -120,6 +119,12 @@
 							size="normal"
 							enabled="true"
 							onAction="RibbonCommands.StationMapping_OnAction"/>
+						<button id="crystalReports" 
+							label="Create Crystal Reports" 
+							imageMso="DataGraphicEditItem"
+							size="normal"
+							enabled="true"
+							onAction="RibbonCommands.CrystalReports_OnAction"/>
 					</box>
 				</group>
 

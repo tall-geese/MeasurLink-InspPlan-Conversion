@@ -836,5 +836,19 @@ End Function
 
 
 
+Public Sub Testing()
+    Dim a(1) As String
+    a(0) = "asfd"
+    a(1) = "a;sldkfj"
+    
+    Dim json_a As Object
+    Set json_a = JsonConverter.ConvertToJson(
+
+    Debug.Print "stop here"
+
+
+End Sub
+
+
 
 
