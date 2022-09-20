@@ -25,7 +25,7 @@ Public Function GetCol(colName As Variant) As Integer
     Dim colRange As Range
     Set colRange = Range("$A$1:" & Range("A1").End(xlToRight).Address)
     On Error Resume Next
-    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
+    GetCol = Application.WorksheetFunction.match(colName, colRange, 0)
     If Err.Number <> 0 Then
         GetCol = 0
     End If
@@ -57,7 +57,7 @@ Public Function GetPartNumberOrNumbers() As String()
         GoTo 20
     End If
     
-    result = MsgBox("Multiple Part Numbers detected" & vbCrLf & "Do you want to Create Routines for every Part Number?", vbYesNoCancel)
+    result = MsgBox("Multiple Part Numbers detected" & vbCrLf & "Do you want to use All Part Numbers?", vbYesNoCancel)
     If result = vbCancel Then 'User wants to back out
         GetPartNumberOrNumbers = partNums
     ElseIf result = vbYes Then 'User wants every part number
@@ -77,10 +77,10 @@ Public Function GetPartNumberOrNumbers() As String()
         Dim partRange As Range
         Dim i As Integer
         On Error GoTo 10
-        Cells(2, 1).Activate
+        cells(2, 1).Activate
         Set partRange = Application.InputBox("Select Part Numbers for Output", "Select Part Numbers", Type:=8)
         If partRange Is Nothing Then Exit Function
-        If partRange.Worksheet.Name <> "Variables" Then GoTo 10
+        If partRange.Worksheet.name <> "Variables" Then GoTo 10
         
         Dim addys() As String
         If InStr(partRange.Address, ",") > 0 Then 'If multiple areas are chosen, split them up
@@ -126,6 +126,7 @@ Public Function GetPartNumberOrNumbers() As String()
 End Function
 
 'Called by PartLibTable.ExportRoutineMap
+    'And RibbonCommands
 Public Function GetPartNumbers() As String()
     Dim firstNum As Range
     Set firstNum = Range("A2")
@@ -134,6 +135,7 @@ Public Function GetPartNumbers() As String()
     'If the first cell is missing a part number, then the wb is prob not part number dependant
     If firstNum.Value = "" Then
         GetPartNumbers = partNums
+        Exit Function
     End If
     
     'If the row below A2 has nothing, then assume there is no part family table
@@ -155,7 +157,19 @@ Public Function GetPartNumbers() As String()
     End If
     GetPartNumbers = partNums
 10
+End Function
 
+
+Public Function IsUniquePartNumbers() As Boolean
+    Dim dic As Dictionary, parts() As String
+    Set dic = New Dictionary
+    parts = GetPartNumbers()
+    
+    On Error Resume Next
+    For Each part In parts
+        dic.Add part, 0
+    Next part
+    IsUniquePartNumbers = (Err.Number = 0)
 End Function
 
 

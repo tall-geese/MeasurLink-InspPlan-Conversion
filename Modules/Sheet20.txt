@@ -49,6 +49,9 @@ Sub CleanData()
     Application.EnableEvents = False
     Me.Unprotect ("3063bqa")
 
+    'Need to change the lower lmiit and upper limit columns to be of type Text
+    Range("B1:D1").EntireColumn.NumberFormat = "@"
+
     On Error GoTo 20
 
     'We might be dealing with one cell or an entire column of cells
@@ -58,11 +61,17 @@ Sub CleanData()
             GoTo 20
         End If
         
-'        If cell.offset(0,9).Font.Color <> 0 And truncation = False Then
-'            cell.offset(0, 10).Value = cell.offset(0,9).Value
-'            cell.offset(0, 10).Font.Color = RGB(0, 0, 0)
-'            GoTo 20
-'        End If
+        'for non-angles we need to see if units is mm or in and determine if the dimension will have a leading 0 or not respectively
+        unitChars = cell.offset(0, 6).Value
+        unitFormat = getLeadingCharacters(unitChars)
+
+        'find how many decimal places we should have for our result, determined by the greatest number of places in the value, lower lim and upper lim columns
+        gdecimalPlaces = Application.WorksheetFunction.Max(getDecimalPlaces(cell.offset(0, 1).Value, unitChars), getDecimalPlaces(cell.offset(0, 2).Value, unitChars), _
+        getDecimalPlaces(cell.offset(0, 3).Value, unitChars))
+
+        'create the text formatting as a function of # of decimal places
+        ghashFormat = getFormatHashes(gdecimalPlaces)
+    
 
         If (cell.offset(0, 4).Value = "Geometric Tolerance") Then
             'Need to cross-reference our unicode values to the AMGDT font
@@ -72,20 +81,15 @@ Sub CleanData()
             Dim dimension As String
             dimension = Worksheets("GDT-Lexicon").ExtractLimit(cell.offset(0, 7).Value)
             cell.offset(0, 3).Value = dimension
-            cell.offset(0, 2).Value = "0"
-            cell.offset(0, 1).Value = CDbl(dimension) / 2
+            cell.offset(0, 2).Value = Format("0", unitFormat & "." & ghashFormat)
+            cell.offset(0, 1).Value = Format("0", unitFormat & "." & ghashFormat)
             
         Else
-            'for non-angles we need to see if units is mm or in and determine if the dimension will have a leading 0 or not respectively
-            unitChars = cell.offset(0, 6).Value
-            unitFormat = getLeadingCharacters(unitChars)
+        
+            cell.offset(0, 3).Value = Format(cell.offset(0, 3).Value, unitFormat & "." & ghashFormat)
+            cell.offset(0, 2).Value = Format(cell.offset(0, 2).Value, unitFormat & "." & ghashFormat)
+            cell.offset(0, 1).Value = Format(cell.offset(0, 1).Value, unitFormat & "." & ghashFormat)
 
-            'find how many decimal places we should have for our result, determined by the greatest number of places in the value, lower lim and upper lim columns
-            gdecimalPlaces = Application.WorksheetFunction.Max(getDecimalPlaces(cell.offset(0, 1).Value, unitChars), getDecimalPlaces(cell.offset(0, 2).Value, unitChars), _
-            getDecimalPlaces(cell.offset(0, 3).Value, unitChars))
-
-            'create the text formatting as a function of # of decimal places
-            ghashFormat = getFormatHashes(gdecimalPlaces)
 
             Call SetDimensionalRange(cell, upperValue, lowerValue, delimiter, featureKeyword)
 
@@ -110,7 +114,7 @@ Sub CleanData()
                     resultValue = Angle(cell.offset(0, 1).Value, gdecimalPlaces, featureKeyword:=featureKeyword)
                 Case Else
                     resultValue = Default(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
-                End Select
+            End Select
                 
         End If
         
@@ -262,55 +266,55 @@ End Function
 '************************************************************
 
 
-Function Diameter(target As String, decimalFormat As String, unitsChar As String, Optional prefixChar As String, _
+Function Diameter(Target As String, decimalFormat As String, unitsChar As String, Optional prefixChar As String, _
                 Optional featureKeyword As String) As String
                 
-    Diameter = "Ø" & prefixChar & Format(target, unitsChar & "." & decimalFormat) & featureKeyword
+    Diameter = "Ø" & prefixChar & Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
 End Function
 
-Function Radius(target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
+Function Radius(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
 
-    Radius = "R" & Format(target, unitsChar & "." & decimalFormat) & featureKeyword
+    Radius = "R" & Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
 End Function
 
-Function Angle(target As String, decimalPlaces As Integer, Optional featureKeyword As String) As String
+Function Angle(Target As String, decimalPlaces As Integer, Optional featureKeyword As String) As String
 
     Dim decimalFormat As String
     If decimalPlaces > 0 Then
         decimalFormat = "." & getFormatHashes(decimalPlaces)
     End If
-    Angle = Format(target, "#" & decimalFormat) & "°" & featureKeyword
+    Angle = Format(Target, "#" & decimalFormat) & "°" & featureKeyword
 End Function
 
 
 
-Function Default(target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
+Function Default(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
 
-    Default = Format(target, unitsChar & "." & decimalFormat) & featureKeyword
+    Default = Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
 End Function
 
 '************************************************************
 '****************   Callback Functions   ********************
 '************************************************************
 
-Private Sub Worksheet_Change(ByVal target As Range)
-    On Error GoTo 20
-
-    Application.EnableEvents = False
-    Me.Unprotect ("3063bqa")
-
-    'change the font color only if our change occurs in the Results Column, indicates that user came up with their own feature
-    If (target.Cells.Count = 1 And target.column = 10 And target.Value <> vbNullString) Then
-        target.Font.ColorIndex = 46  'Turn the text orange
-        
-    ElseIf (target.Cells.Count = 1 And target.column = 10 And target.Value = vbNullString) Then
-        target.Font.color = RGB(0, 0, 0)
-    End If
-
-20
-
-    Application.EnableEvents = True
-    Me.Protect ("3063bqa")
+Private Sub Worksheet_Change(ByVal Target As Range)
+'    On Error GoTo 20
+'
+'    Application.EnableEvents = False
+'    Me.Unprotect ("3063bqa")
+'
+'    'change the font color only if our change occurs in the Results Column, indicates that user came up with their own feature
+'    If (Target.Cells.Count = 1 And Target.column = 10 And Target.Value <> vbNullString) Then
+'        Target.Font.ColorIndex = 46  'Turn the text orange
+'
+'    ElseIf (Target.Cells.Count = 1 And Target.column = 10 And Target.Value = vbNullString) Then
+'        Target.Font.Color = RGB(0, 0, 0)
+'    End If
+'
+'20
+'
+'    Application.EnableEvents = True
+'    Me.Protect ("3063bqa")
 
 End Sub
 
@@ -531,10 +535,14 @@ End Sub
 
 Public Function GetAddress(column As Integer) As String
     Dim vArr
-    vArr = Split(Cells(1, column).Address(True, False), "$")
+    vArr = Split(cells(1, column).Address(True, False), "$")
     GetAddress = vArr(0)
 
 End Function
+
+
+
+
 
 
 

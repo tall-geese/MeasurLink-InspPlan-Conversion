@@ -28,7 +28,7 @@ Option Compare Text
 Public Sub ApplyGroupings()
     On Error Resume Next
     Outline.ShowLevels RowLevels:=2
-    Rows("1:400").Ungroup
+    rows("1:400").Ungroup
     On Error GoTo 0
     
     Dim instanceGroup As Boolean
@@ -43,15 +43,15 @@ Public Sub ApplyGroupings()
             instanceGroup = True
             groupStart = cell.Row
             If (cell.Row = rangeEnd) Then
-                Rows(cell.Row).Group
+                rows(cell.Row).Group
             End If
         
         ElseIf (cell.Font.color <> RGB(128, 128, 128) And instanceGroup = True) Then
             instanceGroup = False
-            Rows(groupStart & ":" & cell.Row - 1).Group
+            rows(groupStart & ":" & cell.Row - 1).Group
             groupStart = 0
         ElseIf (instanceGroup = True And cell.Row = rangeEnd) Then
-            Rows(groupStart & ":" & cell.Row).Group
+            rows(groupStart & ":" & cell.Row).Group
         End If
     Next cell
     
@@ -68,8 +68,8 @@ Public Sub IgnoreErrors()
     Dim charCell As Range
     
     For Each charCell In workingRange
-        charCell.Errors.Item(xlInconsistentFormula).Ignore = True
-        charCell.Errors.Item(xlUnlockedFormulaCells).Ignore = True
+        charCell.Errors.item(xlInconsistentFormula).Ignore = True
+        charCell.Errors.item(xlUnlockedFormulaCells).Ignore = True
     Next charCell
 End Sub
 
@@ -81,6 +81,24 @@ End Sub
 'Called by CreateRoutinesForm
 Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As String, machOp As String)
     On Error GoTo rtSetErr
+    
+    'Find any child features
+    Me.Outline.ShowLevels RowLevels:=2
+    Dim allCharRange As Range
+    Dim charCell As Range
+    Set allCharRange = Range("A4:A" & Range("A4").End(xlDown).Row)
+    Dim childCells As Range
+    
+    For Each charCell In allCharRange
+        If charCell.offset(0, 2).Font.color = RGB(128, 128, 128) Then
+            If childCells Is Nothing Then
+                Set childCells = charCell
+            Else
+                Set childCells = Application.Union(childCells, charCell)
+            End If
+        End If
+    Next charCell
+    
 
     If (Not routineArr) = -1 Then Exit Sub
     'If machOp Is missing Then machOp = 1  'TODO: replace with the logic that keeps track of added machining ops
@@ -108,6 +126,25 @@ Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As 
         nextCol.Value = routineArr(i)
         nextCol.offset(-1, 0).Value = "QE"
         Range(nextCol.offset(-1, 0).Address & ":" & Replace(nextCol.offset(-1, 0).Address, "2", "400")).Interior.color = selectedColor
+        
+        'Child cells should
+        If Not childCells Is Nothing Then
+            Dim child As Range
+            For Each child In childCells
+                'but replace the $ signs
+                '.Formula2 = "=IF(" & parentAddy & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & Chr(34) & ballFormat & Chr(34) & ")"
+                
+                Dim instanceNum As Integer
+                Dim segments() As String
+                segments = Split(child.offset(0, 2).Value, "_")
+                instanceNum = CInt(segments(UBound(segments)))
+                
+                    'Formula to ref the parent. If the parent is marked for inspection, so is the child, and vice versa
+                Range(GetAddress(nextCol.column) & child.Row).Formula2 = "=IF(" & GetAddress(nextCol.column) & child.Row - (instanceNum - 1) & "=" _
+                                        & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & Chr(34) & "X" & Chr(34) & ")"
+            
+            Next child
+        End If
         
         Set nextCol = nextCol.offset(0, 1)
     Next i
@@ -139,10 +176,10 @@ Public Sub AppendOperationNames(opName As String, routineArr() As Variant)
     If (InStr(opName, "SWISS") > 0) Or (InStr(opName, "MILL") > 0) Or (InStr(opName, "RECEIVE") > 0) Then
             'If we already have one of these operations and its not one of the same name...
         If Not (ThisWorkbook.StrInColl(Worksheets("MachineOps").GetOpNames(), opName)) And Worksheets("MachineOps").GetOpNames().Count <> 0 Then
-            Cells(9, 3).Activate
+            cells(9, 3).Activate
             Set charRange = Application.InputBox("Select Characteristics this OP is Applicable to", "Select Characteristics", Type:=8)
             If charRange Is Nothing Then Exit Sub
-            If charRange.Worksheet.Name <> "PartLib Table" Then GoTo 10
+            If charRange.Worksheet.name <> "PartLib Table" Then GoTo 10
             
             Dim addys() As String
             If InStr(charRange.Address, ",") > 0 Then 'If multiple areas are chosen, split them up
@@ -179,6 +216,7 @@ Public Sub AppendOperationNames(opName As String, routineArr() As Variant)
             Set allCharRange = allCharRange.offset(0, 2)
             
             For Each opCell In allCharRange
+            
                 Call SetOpCell(opCell, routineArr, opName)
             Next opCell
         End If
@@ -202,7 +240,7 @@ Public Sub SetOpCell(subCell As Range, routineArr() As Variant, opName As String
     Dim opCell As Range
     Dim offsetVal As Integer
 
-    If subCell.Value <> vbNullString Then
+    If subCell.Value <> vbNullString And subCell.offset(0, 23).Value = vbNullString Then
                        
         On Error GoTo namingErr
         Set opCell = subCell.offset(0, 23)
@@ -240,13 +278,13 @@ Public Sub SetOpCell(subCell As Range, routineArr() As Variant, opName As String
             opCell.Value = opName
             
                 'If one of the routines being set is a FA_FIRST, then set "X" for the given input
-            For j = 0 To UBound(routineArr)
-                If InStr(CStr(routineArr(j)), "FA_FIRST") > 0 Then
-                    offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
-                    Set opCell = opCell.offset(0, offsetVal)
-                    opCell.Value = "X"
-                End If
-            Next j
+'            For j = 0 To UBound(routineArr)
+'                If InStr(CStr(routineArr(j)), "FA_FIRST") > 0 Then
+'                    offsetVal = GetCol(CStr(routineArr(j))) - opCell.column
+'                    Set opCell = opCell.Offset(0, offsetVal)
+'                    opCell.Value = "X"
+'                End If
+'            Next j
         End If
     End If
     
@@ -277,8 +315,8 @@ Public Sub ApplyFormula(targetCol As String, Optional limit As Variant, Optional
         colNum = GetCol("IN-PROCESS, INSPECTION FREQUENCY")
     Case "Pins / Gauges"
         colNum = GetCol("PINS / GAUGES")
-    Case "Tool Axis Offset"
-        colNum = GetCol("TOOL AXIS OFFSET")
+    Case "Attribute Tolerance"
+        colNum = GetCol("ATTRIBUTE TOLERANCE")
     Case "Attached Images"
         colNum = GetCol("Attached Image(s) [Double Click]")
     Case "Lower"
@@ -294,7 +332,7 @@ Public Sub ApplyFormula(targetCol As String, Optional limit As Variant, Optional
     Application.EnableEvents = False
     
     Dim targetCell As Range
-    Set targetCell = Cells(ActiveCell.Row, colNum)
+    Set targetCell = cells(ActiveCell.Row, colNum)
     targetCell.Value = ""
     Dim prefix As String
     
@@ -342,14 +380,14 @@ Public Sub ApplyFormula(targetCol As String, Optional limit As Variant, Optional
         'If its a parent characteristic
     If targetCharac.Font.color = RGB(68, 114, 196) Then
         Do
-            Rows(targetCharac.Row).Interior.ColorIndex = 33 'Change the color
+            rows(targetCharac.Row).Interior.ColorIndex = 33 'Change the color
             targetCharac.offset(0, -2).Interior.color = storeColor
             Set targetCharac = targetCharac.offset(1, 0)
         
         Loop While targetCharac.Font.color = RGB(128, 128, 128)  'Keep going as we hit child cells
         'Otherwise, just change the color
     Else
-        Rows(ActiveCell.Row).Interior.ColorIndex = 33
+        rows(ActiveCell.Row).Interior.ColorIndex = 33
         targetIndex.Interior.color = storeColor
     End If
     
@@ -393,7 +431,7 @@ Public Sub SetHiding(features As String, hideForm As String)
             If (Application.Intersect(tolerRows, tempCell) Is Nothing) And (Application.Intersect(toolRows, tempCell) Is Nothing) Then
                 tempCell.NumberFormat = "General"
                 If InStr(tempCell.formula, "=") > 0 Then 'Don't break formulas, just make their result the ELSE condition
-                    If InStr(tempCell.formula, "IF(") > 0 Then GoTo 10  'if the formula already has the IF conditoin set on it then we don't
+                    If InStr(tempCell.formula, "=IF(") > 0 Then GoTo 10  'if the formula already has the IF conditoin set on it then we don't
                                                                             'want to change anything
                     tempCell.formula = hideForm & Replace(tempCell.formula, "=", "") & ")"
                 Else
@@ -508,7 +546,7 @@ Public Sub AddFeatureInstances(selectedCell As Range)
     
     Dim parentCell As Range
     Dim parentName As String
-    Set parentCell = charCells.Item(1)
+    Set parentCell = charCells.item(1)
     
     'TODO: we want to load our form here
     Load AddChildInstances
@@ -543,7 +581,7 @@ Public Sub AddFeatureInstances(selectedCell As Range)
     
     Dim i As Integer
     For i = 1 To totalInstances - charCells.Count
-        Rows(parentCell.Row + charCells.Count + i - 1).Insert , xlFormatFromRightOrBelow
+        rows(parentCell.Row + charCells.Count + i - 1).Insert , xlFormatFromRightOrBelow
         'TODO: can we call another outside method to set the child
         Dim indexCell As Range
         Dim childChar As Range
@@ -551,6 +589,7 @@ Public Sub AddFeatureInstances(selectedCell As Range)
         Set indexCell = childChar.offset(0, -2)
         indexCell.Value = CStr(CDbl(indexCell.offset(-1, 0).Value) + 0.1)
         
+        'Copy the formula in the Balloon No. field
         childChar.offset(-1, 8).Copy Destination:=childChar.offset(0, 8)
         
         Dim ballFormat As String
@@ -560,8 +599,8 @@ Public Sub AddFeatureInstances(selectedCell As Range)
             .HorizontalAlignment = xlHAlignCenter
             .Font.color = RGB(128, 128, 128)
             .NumberFormat = "General"
-            .Formula2 = "=IF(" & .offset(1 - (charCells.Count + i)).Address & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & Chr(34) & ballFormat & Chr(34) & ")"
-            '=IF($C$14="","","0_002_03")
+            .Formula2 = "=IF(" & Replace(.offset(1 - (charCells.Count + i)).Address, "$", "") & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & Chr(34) & ballFormat & Chr(34) & ")"
+            '=IF(C14="","","0_002_03")
         End With
         
         Call Sheets("IEX-DATA").SetInstance(refCell:=indexCell, destCell:=childChar, instance:=charCells.Count + i)
@@ -739,7 +778,7 @@ Public Sub DeleteRoutine(routineName As String)
     Dim colNum As Integer
     Dim routineRng As Range
     colNum = GetCol(routineName)
-    Set routineRng = Cells(1, colNum).EntireColumn
+    Set routineRng = cells(1, colNum).EntireColumn
     
     Application.EnableEvents = False
     routineRng.Delete
@@ -755,7 +794,7 @@ Public Sub PivotOnFeature(Optional CharName As String, Optional Direction As Int
         Set selectedCell = ActiveCell
     Else
         'Called by PivotFeatureSheet
-        Set selectedCell = Range("C" & Application.WorksheetFunction.Match(CharName, Range("C1:C500"), 0))
+        Set selectedCell = Range("C" & Application.WorksheetFunction.match(CharName, Range("C1:C500"), 0))
         Do
             Set selectedCell = selectedCell.offset(Direction, 0)
             If selectedCell.offset(0, -2).Value = "" Or (Not IsNumeric(selectedCell.offset(0, -2).Value)) Then Exit Sub
@@ -785,13 +824,13 @@ Public Sub PivotOnFeature(Optional CharName As String, Optional Direction As Int
                 'Hide/Show our grouped rows, if they are hidden or not on the PartLib Table and vice-versa
                 On Error Resume Next
                 If Not (Columns(4).EntireColumn.Hidden) Then
-                    pvtWS.Rows(3).EntireRow.ShowDetail = True
+                    pvtWS.rows(3).EntireRow.ShowDetail = True
                 End If
                 If Not (Columns(8).EntireColumn.Hidden) Then
-                    pvtWS.Rows(8).EntireRow.ShowDetail = True
+                    pvtWS.rows(8).EntireRow.ShowDetail = True
                 End If
                 If Not (Columns(18).EntireColumn.Hidden) Then
-                    pvtWS.Rows(18).EntireRow.ShowDetail = True
+                    pvtWS.rows(18).EntireRow.ShowDetail = True
                 End If
                 
                 On Error GoTo 0
@@ -804,8 +843,8 @@ Public Sub PivotOnFeature(Optional CharName As String, Optional Direction As Int
                         toRange.offset(0, -1).Value = "QE" 'Routine Headers have QE set as the owner
                         toRange.offset(0, -1).Interior.color = headerCell.Interior.color
                         
-                        ThisWorkbook.SetBorders target:=toRange
-                        ThisWorkbook.SetBorders target:=toRange.offset(0, -1)
+                        ThisWorkbook.SetBorders Target:=toRange
+                        ThisWorkbook.SetBorders Target:=toRange.offset(0, -1)
                     End If
                     Set toRange = toRange.offset(1, 0)
                 Next headerCell
@@ -891,7 +930,7 @@ Public Sub ImportRoutineMap(featuresArr() As String, wbName As String, wbPath As
                                             '=IF($C$11="","","0_003_02")
                         targetCell.formula = "=IF(" & parentCell.Address & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) _
                             & "," & Chr(34) & featuresArr(i, j) & Chr(34) & ")"
-                        GoTo nextFeat 'The other columns get set by the SetInstance call, so just go to next feature
+                        GoTo nextfeat 'The other columns get set by the SetInstance call, so just go to next feature
                     End If
                     
                 ElseIf j = 11 Then 'If we hit the COMMENTS
@@ -975,7 +1014,7 @@ Public Sub ImportRoutineMap(featuresArr() As String, wbName As String, wbPath As
 30
             End If
         Next j
-nextFeat:
+nextfeat:
     Next i
     
     Call ApplyGroupings
@@ -1018,7 +1057,8 @@ Public Function IsValidForInspection(ByRef charArr() As String, ByRef uniqueOps 
                 'If op name isnt missing and its not in our collection of mach ops
             ElseIf opName <> "" And Not ThisWorkbook.StrInColl(uniqueOps, opName) Then
                     'If its one of the valid machining ops
-                If InStr(opName, "SWISS") > 0 Or InStr(opName, "MILL") > 0 Or InStr(opName, "RECEIVE") > 0 Then
+                If InStr(opName, "SWISS") > 0 Or InStr(opName, "MILL") > 0 Or InStr(opName, "RECEIVE") > 0 _
+                        Or opName = "ALL" Or opName = "ASSEM" Or opName = "FAIs" Then
                         'And dont have any ops, just add it
                     If uniqueOps.Count = 0 Then
                         uniqueOps.Add opName
@@ -1054,7 +1094,7 @@ Public Function IsValidForInspection(ByRef charArr() As String, ByRef uniqueOps 
                 'Store the Balloon
             charArr(i, 0) = subCell.offset(0, 10).Value
             
-                'Store the InspectoinType
+                'Store the InspectionType
             If subCell.offset(0, 6).Value = "" Then Err.Raise Number:=vbObjectError + 1000, Description:="Inspection Type"
             If subCell.offset(0, 6).Value = "Variable" And subCell.offset(0, 17).Value = "0" Then GoTo wrongTol
             charArr(i, 1) = subCell.offset(0, 6).Value
@@ -1099,7 +1139,7 @@ End Function
 Public Sub ClearRoutineMapping(routineName As String)
     Dim indexRange As Range
     Dim indCell As Range
-    Dim target As Range
+    Dim Target As Range
     
     
     Application.EnableEvents = False
@@ -1107,9 +1147,9 @@ Public Sub ClearRoutineMapping(routineName As String)
     
     Set indexRange = Range("A4:A" & Range("A4").End(xlDown).Row)
     For Each indCell In indexRange
-        Set target = indCell.offset(0, GetCol(routineName) - indCell.column)
-        If InStr(target.formula, "=IF(") > 0 Then GoTo nextInd
-        target.Value = ""
+        Set Target = indCell.offset(0, GetCol(routineName) - indCell.column)
+        If InStr(Target.formula, "=IF(") > 0 Then GoTo nextInd
+        Target.Value = ""
         
 nextInd:
     Next indCell
@@ -1126,68 +1166,150 @@ errErase:
 
 End Sub
 
-
-
 'Called by RibbonCommands (OptimizeInspections)
-Public Sub AssignAsInspection(charAddy As String, ByVal frequency As String, routineName As String, inspMethod As String)
-        'If its a Final Visual inspection Method, we should leave it alone
-    If InStr(inspMethod, "FI-VIS") > 0 Then Exit Sub
-
+Public Sub AssignAsInspection(charAddy As String, ByVal frequency As String, routineName As String, inspMethod As String, ByVal operation As String)
 
         'if its a child cell then we should leave it alone
     Dim crossTarget As Range
     Set crossTarget = Range(charAddy)
     Set crossTarget = crossTarget.offset(0, GetCol("Characteristic Name") - crossTarget.column)
-    If crossTarget.Font.color = RGB(128, 128, 128) Then Exit Sub
+    If crossTarget.Font.color = RGB(128, 128, 128) Then Exit Sub  'Ignore setting children
+      
+    
+    Dim i As Integer
+    Dim hasFAI As Boolean
+    Dim hasIP As Boolean
+    Dim machiningNum As String
+    
+        'If we have extra machining op stages, we should parse those out from the end of the operation string
+    If (InStr(operation, "MILL") > 0) Or (InStr(operation, "SWISS") > 0) Or (InStr(operation, "RECEIVE") > 0) Then
+        If IsNumeric(Right(operation, 1)) Then
+            machiningNum = Right(operation, 1)
+            operation = Left(operation, Len(operation) - 1)
+        End If
+    
+    End If
     
     Dim freqs() As String
     frequency = Replace(frequency, " ", "")
     frequency = Replace(frequency, "&", ",")  ' Change an & to be our delimiter
-    frequency = Replace(frequency, "AQLFREQ.", "BENCH")
-    If frequency = "1" Then frequency = "BENCH"   '<-----  100%'s should implicitly be FA_MINI and IP_BENCH, even if its not stated
-'    frequency = Replace(frequency, "1", "BENCH")
+    frequency = Replace(frequency, "AQLFREQ.", "IP_BENCH")
+    frequency = Replace(frequency, "1XSHIFT", "IP_1XSHIFT")
+    frequency = Replace(frequency, "LAST", "IP_LAST")
+    frequency = Replace(frequency, "FAI", "FA_FIRST")
+    frequency = Replace(frequency, "MINI", "FA_MINI")
+    frequency = Replace(frequency, "FIRSTVISUAL", "FA_VIS")
+    frequency = Replace(frequency, "FI-DIM", "FI_DIM")
+    frequency = Replace(frequency, "FI-VIS", "FI_VIS")
+    frequency = Replace(frequency, "100%", "1")
+'    frequency = Replace(frequency, "1", "IP_BENCH")
+'    If frequency = "1" Or frequency = "100%" Then frequency = "IP_BENCH"   '<-----  100%'s should implicitly be FA_MINI and IP_BENCH, even if its not stated
     
         'For each of the given frequencies, we should see if there is a match with the given routine
     freqs = Split(frequency, ",")
-    Dim i As Integer
-    Dim method As String
-    For i = 0 To UBound(freqs)
     
-            'Some routines are specific to an inspection method, in that case that the inspection method is present for this characteristic....
+        'If a feature is being checked during IP, then it must also be checked on FAI as well
+    For i = 0 To UBound(freqs)
+        If freqs(i) = "1" Then   'Capture 100% frequencies, then need additional frequencies added to them
+            ReDim Preserve freqs(UBound(freqs) + 4)
+            freqs(UBound(freqs) - 3) = "IP_BENCH"
+            freqs(UBound(freqs) - 2) = "FA_FIRST"
+            freqs(UBound(freqs) - 1) = "FA_VIS"
+            freqs(UBound(freqs)) = "FA_MINI"
+        
+            GoTo beginAssign
+        End If
+        '100% inspections should get checked at FA_FIRST, FA_MINI, FA_VIS and IP_BENCH
+        
+        
+        If freqs(i) = "IP_BENCH" Or freqs(i) = "IP_LAST" Or freqs(i) = "IP_1XSHIFT" Then hasIP = True
+        If freqs(i) = "FA_FIRST" Then hasFAI = True
+    Next i
+    If hasIP And Not (hasFAI) Then
+        ReDim Preserve freqs(UBound(freqs) + 1)
+        freqs(UBound(freqs)) = "FA_FIRST"
+    End If
+       
+beginAssign:
+    For i = 0 To UBound(freqs)
+        
+        'If we have a FI-DIM or FI-VIS, no need to process methods/operation
+        If freqs(i) = "FI_DIM" Or freqs(i) = "FI_VIS" Then
+            If GetCol(freqs(i)) <> 0 Then
+                Set crossTarget = crossTarget.offset(0, GetCol(freqs(i)) - crossTarget.column)
+                crossTarget.Value = "X"
+            End If
+        End If
+        
+        'Some routines are specific to an inspection method, in that case that the inspection method is present for this characteristic....
                 'Then change up the name of the freq, so it will possibly better match with the Routine Name
         Select Case inspMethod
         
         Case "GRAM-00XX (RAM) � Program"
-            If freqs(i) = "BENCH" Then freqs(i) = "RAMPROG"
-            method = "RAMPROG"
+            If freqs(i) = "IP_BENCH" Then
+                freqs(i) = "IP_RAMPROG"
+            ElseIf freqs(i) = "FA_FIRST" Then
+                freqs(i) = "FA_RAMPROG"
+            End If
         Case "GOMS-000X (Sylvac)"
-            If freqs(i) <> "1XSHIFT" Then freqs(i) = "SYLVAC"
-            method = "SYLVAC"
-        Case "GCMM-000X (CMM) � Var.Meas.", "GCMM-000X (CMM) � Var.Meas."
-            If freqs(i) = "BENCH" Then freqs(i) = "CMM"
-            method = "CMM"
+            If freqs(i) = "IP_BENCH" Then
+                freqs(i) = "IP_SYLVAC"
+            ElseIf freqs(i) = "FA_FIRST" Then
+                freqs(i) = "FA_SYLVAC"
+            End If
+        Case "GCMM-000X (CMM) � Pass / Fail", "GCMM-000X (CMM) � Var.Meas."
+            If freqs(i) = "IP_BENCH" Then
+                freqs(i) = "IP_CMM"
+            ElseIf freqs(i) = "FA_FIRST" Then
+                freqs(i) = "FA_CMM"
+            End If
+            
+            'Comparator and RAM dont get dedicated FA routines, only IP
         Case "Comparator / Var.Meas."
-            If freqs(i) = "BENCH" Then freqs(i) = "COMPAR"
-            method = "COMPAR"
+            If freqs(i) = "IP_BENCH" Then
+                freqs(i) = "IP_COMPAR"
+            End If
         Case "GRAM-00XX (RAM) � Pass / Fail", "GRAM-00XX (RAM) � Var.Meas."
-            method = "RAM"
-            If freqs(i) = "BENCH" Then freqs(i) = "RAM"
+            If freqs(i) = "IP_BENCH" Then
+                freqs(i) = "IP_RAM"
+            End If
         End Select
         
-            'If the fixed frequency appears in the routine we're checking against
-        If InStr(routineName, freqs(i)) > 0 Then
-                'RAM needs to be handled specially since it could be confused with RAMPROG
-            If method = "RAM" And InStr(routineName, "RAMPROG") > 0 Then GoTo skipRT
         
-setCheck:
-            Application.EnableEvents = False
-            Set crossTarget = crossTarget.offset(0, GetCol(routineName) - crossTarget.column)
-            crossTarget.Value = "X"
-        ElseIf method <> "" Then
-                'If the routine happens to be a FAI of the insp Method, then it should also always be checked
-            If InStr(routineName, "FA_" & method) > 0 Then GoTo setCheck
+        
+        'Process the operation names
+            'Earlier above, we split the operation from its machining number, if it had one
+        Select Case operation
+        
+        Case "ALL"
+        
+        Case "FAIs"
+            ' If Not (ThisWorkbook.CollItemLikeStr(allRts, routineName)) Then GoTo skipRT
             
-        End If
+        Case "RECEIVE"
+            If Not (InStr(routineName, "RECINSP" & machiningNum) > 0) Then GoTo skipRT
+        Case "ASSEM"
+            If freqs(i) = "FA_FIRST" Then
+                If Not (routineName = "FA_FIRST_ASSY") Then GoTo skipRT
+            ElseIf freqs(i) = "IP_BENCH" Then
+                If Not (routineName = "IP_ASSY") Then GoTo skipRT
+            End If
+        Case "SWISS"
+            If Not (routineName = freqs(i) & machiningNum) Then GoTo skipRT
+        Case "MILL"
+            If Not (routineName = freqs(i) & machiningNum & "_MILL") Then GoTo skipRT
+        Case "NA"
+            GoTo skipRT
+        Case Else
+            MsgBox "Error with " & routineName & vbCrLf & charAddy
+            GoTo parseErr
+        End Select
+        
+assignInsp:
+        Application.EnableEvents = False
+        Set crossTarget = crossTarget.offset(0, GetCol(routineName) - crossTarget.column)
+        crossTarget.Value = "X"
+        
 skipRT:
     Next i
     
@@ -1204,6 +1326,87 @@ End Sub
 
 
 
+'        Backup / Deprecated
+
+''Called by RibbonCommands (OptimizeInspections)
+'Public Sub AssignAsInspection(charAddy As String, ByVal frequency As String, routineName As String, inspMethod As String)
+'        'If its a Final Visual inspection Method, we should leave it alone
+'    If InStr(inspMethod, "FI-VIS") > 0 Or InStr(inspMethod, "Visual � DV") > 0 Then Exit Sub
+'
+'
+'        'if its a child cell then we should leave it alone
+'    Dim crossTarget As Range
+'    Set crossTarget = Range(charAddy)
+'    Set crossTarget = crossTarget.offset(0, GetCol("Characteristic Name") - crossTarget.column)
+'    If crossTarget.Font.color = RGB(128, 128, 128) Then Exit Sub
+'
+'    Dim freqs() As String
+'    frequency = Replace(frequency, " ", "")
+'    frequency = Replace(frequency, "&", ",")  ' Change an & to be our delimiter
+'    frequency = Replace(frequency, "AQLFREQ.", "BENCH")
+'    If frequency = "1" Then frequency = "BENCH"   '<-----  100%'s should implicitly be FA_MINI and IP_BENCH, even if its not stated
+''    frequency = Replace(frequency, "1", "BENCH")
+'
+'        'For each of the given frequencies, we should see if there is a match with the given routine
+'    freqs = Split(frequency, ",")
+'    Dim i As Integer
+'    Dim method As String
+'    For i = 0 To UBound(freqs)
+'
+'
+'            'Some routines are specific to an inspection method, in that case that the inspection method is present for this characteristic....
+'                'Then change up the name of the freq, so it will possibly better match with the Routine Name
+'        Select Case inspMethod
+'
+'        Case "GRAM-00XX (RAM) � Program"
+'            If freqs(i) = "BENCH" Then freqs(i) = "RAMPROG"
+'            method = "RAMPROG"
+'        Case "GOMS-000X (Sylvac)"
+'            If freqs(i) <> "1XSHIFT" Then freqs(i) = "SYLVAC"
+'            method = "SYLVAC"
+'        Case "GCMM-000X (CMM) � Pass / Fail", "GCMM-000X (CMM) � Var.Meas."
+'            If freqs(i) = "BENCH" Then freqs(i) = "CMM"
+'            method = "CMM"
+'        Case "Comparator / Var.Meas."
+'            If freqs(i) = "BENCH" Then freqs(i) = "COMPAR"
+'            method = "COMPAR"
+'        Case "GRAM-00XX (RAM) � Pass / Fail", "GRAM-00XX (RAM) � Var.Meas."
+'            method = "RAM"
+'            If freqs(i) = "BENCH" Then freqs(i) = "RAM"
+'        End Select
+'
+'            'If the fixed frequency appears in the routine we're checking against
+'        If InStr(routineName, freqs(i)) > 0 Then
+'                'RAM needs to be handled specially since it could be confused with RAMPROG
+'            If method = "RAM" And InStr(routineName, "RAMPROG") > 0 Then GoTo skipRT
+'
+'setCheck:
+'            Application.EnableEvents = False
+'            Set crossTarget = crossTarget.offset(0, GetCol(routineName) - crossTarget.column)
+'            crossTarget.Value = "X"
+'        ElseIf method <> "" Then
+'                'If the routine happens to be a FAI of the insp Method, then it should also always be checked
+'            If InStr(routineName, "FA_" & method) > 0 Then
+'                GoTo setCheck
+'            End If
+'
+'        End If
+'skipRT:
+'    Next i
+'
+'10
+'    Application.EnableEvents = True
+'
+'    Exit Sub
+'
+'parseErr:
+'    MsgBox "Error when determining Inspections for " & crossTarget.Value, vbCritical
+'    GoTo 10
+'
+'End Sub
+
+
+
 'Called by RibbonCommands (ApplyCustomSort)
 Public Sub SortFeatures()
     'Warning that sorting will probably break formulas and references
@@ -1215,13 +1418,13 @@ Public Sub SortFeatures()
     If result <> vbYes Then Exit Sub
     Outline.ShowLevels RowLevels:=2
     On Error Resume Next
-    Rows("1:400").Ungroup
+    rows("1:400").Ungroup
     On Error GoTo 0
 
     Application.EnableEvents = False
 
     Dim listRng As Range
-    Set listRng = Worksheets("Data Validations").Range("K2:K48")
+    Set listRng = Worksheets("Data Validations").Range("K2:K" & Worksheets("Data Validations").Range("K2").End(xlDown).Row)
     
     Dim simpleVar As Variant
     simpleVar = listRng
@@ -1243,15 +1446,15 @@ Public Sub SortFeatures()
         'Sorting Logic, We use a custom sorting list on the Inspection Methods in Order to make
     With Me.Sort
         .SortFields.Clear
-        .setRange Rows("3:499")
+        .setRange rows("3:499")
         
-        .SortFields.Add Key:=Cells(3, GetCol("Inspection Type")), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
-        .SortFields.Add Key:=Cells(3, GetCol("INSPECTION METHOD")), SortOn:=xlSortOnValues, CustomOrder:=Application.CustomListCount, _
+        .SortFields.Add key:=cells(3, GetCol("Inspection Type")), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+        .SortFields.Add key:=cells(3, GetCol("INSPECTION METHOD")), SortOn:=xlSortOnValues, CustomOrder:=Application.CustomListCount, _
                                 DataOption:=xlSortNormal
         
-        .SortFields.Add Key:=Cells(3, GetCol("Characteristic Name")), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
+        .SortFields.Add key:=cells(3, GetCol("Characteristic Name")), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortNormal
         
-        .Header = xlYes
+        .header = xlYes
         .MatchCase = False
         
         .Apply
@@ -1517,18 +1720,18 @@ End Function
 '******************   Double Click   ************************
 
 
-Private Sub Worksheet_BeforeDoubleClick(ByVal target As Range, Cancel As Boolean)
-    If target.Areas.Count = 1 Then
-        If target.column = GetCol("Attached Image(s) [Double Click]") And target.Row > 3 Then
-            SetAttachment target:=target
-        ElseIf target.column = GetCol("Characteristic Name") And target.Font.color = RGB(68, 114, 196) Then
-            ExpandGroup target:=target
+Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
+    If Target.Areas.Count = 1 Then
+        If Target.column = GetCol("Attached Image(s) [Double Click]") And Target.Row > 3 Then
+            SetAttachment Target:=Target
+        ElseIf Target.column = GetCol("Characteristic Name") And Target.Font.color = RGB(68, 114, 196) Then
+            ExpandGroup Target:=Target
         End If
     End If
 End Sub
 
     'Called by ^^^Worksheet_BeforeDoubleClick^^^
-Private Sub SetAttachment(target As Range)
+Private Sub SetAttachment(Target As Range)
     Dim fso As FileSystemObject
     Dim path As String
     Set fso = New FileSystemObject
@@ -1546,7 +1749,7 @@ Private Sub SetAttachment(target As Range)
     End If
     
     'After we check to see if the "Attachments" folder exists
-    target.Value = ""
+    Target.Value = ""
     
     With Application.FileDialog(msoFileDialogFilePicker)
         .InitialFileName = path
@@ -1555,24 +1758,24 @@ Private Sub SetAttachment(target As Range)
         Dim i As Integer
         For i = 1 To .SelectedItems.Count
             Dim arr() As String
-            arr = Split(.SelectedItems.Item(i), "\")
-            target.Value = target.Value & arr(UBound(arr))
+            arr = Split(.SelectedItems.item(i), "\")
+            Target.Value = Target.Value & arr(UBound(arr))
             'If there's more than one file, then we need to delimit it by a character that can't appear in the file name
             If i <> .SelectedItems.Count Then
-                target.Value = target.Value & "|"
+                Target.Value = Target.Value & "|"
             End If
         Next i
     End With
-    target.offset(1, 0).Select
+    Target.offset(1, 0).Select
 
 End Sub
 
     'Called by ^^^Worksheet_BeforeDoubleClick^^^
-Private Sub ExpandGroup(target As Range)
+Private Sub ExpandGroup(Target As Range)
     'Show/Hide children of multiple instance features when user double-clicks
     Dim child As Range
-    Set child = target.offset(1, 0)
-    Rows(child.Row).ShowDetail = Rows(child.Row).EntireRow.Hidden
+    Set child = Target.offset(1, 0)
+    rows(child.Row).ShowDetail = rows(child.Row).EntireRow.Hidden
     child.Activate
     
 End Sub
@@ -1581,11 +1784,11 @@ End Sub
 '******************   On Change   ************************
 
 
-Private Sub Worksheet_Change(ByVal target As Range)
+Private Sub Worksheet_Change(ByVal Target As Range)
     
-    If target.Areas.Count = 1 Then
+    If Target.Areas.Count = 1 Then
         Dim subCell As Range
-        For Each subCell In target
+        For Each subCell In Target
             If IsInImmutableRange(targetCell:=subCell) Then Exit Sub
             
             On Error GoTo errmsg
@@ -1608,6 +1811,7 @@ Private Sub Worksheet_Change(ByVal target As Range)
                 If subCell.Value = "" Then
                     subCell.offset(0, -7).Value = "" 'set Insp Type to nothing
                     subCell.offset(0, 2).Value = "" 'set Pins/Gauges to nothing
+                    Call RemoveFULLAttachment(subCell)
                 Else
                     Dim inspType As String
                     
@@ -1643,32 +1847,34 @@ Private Sub Worksheet_Change(ByVal target As Range)
                     
                     pins_gauges = SetGaugePinData(methodCell:=subCell)
                     subCell.offset(0, 2).Value = pins_gauges 'Set Gauge Pin data if applicable
-                    SetChildrenPinsAndGauges target:=subCell, gaugeData:=pins_gauges
+                    SetChildrenPinsAndGauges Target:=subCell, gaugeData:=pins_gauges
                     
                 End If
                 subCell.offset(0, -7).Font.color = RGB(0, 0, 0) 'set Attr/Variable text to black
-            ElseIf target.column = GetCol("Ltol") Or target.column = GetCol("Nominal") Or target.column = GetCol("Utol") Then
+            ElseIf Target.column = GetCol("Ltol") Or Target.column = GetCol("Nominal") Or Target.column = GetCol("Utol") Then
                 'TODO: if these cells were manually changed, we should set the color and maybe even prompt the user to add a mfg tol note
-            ElseIf target.column >= GetCol("2 DIGIT Primary Tool") And target.column <= GetCol("Secondary Head") Then
-                On Error GoTo 20
-                Application.EnableEvents = False
-                target.Value = UCase(target.Value)
-                    'TODO: check that this is not in the immutable rnage
-                    'TODO: check that this is not an empty string
                 
-                If target.column = GetCol("Primary Control") Or target.column = GetCol("Secondary Control") Then
-                    'TODO: if the user manually entered a value for the controls, we should hand-validate the entry
-                    'TODO: likely should turn off events before setting this value
-                    Call ValidateControl(controlCell:=target)
-                    
-                ElseIf target.column = GetCol("Primary Head") Or target.column = GetCol("Secondary Head") Then
-                    Call ValidateHead(controlCell:=target)
-                End If
-                'If we made a chang to one of our TOOL Controls, we should re-evaluate the TOOL AXIS OFFSET
-                Call OffsetCommentFormat(offsetRange:=target.offset(0, GetCol("TOOL AXIS OFFSET") - target.column))
+'            ElseIf Target.column >= GetCol("2 DIGIT Primary Tool") And Target.column <= GetCol("Secondary Head") Then
+'                On Error GoTo 20
+'                Application.EnableEvents = False
+'                Target.Value = UCase(Target.Value)
+'                    'TODO: check that this is not in the immutable rnage
+'                    'TODO: check that this is not an empty string
+'
+'                If Target.column = GetCol("Primary Control") Or Target.column = GetCol("Secondary Control") Then
+'                    'TODO: if the user manually entered a value for the controls, we should hand-validate the entry
+'                    'TODO: likely should turn off events before setting this value
+'                    Call ValidateControl(controlCell:=Target)
+'
+'                ElseIf Target.column = GetCol("Primary Head") Or Target.column = GetCol("Secondary Head") Then
+'                    Call ValidateHead(controlCell:=Target)
+'                End If
+'                'If we made a chang to one of our TOOL Controls, we should re-evaluate the TOOL AXIS OFFSET
+'                Call OffsetCommentFormat(offsetRange:=Target.Offset(0, GetCol("TOOL AXIS OFFSET") - Target.column))
                 
                 'Somebody changed the control, either manually typed or perhaps set with a drop-down choice
-            ElseIf target.column = GetCol("Comments") Then
+                
+            ElseIf Target.column = GetCol("Comments") Then
 '                Call SetCommentsValidation(cell:=subCell) 'Reset the validation in case of copy/paste
             End If
         Next subCell
@@ -1714,6 +1920,7 @@ Private Function AssignInspType(method As String) As String
 10
 End Function
 
+
 Private Function SetGaugePinData(methodCell As Range) As String
 
     'Gauge Pins method called out
@@ -1722,39 +1929,53 @@ Private Function SetGaugePinData(methodCell As Range) As String
         Dim iexWS As Worksheet
         
         If InStr(methodCell.offset(0, -3).Value, "_") > 0 Then
-            ballNum = Split(methodCell.offset(0, -3).Value, "_")(0) 'TODO: error handling here in event that it isnt a balloon number [(iv)]
+            If IsNumeric(Left(methodCell.offset(0, -3).Value, 1)) Then
+                ballNum = Split(methodCell.offset(0, -3).Value, "_")(0) 'Its a parent balloon with child instances
+            Else
+                ballNum = Split(methodCell.offset(0, -3).Value, "_")(1) 'Likely a subReport balloon like U_1, 1 should be the ball# we reference
+            End If
         Else
             ballNum = methodCell.offset(0, -3).Value
         End If
-        
         
         Set iexWS = Worksheets("IEX-Data")
         Dim workingRange As Range
         Set workingRange = iexWS.Range("A2:G" & iexWS.Range("G2").End(xlDown).Row)
         
         'Error handling in the event we can't find the balloon
+        On Error GoTo noUnits
         Dim units As String
         units = Application.WorksheetFunction.VLookup(ballNum, workingRange, 7, False)
         Dim featureType As String
         featureType = Application.WorksheetFunction.VLookup(ballNum, workingRange, 5, False)
         
+        If units = "" Then GoTo noUnits
+        
         Dim trunc As Double
         Dim nom As Double
-        Dim conv As Double
+        Dim conv As Double   'TODO: come back and delete this
         Dim tol As Double
         Dim lTol As Double
         Dim uTol As Double
         Dim setPins As Boolean
+        Dim isMetric As Boolean
         Dim userInput As String
+        Dim unitSuffix As String
+        Dim formatCode As String
+        
         
         'What are the dimension units
         Select Case units
         Case "deg"
             GoTo 80
         Case "mm" 'only use Inch pins, so we need to convert
-            conv = 25.4
+            unitSuffix = "mm"
+            isMetric = True
+            formatCode = ".000"
         Case "in"
-            conv = 1
+            unitSuffix = Chr(34)
+            isMetric = False
+            formatCode = ".0000"
         Case " "
             MsgBox "Couldn't find this balloon number in the IEX-DATA sheet"
         Case Else
@@ -1763,77 +1984,95 @@ Private Function SetGaugePinData(methodCell As Range) As String
         End Select
         
         'What is the tolerance range
-        tol = CDbl(methodCell.offset(0, 4).Value) / conv
-        nom = ((CDbl(methodCell.offset(0, -8).Value) + CDbl(methodCell.offset(0, -10).Value)) / conv) / 2
+        tol = CDbl(methodCell.offset(0, 4).Value)
+        nom = ((CDbl(methodCell.offset(0, -8).Value) + CDbl(methodCell.offset(0, -10).Value))) / 2
+        uTol = CDbl(methodCell.offset(0, GetCol("Utol") - methodCell.column).Value)
+        lTol = CDbl(methodCell.offset(0, GetCol("Ltol") - methodCell.column).Value)
         
         
         'GDT features have a 'target' value set, but nothing for low/high values. Therefore
         'we should be handling the nominal differently by converting just that target value
         If featureType = "Geometric Tolerance" Then
-            nom = CDbl(methodCell.offset(0, -9).Value) / conv
+            nom = CDbl(methodCell.offset(0, -9).Value)
         End If
             
         If methodCell.Value = "Gauge Pins � Go" Then
             If featureType = "Geometric Tolerance" Then GoTo 80
-            lTol = CDbl(methodCell.offset(0, -10).Value) / conv
-            SetGaugePinData = "(" & Format(lTol, ".0000") & " FULL)"
+            SetGaugePinData = "(" & Format(lTol, formatCode) & " FULL)" & unitSuffix
             
         ElseIf methodCell.Value = "Gauge Pins � NoGo" Then
             If featureType = "Geometric Tolerance" Then GoTo 80
-            uTol = CDbl(methodCell.offset(0, -8).Value) / conv
-            SetGaugePinData = "(" & Format(uTol, ".0000") & " FULL)"
+            SetGaugePinData = "(" & Format(uTol, formatCode) & " FULL)" & unitSuffix
             
         ElseIf methodCell.Value = "Gauge Pins � Var.Best.Fit." Then
-            uTol = nom + (tol / 2)
-            lTol = nom - (tol / 2)
-            userInput = InputBox("Enter gauge pin size to step by" & vbCrLf & "(Must be in Inches)", , ".0002")
+            Dim defaultStepSize As String
+            If isMetric Then
+                defaultStepSize = ".005"
+            Else
+                defaultStepSize = ".0002"
+            End If
+            userInput = InputBox("Enter gauge pin size to step by", , defaultStepSize)
             
             If featureType = "Geometric Tolerance" Then
-                SetGaugePinData = "(.0000" & " through " & Format(nom, ".0000") & ")" & " by " & userInput
+                SetGaugePinData = "(" & formatCode & " through " & Format(nom, formatCode) & ")" & unitSuffix & " by " & userInput & unitSuffix
             Else
-                SetGaugePinData = "(" & Format(lTol, ".0000") & " through " & Format(uTol, ".0000") & ")" & " by " & userInput
+                SetGaugePinData = "(" & Format(lTol, formatCode) & " through " & Format(uTol, formatCode) & ")" & unitSuffix & " by " & userInput & unitSuffix
             End If
             
             
         ElseIf methodCell.Value = "Gauge Pins � Go/NoGo" Then
             If featureType = "Geometric Tolerance" Then GoTo FullFMT
             
+            uTol = CDbl(methodCell.offset(0, GetCol("Utol") - methodCell.column).Value)
+            lTol = CDbl(methodCell.offset(0, GetCol("Ltol") - methodCell.column).Value)
+            
         'If we donthave a MIN/MAX keyword present
             If (Not (InStr(methodCell.offset(0, -2), "MAX") > 0) And Not (InStr(methodCell.offset(0, -2), "MIN") > 0)) _
                     Or (InStr(methodCell.offset(0, -2), "MINOR") > 0) Then
-                Select Case tol
-                Case Is >= 0.002 'Needs 50% Truncation
+                    
+                If (tol >= 0.003 And Not isMetric) Or (tol >= 0.0762 And isMetric) Then 'Needs 50% Truncation
                     trunc = 0.25
                     setPins = True
-                Case Is > 0.001  'Needs 25% Truncation
+                ElseIf (tol >= 0.00101 And Not isMetric) Or (tol >= 0.02541 And isMetric) Then 'Needs 25% Truncation
                     trunc = 0.125
                     setPins = True
-                Case Else        'No Truncation
+                Else        'No Truncation
                     setPins = False
-                End Select
+                End If
                 
                 Dim setString As String
                 Dim fullString As String
                 
                 If setPins = True Then
-                    setString = "(" & Format(nom - (tol * trunc), ".0000") & " " & Format(nom + (tol * trunc), ".0000")
-                    setString = setString & " SET)"
+                    setString = "(" & Format(lTol + (tol * trunc), formatCode) & " " & Format(uTol - (tol * trunc), formatCode)
+                    setString = setString & "SET)" & unitSuffix & " "
                 End If
                 
-                fullString = "(" & Format(nom - (tol * 0.5), ".0000") & " " & Format(nom + (tol * 0.5), ".0000")
-                fullString = fullString & " FULL)"
+                fullString = "(" & Format(lTol, formatCode) & " " & Format(uTol, formatCode)
+                fullString = fullString & "FULL)" & unitSuffix
             Else
                 'otherwise it is a MIN/MAX/GDT, only use a FULL here
                 'we have to switch to using the nominal cell value
-                nom = CDbl(methodCell.offset(0, -9).Value) / conv
+                nom = CDbl(methodCell.offset(0, -9).Value)
 FullFMT:
-                fullString = "(" & Format(nom, ".0000") & " FULL)"
+                fullString = "(" & Format(nom, formatCode) & " FULL)" & unitSuffix
             End If
             
             Dim resultString As String
-            If setPins = True Then resultString = setString & " "
-            SetGaugePinData = resultString & fullString
+            If setPins = True Then resultString = setString
+            resultString = resultString & fullString
+                        
+            SetGaugePinData = resultString
+            
+            Call SetFULLAttachment(methodCell)
+            'TODO something here for setting the attachments for the SetFullPins if we haven't done that already
+                        
         End If
+        
+        If SetGaugePinData = "" Then GoTo 80
+        Dim letterCode As String
+        letterCode = GetPinSetIdentifier(methodCell, SetGaugePinData)
+        SetGaugePinData = SetGaugePinData & "," & letterCode
            
     'Thread Guage(s) is chosen
     ElseIf InStr(methodCell.Value, "Thread") > 0 And InStr(methodCell.Value, "Gauge") > 0 Then
@@ -1868,29 +2107,38 @@ FullFMT:
 80
         SetGaugePinData = "NA"
     End If
+    
+    Exit Function
+    
+    
+noUnits:
+    MsgBox "Couldn't find " & methodCell.offset(0, -3).Value & " in the IEX-Data sheet" _
+                        & vbCrLf & "Can't determine unit type, Can't set Pin Range information", vbInformation
+    GoTo 80
+    
 End Function
 
-Private Sub SetChildrenPinsAndGauges(target As Range, gaugeData As String)
+Private Sub SetChildrenPinsAndGauges(Target As Range, gaugeData As String)
     Dim familyRng As Range
     Dim subCell As Range
     Dim parentAddress As String
     Dim parentBalloon As String
     
-    parentAddress = target.Address
+    parentAddress = Target.Address
     
-    Set familyRng = GetCharOrFamily(target)
+    Set familyRng = GetCharOrFamily(Target)
         'if the cell we're checking ISNT the parent of the family....
-    If parentAddress <> familyRng.Cells(1).Address Then Exit Sub
+    If parentAddress <> familyRng.cells(1).Address Then Exit Sub
     
         'Move to the address of the pins/gauges column
     parentAddress = Range(parentAddress).offset(0, 2).Address
     parentAddress = Replace(parentAddress, "$", "")
-    parentBalloon = familyRng.Cells(1).offset(0, -3).Value
+    parentBalloon = familyRng.cells(1).offset(0, -3).Value
     
         'If its "NA", then we need to reset the formulas of the children, just in case they have been changed since
     If gaugeData = "NA" Or gaugeData = "" Then
         For Each subCell In familyRng
-            If subCell.Address = familyRng.Cells(1).Address Then GoTo nextNAcell
+            If subCell.Address = familyRng.cells(1).Address Then GoTo nextNAcell
             subCell.offset(0, 2).Value = ""
             subCell.offset(0, 2).Formula2 = "=IF(" & parentAddress & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddress & ")"
 
@@ -1902,7 +2150,7 @@ nextNAcell:
         'The children should have the value of "Same as [parent_balloon]
     Else
         For Each subCell In familyRng
-            If subCell.Address = familyRng.Cells(1).Address Then GoTo nextGAUGEcell
+            If subCell.Address = familyRng.cells(1).Address Then GoTo nextGAUGEcell
             subCell.offset(0, 2).Value = ""
             subCell.offset(0, 2).Formula2 = "=IF(" & parentAddress & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," _
                                 & Chr(34) & "Same as " & parentBalloon & Chr(34) & ")"
@@ -1916,7 +2164,128 @@ nextGAUGEcell:
 
 End Sub
 
+Private Function GetPinSetIdentifier(methodCell As Range, gaugeInfo As String) As String
+    'Get the characteristic cells, dont have to worry about expanding out all of the instances
+    'Just must sure we aren't checking against the cell that we are setting right now
+    Dim allCharRange As Range
+    Dim charCell As Range
+    Dim letterCodes() As Integer
+    Set allCharRange = Range("A4:A" & Range("A4").End(xlDown).Row)
+    Dim i As Integer
+    
+    For Each charCell In allCharRange
+        If charCell.Row = methodCell.Row Then GoTo contLetter
+        Dim gauge As String
+        Dim letter As Integer
+        gauge = charCell.offset(0, GetCol("PINS / GAUGES") - charCell.column).Value
+        
+        If InStr(gauge, ",") > 0 Then
+           Dim results() As String
+           results = Split(gauge, ",")
+           If UBound(results) > 1 Then
+               MsgBox "There are too many commas in the Pins/Gauges section. Couldnt interperet for this feature" & vbCrLf & charCell.offset(0, 2).Value, vbCritical
+               GoTo contLetter
+           End If
+           
+           If Len(results(UBound(results))) <> 1 Then
+               MsgBox "Expected a single letter code, but there are either 0 or more than 1 letter codes in the Pins/Gauges section for this feature" _
+                        & vbCrLf & charCell.offset(0, 2).Value, vbCritical
+               GoTo contLetter
+           End If
+           
+           If (Asc(results(1)) - 65) < 0 Or (Asc(results(1)) - 65) > 25 Then
+                MsgBox "Letter code is not a Capitalized Alphabetical letter, can't interperet for this feature" & vbCrLf & charCell.offset(0, 2).Value, vbCritical
+                GoTo contLetter
+           End If
+           
+'If we see the same gauge set already exists then we simply grab the letter code and return it and exit the function.
+'If we didnt find a match, then we go through the process of adding the letter code to the array of letter ocdes that we have seen already
+           
+            If (results(0) = gaugeInfo) Then
+                'New gauge pin data matches somethign we already have
+                GetPinSetIdentifier = results(1)
+                Exit Function
+            End If
+            
+            letter = Asc(results(1)) - 65   'A -> 0,    Z -> 25
+            
+                'Begin making a list of letter codes if we haven't already
+            If (Not letterCodes) = -1 Then
+                ReDim Preserve letterCodes(0)
+                letterCodes(0) = letter
+                GoTo contLetter
+            End If
+            
+                'Check if this exists in our array already, in which case, no reason to add it
+            For i = 0 To UBound(letterCodes)
+                If letterCodes(i) = letter Then GoTo contLetter
+            Next i
+            
+                'If we made it here, it is a new value and we should add it
+            ReDim Preserve letterCodes(UBound(letterCodes) + 1)
+            letterCodes(UBound(letterCodes)) = letter
+            
+        End If
 
+contLetter:
+    Next charCell
+        
+    'Got to this point, so gauge we found must be unique, go through the letter codes and see if we found a gap.
+    'If so, that will be the new letter code for this gauge set. Otherwise, add the last one
+    If (Not letterCodes) = -1 Then
+        GetPinSetIdentifier = "A"
+        Exit Function
+    End If
+    
+    Call QuickSort(letterCodes, 0, UBound(letterCodes))   'Make sure letter codes are in order
+    
+        'If there is a gap: Like we have A pins and C pins, but no B pins. Fill in the gap
+    For i = 0 To UBound(letterCodes)
+        If i <> letterCodes(i) Then
+            GetPinSetIdentifier = Chr(i + 65)
+            Exit Function
+        End If
+    Next i
+    
+    GetPinSetIdentifier = Chr(i + 65)
+
+End Function
+
+Private Sub SetFULLAttachment(methodCell As Range)
+    Dim attContent As String
+    attContent = methodCell.offset(0, GetCol("Attached Image(s) [Double Click]") - methodCell.column).Value
+    If InStr(attContent, "SET FULL PINS.GIF") > 0 Then Exit Sub
+    
+    If attContent = vbNullString Then
+        attContent = "SET FULL PINS.GIF"
+    Else
+        attContent = attContent & "|" & "SET FULL PINS.GIF"
+    End If
+    
+    methodCell.offset(0, GetCol("Attached Image(s) [Double Click]") - methodCell.column).Value = attContent
+End Sub
+
+Private Sub RemoveFULLAttachment(subCell As Range)
+    Dim attContent As String
+    Dim attCell As Range
+    
+    Set attCell = subCell.offset(0, GetCol("Attached Image(s) [Double Click]") - subCell.column)
+    attContent = attCell.Value
+    
+    If InStr(attContent, "SET FULL PINS.GIF") = 0 Then Exit Sub
+    
+    attContent = Replace(attContent, "SET FULL PINS.GIF", "")
+    attContent = Replace(attContent, "||", "|")
+    If Right(attContent, 1) = "|" Then
+        attContent = Mid(attContent, 1, Len(attContent) - 1)
+    End If
+    If Left(attContent, 1) = "|" Then
+        attContent = Mid(attContent, 2, Len(attContent))
+    End If
+    
+    
+    attCell.Value = attContent
+End Sub
 
 
 '***************   Mfg Tolerances   *********************
@@ -2156,7 +2525,12 @@ Private Function ParseToolValue(tool As String) As String
 
 End Function
 
+Private Function GetAddress(column As Integer) As String
+    Dim vArr
+    vArr = Split(cells(1, column).Address(True, False), "$")
+    GetAddress = vArr(0)
 
+End Function
 
 
 '************************************************************
@@ -2170,7 +2544,7 @@ Public Function IsInImmutableRange(targetCell As Range) As Boolean
         
     Dim immutable As Range
     Dim intersection As Range
-    Set immutable = Rows(DataSources.VISUALS)
+    Set immutable = rows(DataSources.VISUALS)
     On Error Resume Next
     Set intersection = Application.Intersect(immutable, targetCell)
     If Not intersection Is Nothing Then
@@ -2192,7 +2566,7 @@ Public Function GetCol(colName As String) As Integer
 '    Set retRange = colRange.Find(What:=colName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
 '    GetCol = retRange.column
     On Error Resume Next
-    GetCol = Application.WorksheetFunction.Match(colName, colRange, 0)
+    GetCol = Application.WorksheetFunction.match(colName, colRange, 0)
     If Err.Number <> 0 Then
         GetCol = 0
     End If
@@ -2236,6 +2610,196 @@ Public Function GetHiddenValue(checkForm As String) As String
     
     
 End Function
+
+Public Sub QuickSort(vArray As Variant, inLow As Long, inHi As Long)
+  Dim pivot   As Variant
+  Dim tmpSwap As Variant
+  Dim tmpLow  As Long
+  Dim tmpHi   As Long
+
+  tmpLow = inLow
+  tmpHi = inHi
+
+  pivot = vArray((inLow + inHi) \ 2)
+
+  While (tmpLow <= tmpHi)
+     While (vArray(tmpLow) < pivot And tmpLow < inHi)
+        tmpLow = tmpLow + 1
+     Wend
+
+     While (pivot < vArray(tmpHi) And tmpHi > inLow)
+        tmpHi = tmpHi - 1
+     Wend
+
+     If (tmpLow <= tmpHi) Then
+        tmpSwap = vArray(tmpLow)
+        vArray(tmpLow) = vArray(tmpHi)
+        vArray(tmpHi) = tmpSwap
+        tmpLow = tmpLow + 1
+        tmpHi = tmpHi - 1
+     End If
+  Wend
+
+  If (inLow < tmpHi) Then QuickSort vArray, inLow, tmpHi
+  If (tmpLow < inHi) Then QuickSort vArray, tmpLow, inHi
+End Sub
+
+
+
+'Called by RibbonCommands.AddCustomFields
+    'Make a JSON object of our current setup, to compare with whats in ML
+Public Function Build_JSON_of_Parts(json_partNums() As String) As Object
+    'json_partNums(i) -> 1541901_C   must have the revision appended at the end
+
+    'Dim map_partNums() As String,
+    Dim i As Integer
+    
+    If (Not json_partNums) = -1 Then
+        Exit Function
+    End If
+    
+    'map_partNums = Worksheets("Variables").GetPartNumbers()
+    Me.Outline.ShowLevels RowLevels:=2
+
+    Dim workingRange As Range, feat_cell As Range, cf_val As String
+    Set workingRange = Range("A4:A" & Range("A4").End(xlDown).Row)
+    
+    Dim parts As Collection
+    Set parts = New Collection
+    
+    Application.EnableEvents = False
+    On Error GoTo json_build_Err
+    
+    For i = 0 To UBound(json_partNums)  'For each Part, make a Collection of Features to add
+    
+        'Set the next Part Number and the Formulas will update on the PartLib Sheet
+        Worksheets("START HERE").SetPartNumber (Split(json_partNums(i), "_")(0))
+    
+        Dim features As Collection
+        Set features = New Collection
+                
+        Dim part As Dictionary
+        Set part = New Dictionary
+        part.Add "name", json_partNums(i)
+        
+        For Each feat_cell In workingRange 'For each Feature, make a collection of CustomFields to add
+            If feat_cell.offset(0, 2).Value = "" Then GoTo cont_feats
+            
+            Dim feature As Dictionary, Fields As Collection
+            Set feature = New Dictionary
+            Set Fields = New Collection
+            
+            feature.Add "name", feat_cell.offset(0, 2).Value
+            
+            'Build Dicts of Custom Field Values by Column
+            cf_val = feat_cell.offset(0, GetCol("COMMENTS") - feat_cell.column).Value
+            If cf_val <> vbNullString Then Fields.Add BuildCustomField(DataSources.COMMENTS_ID, cf_val)
+            
+            cf_val = feat_cell.offset(0, GetCol("INSPECTION METHOD") - feat_cell.column).Value
+            If cf_val <> vbNullString Then Fields.Add BuildCustomField(DataSources.INSP_METHOD_ID, cf_val)
+            
+            cf_val = feat_cell.offset(0, GetCol("IN-PROCESS, INSPECTION FREQUENCY") - feat_cell.column).Value
+            If cf_val <> vbNullString Then Fields.Add BuildCustomField(DataSources.INSP_FREQ_ID, cf_val)
+            
+            cf_val = feat_cell.offset(0, GetCol("BALLOON NO.") - feat_cell.column).Value
+            If cf_val <> vbNullString Then Fields.Add BuildCustomField(DataSources.BALLOON_ID, cf_val)
+            
+            cf_val = feat_cell.offset(0, GetCol("PINS / GAUGES") - feat_cell.column).Value
+            If cf_val <> vbNullString Then Fields.Add BuildCustomField(DataSources.PINS_GAUGES_ID, cf_val)
+            
+            cf_val = feat_cell.offset(0, GetCol("Characteristic Description") - feat_cell.column).Value
+            If cf_val <> vbNullString Then Fields.Add BuildCustomField(DataSources.CHAR_DESCRIPTION, cf_val)
+            
+                'TODO: this will eventually need to be changed when we go to change the name of the column over to Attribute Tolerance
+            cf_val = feat_cell.offset(0, GetCol("ATTRIBUTE TOLERANCE") - feat_cell.column).Value
+            If cf_val <> vbNullString Then Fields.Add BuildCustomField(DataSources.ATTR_TOLERANCE_ID, cf_val)
+            
+            If Fields.Count <> 0 Then
+                feature.Add "custom_fields", Fields
+            End If
+            
+            features.Add feature
+cont_feats:
+        Next feat_cell
+        
+            'If all features are hidden for some reason, dont bother adding the part
+            If features.Count <> 0 Then
+                part.Add "features", features
+                parts.Add part
+            End If
+    Next i
+    
+    Application.EnableEvents = True
+    On Error GoTo 0
+    
+    If parts.Count = 0 Then 'Not a single part had features??
+        Exit Function
+    End If
+    
+    Set Build_JSON_of_Parts = parts
+    
+'    Dim format As String, resp As String
+'    format = JsonConverter.ConvertToJson(Parts)
+'
+'    resp = HTTPconnections.send_http(DataSources.JPMCML_TEST_PARTS, DataSources.HTTP_POST, format)
+'
+'    Dim json As Object
+'    Set json = JsonConverter.ParseJson(resp)
+        
+    Exit Function
+    
+json_build_Err:
+    Application.EnableEvents = True
+    MsgBox Err.Description
+    
+End Function
+
+'Called by the Above,
+Private Function BuildCustomField(custom_id As Integer, val As String) As Dictionary
+    Dim cf As Dictionary
+    Set cf = New Dictionary
+    cf.Add "customFieldId", custom_id
+    cf.Add "value", val
+    Set BuildCustomField = cf
+End Function
+
+
+
+
+Sub test_val()
+    Debug.Print (Range("O4").Value)
+
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -1,0 +1,94 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet18"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+'*************************************************************
+'*************************************************************
+'*                  View_CustomFields
+'*
+'*************************************************************
+'*************************************************************
+
+
+
+Public Sub Cleanup()
+    Me.Unprotect "3063bqa"
+    Application.EnableEvents = False
+    
+    Range("A2:H500").Value = vbNullString
+    
+    Me.Protect "3063bqa"
+    Application.EnableEvents = True
+End Sub
+
+
+
+Private Sub Worksheet_Deactivate()
+    Cleanup
+    RibbonCommands.ResetViewControls
+    Me.Visible = False
+    
+End Sub
+
+Public Sub LoadPartInformation(json_part As Object)
+    '(out_arr(1)("features")(1)("custom_fields")(1)("customFieldId"))
+    Dim featCell As Range, i As Integer, j As Integer
+    Set featCell = Range("A2")
+    
+    Cleanup
+    
+    Application.EnableEvents = False
+    Application.ScreenUpdating = False
+    Me.Unprotect "3063bqa"
+    
+    
+    For Each feature In json_part("features")
+        featCell.Value = feature("name")
+        
+        For Each custom_field In feature("custom_fields")
+            Dim off As Integer
+            off = GetIdOffset(custom_field("customFieldId"))
+            With featCell.offset(0, off)
+                .Value = custom_field("value")
+            End With
+        Next custom_field
+        Set featCell = featCell.offset(1, 0)
+    Next feature
+    
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+    Me.Protect "3063bqa"
+End Sub
+
+
+Private Function GetIdOffset(customFieldID As Variant) As Integer
+    Select Case customFieldID
+        Case DataSources.ATTR_TOLERANCE_ID
+            GetIdOffset = 7
+        Case DataSources.COMMENTS_ID
+            GetIdOffset = 3
+        Case DataSources.INSP_METHOD_ID
+            GetIdOffset = 4
+        Case DataSources.INSP_FREQ_ID
+            GetIdOffset = 5
+        Case DataSources.BALLOON_ID
+            GetIdOffset = 1
+        Case DataSources.PINS_GAUGES_ID
+            GetIdOffset = 6
+        Case DataSources.CHAR_DESCRIPTION
+            GetIdOffset = 2
+        Case Else
+            MsgBox "Custom Field ID does not exist" & vbCrLf & customFieldID, vbCritical
+            Err.Raise Number:=vbObjectError + 5000, Description:="Unmapped Custom Field ID"
+    End Select
+End Function
+
+
+
+
+

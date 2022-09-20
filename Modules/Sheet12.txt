@@ -1,0 +1,50 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet12"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Public Sub SetValReference(wbName As String)
+    For Each cell In Range("$C$2:$C$" & Range("C2").End(xlDown).Row)
+        cell.Formula2 = Replace(cell.formula, "{}", wbName)
+    Next cell
+End Sub
+
+Public Function ValueExists(searchVal As String) As Boolean
+    On Error Resume Next
+    result = Application.WorksheetFunction.VLookup(searchVal, Range("A2:A" & Range("A2").End(xlDown).Row), 1, False)
+    
+    If Err.Number = 0 Then
+        ValuesExists = True
+    End If
+    On Error GoTo 0
+
+End Function
+
+Public Sub InsertNewValue(newVal As String)
+    Range("A" & Range("A2").End(xlDown).Row + 1).Value = newVal
+End Sub
+
+
+'Standard Comments
+    'The Transpose Method gets screwed up when IEX imports data, we should reset it when we want to transfer data again
+Public Sub ResetInspectionValidations()
+    Dim setRange As Range
+    Set setRange = Range("C2:C500")
+    Dim i As Integer
+    i = 9
+    For Each subCell In setRange
+        Range(subCell.Address & ":$RZ$" & subCell.Row).ClearContents
+        subCell.Formula2 = "=TRANSPOSE(SORT(FILTER($A$2:$A$600,ISNUMBER(SEARCH('PartLib Table'!M" & i & ",$A$2:$A$600))," _
+                                & Chr(34) & "not found" & Chr(34) & ")))"
+    
+        i = i + 1
+    Next subCell
+End Sub
+
+
+
+
