@@ -431,7 +431,7 @@ Public Sub SetHiding(features As String, hideForm As String)
             If (Application.Intersect(tolerRows, tempCell) Is Nothing) And (Application.Intersect(toolRows, tempCell) Is Nothing) Then
                 tempCell.NumberFormat = "General"
                 If InStr(tempCell.formula, "=") > 0 Then 'Don't break formulas, just make their result the ELSE condition
-                    If InStr(tempCell.formula, "=IF(") > 0 Then GoTo 10  'if the formula already has the IF conditoin set on it then we don't
+                    If tempCell.formula Like "=IF*(*" Then GoTo 10  'if the formula already has the IF conditoin set on it then we don't
                                                                             'want to change anything
                     tempCell.formula = hideForm & Replace(tempCell.formula, "=", "") & ")"
                 Else
