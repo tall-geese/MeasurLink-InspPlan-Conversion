@@ -1,0 +1,112 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet9"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+'*************************************************************
+'*************************************************************
+'*                  PivotFeatures
+'*
+'*************************************************************
+'*************************************************************
+
+Private Sub Worksheet_Deactivate()
+    'We we leave the worksheet
+    'Return rows to the collapsed state, hide and protect the worksheet
+    Me.Unprotect Password:="3063bqa"
+    If Not (rows(3).EntireRow.Hidden) Then
+        rows(3).ShowDetail = False
+    End If
+    If Not (rows(8).EntireRow.Hidden) Then
+        rows(8).ShowDetail = False
+    End If
+    If Not (rows(18).EntireRow.Hidden) Then
+        rows(18).ShowDetail = False
+    End If
+    Me.Visible = xlSheetHidden
+    Me.Protect Password:="3063bqa"
+End Sub
+
+Public Sub Cleanup()
+    With Range("C1:U1").EntireColumn
+        .Value = vbNullString
+        .Interior.ColorIndex = 0
+        .Borders(xlInsideHorizontal).LineStyle = xlNone
+        .Borders(xlEdgeRight).LineStyle = xlNone
+        .Borders(xlInsideVertical).LineStyle = xlNone
+        .Borders(xlEdgeLeft).LineStyle = xlNone
+        .Borders(xlEdgeBottom).LineStyle = xlNone
+    End With
+
+    With Range("A27:B100")
+        .Value = ""
+        .Interior.ColorIndex = 0
+        .Borders(xlInsideHorizontal).LineStyle = xlNone
+        .Borders(xlEdgeRight).LineStyle = xlNone
+        .Borders(xlInsideVertical).LineStyle = xlNone
+        .Borders(xlEdgeLeft).LineStyle = xlNone
+        .Borders(xlEdgeBottom).LineStyle = xlNone
+    End With
+End Sub
+
+
+Public Sub SetCharacteristic(feature As Range, lastCol As Integer)
+
+    Dim initCell As Range
+    Set initCell = Range("C1")
+    Dim subCell As Range
+    
+    'if there are child cells, we will do this multiple times
+    For Each subCell In feature
+    
+        initCell.Value = subCell.Value 'Set characteristic name and color
+        initCell.Interior.color = subCell.Interior.color
+        initCell.offset(1, 0).Value = subCell.offset(0, -2).Value 'Setting the index# and border
+        ThisWorkbook.SetBorders Target:=initCell.offset(1, 0)
+        
+        initCell.offset(2, 0).Value = subCell.offset(0, -1).Value 'Setting the Changes/Comments and border
+        ThisWorkbook.SetBorders Target:=initCell.offset(2, 0)
+        
+        'Setting all the other Values
+        Dim targetCell As Range
+        Set targetCell = initCell.offset(3, 0)
+        For i = 1 To lastCol - 3
+            Dim temp As Range
+            Set temp = subCell.offset(0, i)
+            targetCell.Value = temp.Value
+            ThisWorkbook.SetBorders Target:=targetCell
+            targetCell.Interior.color = targetCell.offset(0, -1).Interior.color 'Carry over the adjacent colors from the columns (Routines)
+            Set targetCell = targetCell.offset(1, 0)
+        Next i
+    
+        Set initCell = initCell.offset(0, 1)
+    Next subCell
+    
+
+End Sub
+
+Public Sub LeftArrowClick()
+    If Range("C1").Value = "" Then Exit Sub
+    Call Worksheets("PartLib Table").PivotOnFeature(CharName:=Range("C1").Value, Direction:=-1)
+
+End Sub
+
+
+Public Sub RightArrowClick()
+    If Range("C1").Value = "" Then Exit Sub
+    Dim endChar As String
+    If Range("D1").Value <> "" Then
+        endChar = Range(Range("C1").End(xlToRight).Address).Value
+    Else
+        endChar = Range("C1").Value
+    End If
+    
+    Call Worksheets("PartLib Table").PivotOnFeature(CharName:=endChar, Direction:=1)
+
+End Sub
+
+

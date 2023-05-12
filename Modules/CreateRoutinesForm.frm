@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} CreateRoutinesForm 
    Caption         =   "Create Routines"
-   ClientHeight    =   9390.001
-   ClientLeft      =   -225
-   ClientTop       =   -1215
-   ClientWidth     =   7860
+   ClientHeight    =   9480.001
+   ClientLeft      =   -285
+   ClientTop       =   -1470
+   ClientWidth     =   7980
    OleObjectBlob   =   "CreateRoutinesForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

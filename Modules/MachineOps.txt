@@ -1,0 +1,65 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet10"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Public Sub InsertNewOp(opName As String)
+    If opName = vbNullString Or opName = "FINAL" Then Exit Sub
+    
+    Dim opRange As Range
+    If Range("A2").Value = "" Then
+        Set opRange = Range("A1")
+    Else
+        Set opRange = Range("A1:A" & Range("A1").End(xlDown).Row)
+    End If
+    
+        'If that op name already exists, then quit this
+    For Each subCell In opRange
+        If subCell.Value = opName Then
+            Exit Sub
+        End If
+    Next subCell
+    
+    Me.Unprotect Password:="3063bqa"
+    Dim newCell As Range
+    Set newCell = Range("A" & opRange.Count + 1)
+'    Set newCell = Range("A" & Range("A1").End(xlDown).Row + 1)
+    newCell.Value = opName
+    
+'    Dim formRange As Range
+'    Set formRange = Range("$A$2:" & newCell.Address)
+    
+    Me.Protect Password:="3063bqa"
+    
+'    With ActiveWorkbook.Names("MachOps")
+'        .RefersTo = "=MachineOps!" & formRange.Address
+'    End With
+End Sub
+
+
+Public Function GetOpNames() As Collection
+    Dim opRange As Range
+    Dim opColl As Collection
+    Set opColl = New Collection
+    If Range("A2").Value = "" Then
+        Set opRange = Range("A1")
+    Else
+        Set opRange = Range("A1:A" & Range("A1").End(xlDown).Row)
+    End If
+
+    For Each subCell In opRange
+        If subCell.Value <> "NA" Then
+            opColl.Add subCell.Value
+        End If
+    
+    Next subCell
+    
+    Set GetOpNames = opColl
+
+
+End Function
+

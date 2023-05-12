@@ -762,6 +762,7 @@ Public Sub Unravel(json_content As Object)
         End If
         
         Dim rtList() As Variant
+        On Error GoTo feat_err
         For Each feat In part("features")
             If (Not rtList) = -1 Then
                 'First feat we add, just add all the routines the feature exists in, they will be unique anyways
@@ -824,6 +825,7 @@ Public Sub Unravel(json_content As Object)
             'We are only interested in adding features that we know exist in the Routines, regardless of whether they're mapped or not
             If (Not rtList) = -1 Then GoTo cont_feats
             
+            On Error GoTo maps_err
             
             For i = 0 To UBound(rtList, 2)
                 For Each mapping In feat("mappings")
@@ -894,6 +896,18 @@ cont_feats:
         listMaps(2, upper_parts) = rtList
         Erase rtList
     Next part
+    Exit Sub
+    
+    
+feat_err:
+    MsgBox "Encountered and Error when handling this Feature" & vbCrLf & "Most Likely it doesnt belong inside the following Routine" & _
+        vbCrLf & vbCrLf & feat("name") & vbCrLf & feat("routines")(i)("name"), vbExclamation
+    Exit Sub
+    
+maps_err:
+    MsgBox "Encountered and Error when handling this Feature" & vbCrLf & "Most Likely its Mapped to the Following Routine and Shouldn't be" & _
+        vbCrLf & vbCrLf & feat("name") & vbCrLf & mapping("routine")("name"), vbExclamation
+    Exit Sub
     
     
 End Sub

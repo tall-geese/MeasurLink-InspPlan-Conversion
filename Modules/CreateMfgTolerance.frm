@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} CreateMfgTolerance 
    Caption         =   "Create Mfg Tolernace"
-   ClientHeight    =   3990
-   ClientLeft      =   -300
-   ClientTop       =   -1335
-   ClientWidth     =   7845
+   ClientHeight    =   3795
+   ClientLeft      =   -375
+   ClientTop       =   -1605
+   ClientWidth     =   8160
    OleObjectBlob   =   "CreateMfgTolerance.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

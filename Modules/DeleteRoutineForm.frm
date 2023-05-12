@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} DeleteRoutineForm 
    Caption         =   "Delete Routine"
-   ClientHeight    =   2520
-   ClientLeft      =   -300
-   ClientTop       =   -1335
-   ClientWidth     =   5970
+   ClientHeight    =   2565
+   ClientLeft      =   -375
+   ClientTop       =   -1605
+   ClientWidth     =   5820
    OleObjectBlob   =   "DeleteRoutineForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

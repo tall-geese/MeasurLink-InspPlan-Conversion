@@ -1,0 +1,564 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet20"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Option Explicit
+
+'*************************************************************
+'*************************************************************
+'*                  IEX-DATA
+'*
+'*************************************************************
+'*************************************************************
+
+'************************************************************
+'*******************   Clean Data   *************************
+'************************************************************
+
+
+'TODO: If we are taking out the FAI truncation, then we prob dont need to set this up for recursive calls, unless we use that for something else
+Sub CleanData()
+
+
+    Dim balloonRange As Range
+    Set balloonRange = Range("A2:A" & Range("A2").End(xlDown).Row + 1)
+    
+    Dim resultValue As String
+    Dim cell As Range
+    Dim gdecimalPlaces As Integer
+    Dim ghashFormat As String
+    Dim unitFormat As String
+    Dim unitChars As String
+
+    'we either have empty optional arguements "", in which case we will set these later, or we do have optional arguements in which case we
+    'should be using those values
+    Dim lowerValue As String
+    Dim upperValue As String
+'    lowerValue = lowLimit
+'    upperValue = uppLimit
+
+
+    Dim delimiter As String
+    Dim featureKeyword As String
+
+    Application.EnableEvents = False
+    Me.Unprotect ("3063bqa")
+
+    'Need to change the lower lmiit and upper limit columns to be of type Text
+    Range("B1:D1").EntireColumn.NumberFormat = "@"
+
+    On Error GoTo 20
+
+    'We might be dealing with one cell or an entire column of cells
+    For Each cell In balloonRange
+        'Skip over the manually edited fields
+        If cell.offset(0, 9).Font.color <> 0 Then
+            GoTo 20
+        End If
+        
+        'for non-angles we need to see if units is mm or in and determine if the dimension will have a leading 0 or not respectively
+        unitChars = cell.offset(0, 6).Value
+        unitFormat = getLeadingCharacters(unitChars)
+
+        'find how many decimal places we should have for our result, determined by the greatest number of places in the value, lower lim and upper lim columns
+        gdecimalPlaces = Application.WorksheetFunction.Max(getDecimalPlaces(cell.offset(0, 1).Value, unitChars), getDecimalPlaces(cell.offset(0, 2).Value, unitChars), _
+        getDecimalPlaces(cell.offset(0, 3).Value, unitChars))
+
+        'create the text formatting as a function of # of decimal places
+        ghashFormat = getFormatHashes(gdecimalPlaces)
+    
+
+        If (cell.offset(0, 4).Value = "Geometric Tolerance") Then
+            'Need to cross-reference our unicode values to the AMGDT font
+            'TODO: We should also ask the GDT lexiacon sheet to create the upper / lower values for us
+            resultValue = ThisWorkbook.Worksheets("GDT-Lexicon").TranslateCharacters(cell.offset(0, 7).Value)
+            
+            Dim dimension As String
+            dimension = Worksheets("GDT-Lexicon").ExtractLimit(cell.offset(0, 7).Value)
+            cell.offset(0, 3).Value = dimension
+            cell.offset(0, 2).Value = Format("0", unitFormat & "." & ghashFormat)
+            cell.offset(0, 1).Value = Format("0", unitFormat & "." & ghashFormat)
+            
+        Else
+        
+            cell.offset(0, 3).Value = Format(cell.offset(0, 3).Value, unitFormat & "." & ghashFormat)
+            cell.offset(0, 2).Value = Format(cell.offset(0, 2).Value, unitFormat & "." & ghashFormat)
+            cell.offset(0, 1).Value = Format(cell.offset(0, 1).Value, unitFormat & "." & ghashFormat)
+
+
+            Call SetDimensionalRange(cell, upperValue, lowerValue, delimiter, featureKeyword)
+
+            Select Case (cell.offset(0, 5).Value)
+                Case "Diameter"
+                    resultValue = Diameter(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
+                Case "Counterbore Diameter"
+                    resultValue = Diameter(cell.offset(0, 1).Value, ghashFormat, unitFormat, prefixChar:="v", featureKeyword:=featureKeyword)
+                Case "Countersink Diameter"
+                    resultValue = Diameter(cell.offset(0, 1).Value, ghashFormat, unitFormat, prefixChar:="w", featureKeyword:=featureKeyword)
+                Case "Radius"
+                    resultValue = Radius(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
+                Case "Bend Radius"
+                    resultValue = Radius(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
+                Case "Edge Radius"
+                    resultValue = Radius(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
+                Case "Angle"
+                    resultValue = Angle(cell.offset(0, 1).Value, gdecimalPlaces, featureKeyword:=featureKeyword)
+                Case "Countersink Angle"
+                    resultValue = Angle(cell.offset(0, 1).Value, gdecimalPlaces, featureKeyword:=featureKeyword)
+                Case "Chamfer Angle"
+                    resultValue = Angle(cell.offset(0, 1).Value, gdecimalPlaces, featureKeyword:=featureKeyword)
+                Case Else
+                    resultValue = Default(cell.offset(0, 1).Value, ghashFormat, unitFormat, featureKeyword:=featureKeyword)
+            End Select
+                
+        End If
+        
+        setNumberInstances indexCell:=cell
+        With cell.offset(0, 9)
+            .Value = resultValue
+            .Font.color = RGB(0, 0, 0)
+        End With
+
+20
+        lowerValue = vbNullString
+        upperValue = vbNullString
+        delimiter = vbNullString
+        featureKeyword = vbNullString
+
+    Next cell
+10
+
+    Application.EnableEvents = True
+    Me.Protect ("3063bqa")
+
+End Sub
+
+'************************************************************
+'*********   Dimension Formatting Functions   ***************
+'************************************************************
+
+Function getDecimalPlaces(cellValue As String, units As String) As Integer
+    Dim decimalIndex As Integer
+    Dim maxDecimals As Integer
+
+    Select Case units
+        Case "mm"
+            maxDecimals = 3
+        Case "in"
+            maxDecimals = 4
+        Case Else
+            maxDecimals = 5
+
+    End Select
+
+    decimalIndex = InStr(CStr(cellValue), ".")
+
+    If decimalIndex > 0 Then
+        getDecimalPlaces = Len(CStr(cellValue)) - decimalIndex
+
+        If getDecimalPlaces > maxDecimals Then getDecimalPlaces = maxDecimals
+    End If
+
+End Function
+
+Function getFormatHashes(decimalPlaces As Integer) As String
+    Dim hash As String
+    Dim i As Integer
+    i = 1
+
+    While i < decimalPlaces
+        hash = hash & "#"
+        i = i + 1
+    Wend
+
+    getFormatHashes = hash & "0"
+
+End Function
+
+Function getLeadingCharacters(units As String) As String
+    Select Case (units)
+        Case "in"
+            getLeadingCharacters = "#"
+        Case "mm"
+            getLeadingCharacters = "0"
+        Case Else
+            getLeadingCharacters = "#"
+    End Select
+
+End Function
+
+Function getNumberInstances(indexCell As Range) As String
+    Dim returnString As String
+    Dim posistion As Integer
+    posistion = InStr(indexCell.offset(0, 7).Value, "X")
+
+    'if it has multiple instances, like 3X then add that to the beginning of our result string
+    If posistion > 0 Then
+        'TODO: for our feature building purposes, we need to take our instance value here, like "12" and call a function on our PartLib
+        'so that we are grouping and setting formulas for multiple instance repeating features
+        'TODO: ALSO we shouldn't be adding this to our characteristic description anymore becuase we actually have a feautre for each instance
+        'so don't return a string or anything anymore
+        returnString = Left(indexCell.offset(0, 7), posistion - 1)
+        getNumberInstances = returnString
+    End If
+
+End Function
+
+Sub setNumberInstances(indexCell As Range)
+    Dim returnString As String
+    Dim posistion As Integer
+    posistion = InStr(indexCell.offset(0, 7).Value, "X")
+
+    'if it has multiple instances, like 3X then we want to inlcude that information in its own cell
+    If posistion > 0 Then
+        returnString = Left(indexCell.offset(0, 7), posistion - 1)
+        If Not IsNumeric(returnString) Then GoTo 10 'In case we find an "X" like in "MAX", this isnt a mult instance
+        With indexCell.offset(0, 8)
+            .Value = returnString
+            .Font.Bold = True
+            .Font.color = RGB(0, 0, 0)
+        End With
+    ElseIf posistion = 0 Then
+10
+        With indexCell.offset(0, 8)
+            .Value = 1 'if there is only a single instance then set as "1", but gray so it doesnt draw attention
+            .Font.Bold = False
+            .Font.color = RGB(128, 128, 128)
+        End With
+    End If
+End Sub
+
+Function SetDimensionalRange(indexCell As Range, ByRef upperValue As String, ByRef lowerValue As String, ByRef delimiter As String, ByRef featureKeyword As String)
+
+    lowerValue = CStr(indexCell.offset(0, 2))
+        If lowerValue = vbNullString Then
+            indexCell.offset(0, 2).Value = "0"
+        End If
+    upperValue = CStr(indexCell.offset(0, 3))
+        If upperValue = vbNullString Then
+            indexCell.offset(0, 3).Value = "0"
+        End If
+    delimiter = " / "
+    featureKeyword = vbNullString
+
+    If InStr(indexCell.offset(0, 7).Value, "MIN") > 0 Then
+        upperValue = vbNullString
+        delimiter = vbNullString
+        featureKeyword = " MIN"
+    End If
+
+    If InStr(indexCell.offset(0, 7).Value, "MAX") > 0 Then
+        lowerValue = vbNullString
+        delimiter = vbNullString
+        featureKeyword = " MAX"
+    End If
+
+
+End Function
+
+'************************************************************
+'*********   Feature Type Formatting Functions   ************
+'************************************************************
+
+
+Function Diameter(Target As String, decimalFormat As String, unitsChar As String, Optional prefixChar As String, _
+                Optional featureKeyword As String) As String
+                
+    Diameter = "Ø" & prefixChar & Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
+End Function
+
+Function Radius(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
+
+    Radius = "R" & Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
+End Function
+
+Function Angle(Target As String, decimalPlaces As Integer, Optional featureKeyword As String) As String
+
+    Dim decimalFormat As String
+    If decimalPlaces > 0 Then
+        decimalFormat = "." & getFormatHashes(decimalPlaces)
+    End If
+    Angle = Format(Target, "#" & decimalFormat) & "°" & featureKeyword
+End Function
+
+
+
+Function Default(Target As String, decimalFormat As String, unitsChar As String, Optional featureKeyword As String) As String
+
+    Default = Format(Target, unitsChar & "." & decimalFormat) & featureKeyword
+End Function
+
+'************************************************************
+'****************   Callback Functions   ********************
+'************************************************************
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+'    On Error GoTo 20
+'
+'    Application.EnableEvents = False
+'    Me.Unprotect ("3063bqa")
+'
+'    'change the font color only if our change occurs in the Results Column, indicates that user came up with their own feature
+'    If (Target.Cells.Count = 1 And Target.column = 10 And Target.Value <> vbNullString) Then
+'        Target.Font.ColorIndex = 46  'Turn the text orange
+'
+'    ElseIf (Target.Cells.Count = 1 And Target.column = 10 And Target.Value = vbNullString) Then
+'        Target.Font.Color = RGB(0, 0, 0)
+'    End If
+'
+'20
+'
+'    Application.EnableEvents = True
+'    Me.Protect ("3063bqa")
+
+End Sub
+
+
+
+'-----------------------------------------------------------------------------------------------------------------------------------------
+
+'************************************************************
+'*****************   Transfer Data   ************************
+'************************************************************
+
+
+Sub TransferData()
+    'TODO: need to add the logic for MMC position features
+    Dim result As Integer
+    result = MsgBox("This will take a few minutes to run." & vbCrLf & "Transfer Data?", vbYesNo)
+    If result <> vbYes Then Exit Sub
+    
+    Dim charRange As Range
+    Dim targetCell As Range
+    Dim indexCell As Range
+    Dim partSheet As Worksheet
+    Set partSheet = Sheets("PartLib Table")
+    
+    Dim prefixChar As String
+    Dim firstBall As String
+    firstBall = Range("A2").Value
+    
+    Set charRange = Range("A2:A" & Range("A2").End(xlDown).Row)
+    
+    Call stripAlpha(workingRange:=charRange, prefix:=prefixChar)
+    
+'    If Len(firstBall) >= 2 Then
+'            'If first character is alpha and the remaining are all numeric
+'            'A1
+'        If Not (IsNumeric(Left(firstBall, 1))) And IsNumeric(Right(firstBall, Len(firstBall) - 1)) Then
+'            prefixChar = Left(firstBall, 1)
+'        ElseIf IsNumeric(firstBall) Then
+'            prefixChar = ""
+'        Else
+'            GoTo 20
+'        End If
+'    Else
+'        If IsNumeric(firstBall) Then
+'            prefixChar = ""
+'        Else
+'20
+'            MsgBox "Can't interpret value for this balloon number: " & firstBall
+'            Exit Sub
+'        End If
+'    End If
+    
+    If prefixChar = "" Then prefixChar = Sheets("START HERE").Range("E6").Value
+    
+        'Value of Index# field in PartLib, starts at 6
+    Dim indexNo As Integer
+    indexNo = 6
+    
+    
+    Set targetCell = partSheet.Range("C9")
+    partSheet.Activate
+    
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    On Error GoTo 10
+    
+    For Each indexCell In charRange
+        Dim instances As Integer
+        Dim minInstance As Integer
+        
+        If indexCell.offset(0, 8).Value = "1" Or indexCell.offset(0, 8).Value = "" Then
+            instances = 0
+            minInstance = 0
+        Else
+            'TODO: error handling here
+            instances = CInt(indexCell.offset(0, 8).Value)
+            minInstance = 1
+        End If
+        
+        Do
+            Dim ballFormat As String
+            Dim realBallNum As String
+            
+                'Translate balloons like
+                    ' A1 --> 1
+            If prefixChar <> "0" Then
+                realBallNum = Replace(indexCell.Value, prefixChar, "")
+            Else
+                realBallNum = indexCell.Value
+            End If
+            ballFormat = prefixChar & Format(realBallNum, "_000")
+            ballFormat = ballFormat & Format(minInstance, "_00")
+            
+            'Set the Balloon Number and the Index Number
+            'EDITS HERE
+            If minInstance >= 2 Then
+                With targetCell
+                    Dim parentAddy As String
+                    parentAddy = .offset(1 - minInstance).Address
+                    parentAddy = Replace(parentAddy, "$", "")
+                    .NumberFormat = "General"
+                    .Formula2 = "=IF(" & parentAddy & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & Chr(34) & ballFormat & Chr(34) & ")"
+                    '=IF($C$14="","",$C$14)
+                End With
+            Else
+                targetCell.Value = ballFormat
+            End If
+            targetCell.offset(0, -2).Value = indexNo
+            
+            Select Case minInstance
+                Case Is = 1 'Parent of Mult. Instances
+                    targetCell.HorizontalAlignment = xlHAlignRight
+                    targetCell.Font.color = RGB(68, 114, 196)
+                Case Is >= 2 'Child Instance
+                    targetCell.HorizontalAlignment = xlHAlignCenter
+                    targetCell.Font.color = RGB(128, 128, 128)
+                Case Else 'Feature w/ no children
+                    targetCell.HorizontalAlignment = xlHAlignRight
+                    targetCell.Font.color = RGB(0, 0, 0)
+            End Select
+            
+            SetInstance refCell:=indexCell, destCell:=targetCell, instance:=minInstance
+            
+            Set targetCell = targetCell.offset(1, 0)
+            minInstance = minInstance + 1
+            indexNo = indexNo + 1
+        Loop While (minInstance < instances + 1)
+        
+    Next indexCell
+    
+    Call Worksheets("PartLib Table").ApplyGroupings
+    Call Worksheets("PartLib Table").IgnoreErrors
+    
+    Call Worksheets("InspMethods").ResetInspectionValidations
+    Call Worksheets("StandardComments").ResetInspectionValidations
+
+10
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+
+End Sub
+
+
+Sub SetInstance(refCell As Range, destCell As Range, instance As Integer)
+    'If its a "_00" or "_01" feature then its values refer to the IEX-DATA sheet
+    If instance < 2 Then
+        With destCell.offset(0, 1)
+            .NumberFormat = "General"
+            .Formula2 = "='IEX-DATA'!" & refCell.offset(0, 2).Address 'LowerLimit
+        End With
+        With destCell.offset(0, 2)
+            .NumberFormat = "General"
+            .Formula2 = "='IEX-DATA'!" & refCell.offset(0, 1).Address 'Target
+        End With
+        With destCell.offset(0, 3)
+            .NumberFormat = "General"
+            .Formula2 = "='IEX-DATA'!" & refCell.offset(0, 3).Address 'UpperLimit
+        End With
+        With destCell.offset(0, 9)
+            .NumberFormat = "General"
+            .Formula2 = "='IEX-DATA'!" & refCell.offset(0, 9).Address 'Characteristic Description
+        End With
+    Else
+        'Otherwise we should set the value as refernce to the parent (1st instance)cell
+        Dim cell As Range
+        Dim tempCell As Range
+        Set tempCell = destCell.offset(0, 1)
+        For Each cell In Sheets("PartLib Table").Range(tempCell.Address & ":J" & tempCell.Row & ",L" & tempCell.Row & ":" _
+                    & GetAddress(Sheets("PartLib Table").Range("C3").End(xlToRight).column) & tempCell.Row)
+            With cell
+                Dim parentAddr As String
+                parentAddr = GetAddress(.column) & Trim(Str(.Row - (instance - 1)))
+                parentAddr = Replace(parentAddr, "$", "")
+                .NumberFormat = "General"
+                    '=IF(G14="","",G14)
+                .Formula2 = "=IF(" & parentAddr & "=" & Chr(34) & Chr(34) & "," & Chr(34) & Chr(34) & "," & parentAddr & ")"
+            End With
+        Next cell
+    End If
+
+
+End Sub
+
+Private Sub stripAlpha(workingRange As Range, ByRef prefix As String)
+    Dim indexCell As Range
+    Dim i As Integer
+    
+    Application.EnableEvents = False
+    Me.Unprotect Password:="3063bqa"
+    
+    For Each indexCell In workingRange
+        Dim ballNum As String
+resetStr:
+        ballNum = indexCell.Value
+        For i = 1 To Len(ballNum)
+                'if there is a non-number in the ballon# field
+            If Not (IsNumeric(Mid(ballNum, i, 1))) Then
+                prefix = Mid(ballNum, i, 1) 'Set it as our prefix character
+                ballNum = Replace(ballNum, prefix, "")  'And strip it out
+                indexCell.Value = ballNum
+                Worksheets("START HERE").Range("E6").Value = prefix
+                GoTo resetStr  'continue to strip out alpha characters out of the cell
+            End If
+        Next i
+    Next indexCell
+    
+    
+20
+    
+    Application.EnableEvents = True
+    Me.Protect Password:="3063bqa"
+    Exit Sub
+    
+stripErr:
+    MsgBox "Error when trying to remove Prefix Characters from the Balloon Numbers"
+    GoTo 20
+End Sub
+
+Public Function GetAddress(column As Integer) As String
+    Dim vArr
+    vArr = Split(cells(1, column).Address(True, False), "$")
+    GetAddress = vArr(0)
+
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

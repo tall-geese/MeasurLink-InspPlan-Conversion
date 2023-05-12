@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} HideFeatureCond 
    Caption         =   "Hide Feature(s) Conditionally"
-   ClientHeight    =   4560
-   ClientLeft      =   -300
-   ClientTop       =   -1335
-   ClientWidth     =   7560
+   ClientHeight    =   4590
+   ClientLeft      =   -375
+   ClientTop       =   -1605
+   ClientWidth     =   7470
    OleObjectBlob   =   "HideFeatureCond.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

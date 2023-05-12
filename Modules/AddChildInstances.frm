@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} AddChildInstances 
    Caption         =   "Add Child Instances"
-   ClientHeight    =   3420
-   ClientLeft      =   -300
-   ClientTop       =   -1335
-   ClientWidth     =   4440
+   ClientHeight    =   3390
+   ClientLeft      =   -375
+   ClientTop       =   -1605
+   ClientWidth     =   4155
    OleObjectBlob   =   "AddChildInstances.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
