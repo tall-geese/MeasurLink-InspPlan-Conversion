@@ -1972,6 +1972,7 @@ Private Function SetGaugePinData(methodCell As Range) As String
         Dim lTol As Double
         Dim uTol As Double
         Dim setPins As Boolean
+        Dim hairTruncation As Boolean
         Dim isMetric As Boolean
         Dim userInput As String
         Dim unitSuffix As String
@@ -2051,13 +2052,22 @@ Private Function SetGaugePinData(methodCell As Range) As String
                     trunc = 0.125
                     setPins = True
                 Else        'No Truncation
-                    setPins = False
+                    setPins = True  ' TODO: edit truncation here.
+                    hairTruncation = True
+                    If isMetric Then
+                        trunc = 0.005
+                    Else
+                        trunc = 0.0002
+                    End If
                 End If
                 
                 Dim setString As String
                 Dim fullString As String
                 
-                If setPins = True Then
+                If setPins And hairTruncation Then
+                    setString = "(" & Format(lTol, formatCode) & " " & Format(uTol - trunc, formatCode)
+                    setString = setString & "SET)" & unitSuffix & " "
+                ElseIf setPins = True Then
                     setString = "(" & Format(lTol + (tol * trunc), formatCode) & " " & Format(uTol - (tol * trunc), formatCode)
                     setString = setString & "SET)" & unitSuffix & " "
                 End If
