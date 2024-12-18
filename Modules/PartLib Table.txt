@@ -1261,9 +1261,9 @@ beginAssign:
             End If
         Case "GSCN-000X (CT) · Pass / Fail", "GSCN-000X (CT) · Var.Meas."
             If freqs(i) = "IP_BENCH" Then
-                freqs(i) = "IP_CT"
+                freqs(i) = "IP_CTS"
             ElseIf freqs(i) = "FA_FIRST" Then
-                freqs(i) = "FA_CT"
+                freqs(i) = "FA_CTS"
             End If
         Case "GOMS-000X (Sylvac)"
             If freqs(i) = "IP_BENCH" Then

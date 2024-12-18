@@ -2,9 +2,9 @@ VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} CrystalReport_Form 
    Caption         =   "Create Crystal Reports"
    ClientHeight    =   7500
-   ClientLeft      =   30
-   ClientTop       =   0
-   ClientWidth     =   9855.001
+   ClientLeft      =   -10
+   ClientTop       =   -150
+   ClientWidth     =   6570
    OleObjectBlob   =   "CrystalReport_Form.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
