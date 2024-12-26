@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UPDATEview 
    Caption         =   "Information to UPDATE"
-   ClientHeight    =   3930
+   ClientHeight    =   4350
    ClientLeft      =   -480
    ClientTop       =   -1770
-   ClientWidth     =   5990
+   ClientWidth     =   8930
    OleObjectBlob   =   "UPDATEview.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

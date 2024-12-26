@@ -2688,12 +2688,23 @@ Public Function Build_JSON_of_Parts(json_partNums() As String) As Object
     Dim parts As Collection
     Set parts = New Collection
     
+    Dim revision As String: revision = Worksheets("START HERE").GetRevision()
+    
     Application.EnableEvents = False
     On Error GoTo json_build_Err
     
     For i = 0 To UBound(json_partNums)  'For each Part, make a Collection of Features to add
         'Set the next Part Number and the Formulas will update on the PartLib Sheet
-        Worksheets("START HERE").SetPartNumber (Split(json_partNums(i), "_" & Worksheets("START HERE").GetRevision())(0))
+        Dim basePartNumber As String
+        
+        'Former way of splitting off the part from the rev
+            'However we could have parts that contain the _{rev} inside the base part number, which messes this up
+        'basePartNumber = Split(json_partNums(i), "_" & revision)(0)
+        
+        basePartNumber = Left(json_partNums(i), Len(json_partNums(i)) - Len("_" & revision))
+        
+        
+        Worksheets("START HERE").SetPartNumber (basePartNumber)
     
         Dim features As Collection
         Set features = New Collection

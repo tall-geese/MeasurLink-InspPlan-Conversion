@@ -4,7 +4,7 @@ Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} AddChildInstances
    ClientHeight    =   3390
    ClientLeft      =   -420
    ClientTop       =   -1760
-   ClientWidth     =   2770
+   ClientWidth     =   4500
    OleObjectBlob   =   "AddChildInstances.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
