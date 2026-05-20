@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} CrystalReport_Form 
    Caption         =   "Create Crystal Reports"
-   ClientHeight    =   7680
-   ClientLeft      =   -20
-   ClientTop       =   -150
-   ClientWidth     =   9640
+   ClientHeight    =   7635
+   ClientLeft      =   -45
+   ClientTop       =   -300
+   ClientWidth     =   9990
    OleObjectBlob   =   "CrystalReport_Form.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -52,12 +52,12 @@ Private Sub Parts_SelectMulti_Click()
     Next i
     
     Me.PartNumbers_ListBox.Clear
-    Me.PartNumbers_ListBox.list = parts
+    Me.PartNumbers_ListBox.List = parts
 
 End Sub
 
 Private Sub Submit_Button_Click()
-    If UBound(Me.PartNumbers_ListBox.list) = -1 Then Me.Hide
+    If UBound(Me.PartNumbers_ListBox.List) = -1 Then Me.Hide
     
     
     'Build the optional Parameter Queries for the API call,
@@ -104,7 +104,7 @@ Private Sub Submit_Button_Click()
     End If
 
     Dim parts() As Variant
-    parts = Me.PartNumbers_ListBox.list
+    parts = Me.PartNumbers_ListBox.List
     parts = Application.Transpose(parts)
 
     RibbonCommands.Submit_Crystal_Reports customer:=customer, parts:=parts, params:=params

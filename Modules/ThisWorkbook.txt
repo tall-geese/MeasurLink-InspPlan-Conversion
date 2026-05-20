@@ -697,8 +697,11 @@ Public Sub Build_StationMappingForm(json_config As Object, json_content As Objec
         
     Load StationMapping
     
+    On Error GoTo unravel_err
     StationMapping.Unravel json_content:=json_content
     
+    
+    On Error GoTo 0
     
     'List of Values for our ComboBoxes
     Dim cells() As Variant, resources() As Variant, CustomCheckBoxes As Collection
@@ -794,15 +797,18 @@ Public Sub Build_StationMappingForm(json_config As Object, json_content As Objec
     
     
     'Add our Cells to the first ComboBox
-    StationMapping.CellComboBox.list = cells
+    StationMapping.CellComboBox.List = cells
     StationMapping.Set_Data cells, resources, json_config
     Set StationMapping.event_controls = CustomCheckBoxes
     
     StationMapping.Show vbModeless
     
+    Exit Sub
+    
+unravel_err:
+    Unload StationMapping
 
 End Sub
-
 Private Function Create_ResourceList(stations As Collection) As Variant()
     'Create Array of the UNIQUE occuring Resource Names
     

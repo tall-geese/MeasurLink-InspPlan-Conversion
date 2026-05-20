@@ -125,6 +125,7 @@ Public Sub SetRoutines(routineArr() As Variant, selectedColor As Long, opTag As 
     Dim i As Integer
     Dim suffix As String
     If opTag = "MILL" Then suffix = "_MILL"
+    If opTag = "ADDMILL" Then suffix = "_ADDMILL"
     
     Application.EnableEvents = False
     

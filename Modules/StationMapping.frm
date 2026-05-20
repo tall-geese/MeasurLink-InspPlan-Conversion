@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} StationMapping 
    Caption         =   "StationMapping"
-   ClientHeight    =   11535
-   ClientLeft      =   0
-   ClientTop       =   -150
-   ClientWidth     =   8780
+   ClientHeight    =   11655
+   ClientLeft      =   -45
+   ClientTop       =   -300
+   ClientWidth     =   8850
    OleObjectBlob   =   "StationMapping.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -92,7 +92,7 @@ Private Sub Apply_Loadout_Button_Click()
     If part_ind = -1 Then
         MsgBox "No Part Number Selected", vbCritical
     End If
-    For i = 0 To UBound(Me.RoutineListBox.list)
+    For i = 0 To UBound(Me.RoutineListBox.List)
         If Me.RoutineListBox.Selected(i) Then
             If (Not rt_inds) = -1 Then
                 ReDim Preserve rt_inds(0)
@@ -191,7 +191,7 @@ Private Sub PartsButton_CopyMapping_Click()
         MsgBox "The Selected Part must have one or more Routines", vbInformation
     End If
     
-    If UBound(Me.PartListBox.list) = 0 Then
+    If UBound(Me.PartListBox.List) = 0 Then
         MsgBox "There Must be More than a One Part Number", vbInformation
         Exit Sub
     End If
@@ -232,7 +232,7 @@ cont_rt:
     
     'For each other Part Number, iterate through the given Station Names,
     Dim rt_inds() As Variant
-    For i = 0 To UBound(Me.PartListBox.list)
+    For i = 0 To UBound(Me.PartListBox.List)
         If i = Me.PartListBox.ListIndex Then GoTo cont_parts
         routines = listMaps(2, i)
         If (Not routines) = -1 Then GoTo cont_parts
@@ -275,11 +275,11 @@ End Function
 '---------------   Routines List Buttons  --------------------
 
 Private Sub RoutinesButton_ClearAll_Click()
-    If IsNull(Me.RoutineListBox.list) Then Exit Sub
+    If IsNull(Me.RoutineListBox.List) Then Exit Sub
     
     On Error Resume Next
     Dim i As Integer
-    For i = 0 To UBound(Me.RoutineListBox.list)
+    For i = 0 To UBound(Me.RoutineListBox.List)
         Me.RoutineListBox.Selected(i) = False
     Next i
     On Error GoTo 0
@@ -289,11 +289,11 @@ End Sub
 
 
 Private Sub RoutinesButton_SelectAll_Click()
-    If IsNull(Me.RoutineListBox.list) Then Exit Sub
+    If IsNull(Me.RoutineListBox.List) Then Exit Sub
     
     On Error Resume Next
     Dim i As Integer
-    For i = 0 To UBound(Me.RoutineListBox.list)
+    For i = 0 To UBound(Me.RoutineListBox.List)
         Me.RoutineListBox.Selected(i) = True
     Next i
     On Error GoTo 0
@@ -321,8 +321,8 @@ Private Sub Stations_Clear_Button_Click()
     End If
     
     Dim i As Integer, rt_inds() As Variant
-    If Not IsNull(Me.RoutineListBox.list) Then
-        For i = 0 To UBound(Me.RoutineListBox.list)
+    If Not IsNull(Me.RoutineListBox.List) Then
+        For i = 0 To UBound(Me.RoutineListBox.List)
             If Me.RoutineListBox.Selected(i) Then
                 If (Not rt_inds) = -1 Then
                     ReDim Preserve rt_inds(0)
@@ -402,7 +402,7 @@ Private Sub CellComboBox_Change()
             With Me.ResourceComboBox
                 .Enabled = True
                 .Value = "ALL"
-                .list = combo_resources(i)
+                .List = combo_resources(i)
             End With
             
         End If
@@ -423,7 +423,7 @@ Private Sub UserForm_Activate()
     parts = SliceCols(listMaps, cols)
     parts = Application.Transpose(parts)
     parts = Force2D(parts)
-    Me.PartListBox.list = parts
+    Me.PartListBox.List = parts
     Toggle_CheckBoxes Enabled:=False
     events_enabled = True
 End Sub
@@ -443,7 +443,7 @@ Private Sub PartListBox_Change()
     rts = Application.Transpose(rts)
     rts = Force2D(rts)
     
-    Me.RoutineListBox.list = rts
+    Me.RoutineListBox.List = rts
     active_rt = missing
     Me.FeatureListBox.Clear
     Call ResetStationView
@@ -460,7 +460,7 @@ Private Sub RoutineListBox_Change()
     Dim i As Integer, j As Integer, change_made As Boolean, ft_list() As Variant, cols() As Variant
     'Store the First selected Routine in Me.active_rt, erase it when it becomes unselected
     If IsEmpty(active_rt) Then
-        For i = 0 To UBound(Me.RoutineListBox.list)
+        For i = 0 To UBound(Me.RoutineListBox.List)
             If Me.RoutineListBox.Selected(i) Then
                 active_rt = i
                 change_made = True
@@ -469,7 +469,7 @@ Private Sub RoutineListBox_Change()
     ElseIf Not (Me.RoutineListBox.Selected(active_rt)) Then
         active_rt = missing
         Me.FeatureListBox.Clear
-        For i = 0 To UBound(Me.RoutineListBox.list)
+        For i = 0 To UBound(Me.RoutineListBox.List)
             If Me.RoutineListBox.Selected(i) Then
                 active_rt = i
                 change_made = True
@@ -495,7 +495,7 @@ Private Sub RoutineListBox_Change()
             End If
         Next j
         
-        Me.FeatureListBox.list = ft_list
+        Me.FeatureListBox.List = ft_list
         
     End If
     
@@ -762,8 +762,8 @@ Public Sub Unravel(json_content As Object)
         End If
         
         Dim rtList() As Variant
-        On Error GoTo feat_err
         For Each feat In part("features")
+            On Error GoTo feat_err
             If (Not rtList) = -1 Then
                 'First feat we add, just add all the routines the feature exists in, they will be unique anyways
                 For i = 1 To feat("routines").Count
@@ -825,10 +825,10 @@ Public Sub Unravel(json_content As Object)
             'We are only interested in adding features that we know exist in the Routines, regardless of whether they're mapped or not
             If (Not rtList) = -1 Then GoTo cont_feats
             
-            On Error GoTo maps_err
-            
             For i = 0 To UBound(rtList, 2)
                 For Each mapping In feat("mappings")
+                
+                    On Error GoTo maps_err
                     Dim maps() As Variant, feats() As Variant, rt_feats() As Variant
                 
                     If rtList(0, i) <> Split(mapping("routine")("name"), part("name") & "_")(1) Then GoTo cont_maps
@@ -901,12 +901,15 @@ cont_feats:
     
 feat_err:
     MsgBox "Encountered and Error when handling this Feature" & vbCrLf & "Most Likely it doesnt belong inside the following Routine" & _
-        vbCrLf & vbCrLf & feat("name") & vbCrLf & feat("routines")(i)("name"), vbExclamation
+        vbCrLf & vbCrLf & feat("name") & vbCrLf & feat("routines")(i)("name") & vbCrLf & "This Part's features must be removed from other parts' routines" & _
+        vbCrLf & "Reminder that copy/pasting Routines in MeasurLink and changing the Routine Names is not allowed", vbExclamation
+    Err.Raise Number:=vbObjectError + 1000, Description:="feature mapped to bad routine"
     Exit Sub
     
 maps_err:
     MsgBox "Encountered and Error when handling this Feature" & vbCrLf & "Most Likely its Mapped to the Following Routine and Shouldn't be" & _
-        vbCrLf & vbCrLf & feat("name") & vbCrLf & mapping("routine")("name"), vbExclamation
+        vbCrLf & vbCrLf & feat("name") & vbCrLf & mapping("routine")("name") & vbCrLf & "This Part's features must be unmapped from other parts' routines if you are going to map using this tool", vbExclamation
+    Err.Raise Number:=vbObjectError + 1000, Description:="feature mapped to bad routine"
     Exit Sub
     
     
@@ -920,7 +923,7 @@ Public Function Ravel() As Collection
     
     Dim i As Integer, j As Integer, k As Integer, m As Integer
     
-    For i = 0 To UBound(Me.PartListBox.list)
+    For i = 0 To UBound(Me.PartListBox.List)
         If Not (listMaps(1, i) = DataSources.ITEM_SELECTED) Then GoTo cont_parts_selected
         Set temp_part = New Dictionary: Set temp_features = New Collection
         temp_part.Add "name", listMaps(0, i)
@@ -1040,7 +1043,7 @@ Public Sub MapToRoutines(station As String, rt_inds() As Variant, Optional part_
     'If its a callback from a checkBoxClass, then we won't already have the list of routines collected
     If (Not rt_inds) = -1 Then
         Dim i As Integer
-        For i = 0 To UBound(Me.RoutineListBox.list)
+        For i = 0 To UBound(Me.RoutineListBox.List)
             If Me.RoutineListBox.Selected(i) Then
                 If (Not rt_inds) = -1 Then
                     ReDim Preserve rt_inds(0)
@@ -1141,8 +1144,8 @@ Public Sub EvalSelectionStatus(Optional checkBox_Hook As Boolean)
                     If maps_arr(2, m) = 1 Then
                         listMaps(2, i)(1, j) = DataSources.ITEM_SELECTED
                         listMaps(1, i) = DataSources.ITEM_SELECTED
-                        If i = Me.PartListBox.ListIndex Then Me.RoutineListBox.list(j, 1) = DataSources.ITEM_SELECTED
-                        Me.PartListBox.list(i, 1) = DataSources.ITEM_SELECTED
+                        If i = Me.PartListBox.ListIndex Then Me.RoutineListBox.List(j, 1) = DataSources.ITEM_SELECTED
+                        Me.PartListBox.List(i, 1) = DataSources.ITEM_SELECTED
                         GoTo cont_rts
                     End If
                 Next m
@@ -1150,7 +1153,7 @@ cont_feats:
             Next k
             'Presumably we got here because nothing was mapped, so set the selection status as not_selected
             listMaps(2, i)(1, j) = DataSources.ITEM_UNSELECTED
-            If Me.PartListBox.ListIndex = i Then Me.RoutineListBox.list(j, 1) = DataSources.ITEM_UNSELECTED
+            If Me.PartListBox.ListIndex = i Then Me.RoutineListBox.List(j, 1) = DataSources.ITEM_UNSELECTED
 cont_rts:
         Next j
         'Check, if no routines are selected then we need to unselect the part
@@ -1158,7 +1161,7 @@ cont_rts:
             If listMaps(2, i)(1, j) = DataSources.ITEM_SELECTED Then GoTo cont_parts 'Found one selected, so skip the rest
         Next j
         listMaps(1, i) = DataSources.ITEM_UNSELECTED
-        Me.PartListBox.list(i, 1) = DataSources.ITEM_UNSELECTED
+        Me.PartListBox.List(i, 1) = DataSources.ITEM_UNSELECTED
 cont_parts:
     Next i
     

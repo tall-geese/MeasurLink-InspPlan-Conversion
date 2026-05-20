@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} ConditionalFeature 
    Caption         =   "ConditionalFeature"
-   ClientHeight    =   9690
-   ClientLeft      =   -330
-   ClientTop       =   -1620
-   ClientWidth     =   7620
+   ClientHeight    =   10020
+   ClientLeft      =   -375
+   ClientTop       =   -1770
+   ClientWidth     =   7500
    OleObjectBlob   =   "ConditionalFeature.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -83,7 +83,7 @@ End Sub
 Private Sub CheckBox1_Click()
     Me.Controls("ComboBox1").Enabled = Me.Controls("Checkbox1").Value
 End Sub
-Private Sub Checkbox2_Click()
+Private Sub CheckBox2_Click()
     Me.Controls("ComboBox2").Enabled = Me.Controls("Checkbox2").Value
 End Sub
 Private Sub Checkbox3_Click()

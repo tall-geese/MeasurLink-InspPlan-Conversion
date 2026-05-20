@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} CreateRoutinesForm 
    Caption         =   "Create Routines"
-   ClientHeight    =   9435
-   ClientLeft      =   -320
-   ClientTop       =   -1620
-   ClientWidth     =   7840
+   ClientHeight    =   9840
+   ClientLeft      =   -360
+   ClientTop       =   -1770
+   ClientWidth     =   7965
    OleObjectBlob   =   "CreateRoutinesForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -22,6 +22,8 @@ Dim receivFrame As Frame
 Dim assemFrame As Frame
 Dim finFrame As Frame
 
+
+
 '---------------Option Buttons-----------------
 '   The main event
 Private Sub CreateRoutinesButton_Click()
@@ -33,6 +35,12 @@ Private Sub CreateRoutinesButton_Click()
 
     If Me.MillingOptionButton.Value = True Then
         opTag = "MILL"
+        GoTo 10
+    If Me.AddMillOptionButton.Value = True Then
+        opTag = "ADDMILL"
+        GoTo 10
+    If Me.AdditiveOptionButton.Value = True Then
+        opTag = "ADDITIVE"
         GoTo 10
     ElseIf Me.SwissOptionButton.Value = True Then
         opTag = "SWISS"
@@ -79,7 +87,7 @@ End Sub
 
 Public Function BuildRoutineArray(ctrFrame As Frame, varArr() As Variant) As Variant()
     For Each ctrl In ctrFrame.Controls
-        If ctrl.Value = True Then
+        If ctrl.Value = True And ctrl.Enabled = True Then
             If (Not varArr) = -1 Then
                 ReDim Preserve varArr(0)
                 varArr(0) = ctrl.Caption
@@ -113,6 +121,27 @@ Public Sub ActivateMe(ctrlFrame As Frame)
 '        End If
 '    Next ctrl
 
+End Sub
+Public Sub ToggleAdditiveRoutines(ctrlFrame As Frame)
+    For Each control In ctrlFrame.Controls
+        If control.Caption = "IP_BLTSND" Or control.Caption = "IP_SPTREMOV" Or control.Caption = "IP_UNWRAP" Then
+            control.Enabled = True
+        Else
+            control.Enabled = False
+            'control.Value = False
+        End If
+    Next control
+End Sub
+
+Public Sub UnToggleAdditiveRoutines(ctrlFrame As Frame)
+    For Each control In ctrlFrame.Controls
+        If control.Caption = "IP_BLTSND" Or control.Caption = "IP_SPTREMOV" Or control.Caption = "IP_UNWRAP" Then
+            control.Enabled = False
+        Else
+            control.Enabled = True
+            'control.Value = True
+        End If
+    Next control
 End Sub
 
 
@@ -151,6 +180,7 @@ End Sub
 '---------------Option Buttons-----------------
 Private Sub SwissOptionButton_Click()
     Call Me.ActivateMe(swsMllFrame)
+    Call Me.UnToggleAdditiveRoutines(swsMllFrame)
     
     Call Me.DeactivateOthers(receivFrame)
     Call Me.DeactivateOthers(assemFrame)
@@ -160,11 +190,32 @@ End Sub
 Private Sub MillingOptionButton_Click()
 
     Call Me.ActivateMe(swsMllFrame)
+    Call Me.UnToggleAdditiveRoutines(swsMllFrame)
     
     Call Me.DeactivateOthers(receivFrame)
     Call Me.DeactivateOthers(assemFrame)
     Call Me.DeactivateOthers(finFrame)
 End Sub
+
+
+Private Sub AdditiveOptionButton_Click()
+    Call Me.ActivateMe(swsMllFrame)
+    Call Me.ToggleAdditiveRoutines(swsMllFrame)
+    
+    Call Me.DeactivateOthers(receivFrame)
+    Call Me.DeactivateOthers(assemFrame)
+    Call Me.DeactivateOthers(finFrame)
+End Sub
+
+Private Sub AddMillOptionButton_Click()
+    Call Me.ActivateMe(swsMllFrame)
+    Call Me.UnToggleAdditiveRoutines(swsMllFrame)
+    
+    Call Me.DeactivateOthers(receivFrame)
+    Call Me.DeactivateOthers(assemFrame)
+    Call Me.DeactivateOthers(finFrame)
+End Sub
+
 Private Sub ReceivingOptionButton_Click()
     Call Me.ActivateMe(receivFrame)
     

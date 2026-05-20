@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} UPDATEform 
    Caption         =   "UPDATE Custom Field Information"
-   ClientHeight    =   8205
-   ClientLeft      =   -320
-   ClientTop       =   -1620
-   ClientWidth     =   9830
+   ClientHeight    =   8955
+   ClientLeft      =   -360
+   ClientTop       =   -1770
+   ClientWidth     =   10005
    OleObjectBlob   =   "UPDATEform.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -326,8 +326,8 @@ End Sub
         Dim i As Integer
         For i = 0 To UBound(listParts, 2)
             Me.PartListBox.AddItem
-            Me.PartListBox.list(i, 0) = listParts(0, i)
-            Me.PartListBox.list(i, 1) = listParts(1, i)
+            Me.PartListBox.List(i, 0) = listParts(0, i)
+            Me.PartListBox.List(i, 1) = listParts(1, i)
         Next i
         
     End Sub
@@ -338,8 +338,8 @@ End Sub
         Dim j As Integer
         For j = 0 To UBound(listParts(2, partIndex), 2)
             Me.FeatureListBox.AddItem
-            Me.FeatureListBox.list(j, 0) = listParts(2, partIndex)(0, j)
-            Me.FeatureListBox.list(j, 1) = listParts(2, partIndex)(1, j)
+            Me.FeatureListBox.List(j, 0) = listParts(2, partIndex)(0, j)
+            Me.FeatureListBox.List(j, 1) = listParts(2, partIndex)(1, j)
         Next j
     End Sub
     
@@ -349,7 +349,7 @@ End Sub
         Dim k As Integer
         Me.FieldsListBox.AddItem
         For k = 0 To UBound(listParts(2, partIndex)(2, featureIndex), 2)
-            Me.FieldsListBox.list(0, k) = listParts(2, partIndex)(2, featureIndex)(1, k)
+            Me.FieldsListBox.List(0, k) = listParts(2, partIndex)(2, featureIndex)(1, k)
         Next k
     End Sub
     

@@ -1115,7 +1115,7 @@ Public Sub CrystalReports_OnAction(ByRef control As Office.IRibbonControl)
     End If
     
     Load CrystalReport_Form
-    CrystalReport_Form.PartNumbers_ListBox.list = parts
+    CrystalReport_Form.PartNumbers_ListBox.List = parts
     CrystalReport_Form.Customer_TextBox = cust
     
     
