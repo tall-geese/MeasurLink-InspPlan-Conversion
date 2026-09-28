@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} ChangeLogForm 
    Caption         =   "ChangeLog"
-   ClientHeight    =   3375
-   ClientLeft      =   -450
-   ClientTop       =   -1905
-   ClientWidth     =   8460
+   ClientHeight    =   3180
+   ClientLeft      =   -810
+   ClientTop       =   -3405
+   ClientWidth     =   11790
    OleObjectBlob   =   "ChangeLogForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -14,5 +14,9 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Private Sub changeLabel_Click()
+
+End Sub
+
+Private Sub UserForm_Click()
 
 End Sub

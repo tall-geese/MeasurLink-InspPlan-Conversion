@@ -15,6 +15,20 @@ Attribute VB_Exposed = True
 '*
 '*************************************************************
 '*************************************************************
+#If VBA7 Then
+    Private Declare PtrSafe Function WNetGetConnection Lib "mpr.dll" Alias "WNetGetConnectionW" ( _
+        ByVal lpLocalName As LongPtr, _
+        ByVal lpRemoteName As LongPtr, _
+        ByRef lpnLength As Long _
+    ) As Long
+#Else
+    Private Declare Function WNetGetConnection Lib "mpr.dll" Alias "WNetGetConnectionW" ( _
+        ByVal lpLocalName As Long, _
+        ByVal lpRemoteName As Long, _
+        ByRef lpnLength As Long _
+    ) As Long
+#End If
+
 
 
 Private Sub Workbook_BeforeClose(Cancel As Boolean)
@@ -33,6 +47,155 @@ Public Function GetFeaturesForImport()
     GetFeaturesForImport = Worksheets("PartLib Table").ExportRoutineMap()
 End Function
 
+
+Private Sub more_Testing()
+    Dim image() As Integer
+    image = IntTesting
+    
+    Debug.Print (Not image) = -1
+
+
+End Sub
+Private Function IntTesting() As Integer()
+    Dim something(3) As Integer
+    something = (1,2,3)
+    IntTesting = Array(1, 2, 3)
+End Function
+
+Private Sub testingMapping()
+    Dim fso As FileSystemObject
+    Set fso = New Scripting.FileSystemObject
+    Debug.Print (fso.BuildPath(fso.GetParentFolderName(ThisWorkbook.path), "Attachments"))
+
+End Sub
+
+
+Public Function ConvertMappedDrivePathToUNC(ByVal filePath As String) As String
+
+    Dim fso As Object
+    Dim driveLetter As String
+    Dim uncRoot As String
+    Dim relativePath As String
+    
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    'Already a UNC path: \\Server\Share\...
+    If Left$(filePath, 2) = "\\" Then
+        ConvertMappedDrivePathToUNC = filePath
+        Exit Function
+    End If
+    
+    'Only attempt conversion for a drive-letter path, such as J:\Folder\File.pdf.
+    If Len(filePath) < 3 Or Mid$(filePath, 2, 1) <> ":" Then
+        ConvertMappedDrivePathToUNC = filePath
+        Exit Function
+    End If
+    
+    driveLetter = fso.GetDriveName(filePath)   'Returns J:
+    uncRoot = GetMappedDriveUNC(driveLetter)
+    
+    'If it is not a network-mapped drive, preserve the original path.
+    If Len(uncRoot) = 0 Then
+        ConvertMappedDrivePathToUNC = filePath
+        Exit Function
+    End If
+    
+    'GetDriveName returns "J:".
+    'Everything after that is the path below the mapped-drive root.
+    relativePath = Mid$(filePath, Len(driveLetter) + 1)
+
+    'For a normal rooted path, relativePath begins with "\".
+    'BuildPath expects the second argument without its leading separator.
+    If Left$(relativePath, 1) = "\" Then
+        relativePath = Mid$(relativePath, 2)
+    End If
+
+    If Len(relativePath) = 0 Then
+        ConvertMappedDrivePathToUNC = uncRoot
+    Else
+        ConvertMappedDrivePathToUNC = fso.BuildPath(uncRoot, relativePath)
+    End If
+    
+    ConvertMappedDrivePathToUNC = fso.BuildPath(uncRoot, relativePath)
+
+End Function
+
+Private Function GetMappedDriveUNC(ByVal driveLetter As String) As String
+
+    Dim bufferLength As Long
+    Dim buffer As String
+    Dim result As Long
+
+    If Len(driveLetter) <> 2 Or Right$(driveLetter, 1) <> ":" Then
+        Exit Function
+    End If
+
+    'Start with a reasonable buffer and expand if required.
+    bufferLength = 1024
+
+    Do
+        buffer = String$(bufferLength, vbNullChar)
+
+#If VBA7 Then
+        result = WNetGetConnection(StrPtr(driveLetter), StrPtr(buffer), bufferLength)
+#Else
+        result = WNetGetConnection(StrPtr(driveLetter), StrPtr(buffer), bufferLength)
+#End If
+
+        If result = Constants.NO_ERROR Then
+            GetMappedDriveUNC = Left$(buffer, InStr(1, buffer, vbNullChar) - 1)
+            Exit Function
+        ElseIf result = Constants.ERROR_MORE_DATA Then
+            bufferLength = bufferLength * 2
+        Else
+            'The drive is not a mapped network drive, or its mapping is inaccessible.
+            Exit Function
+        End If
+    Loop
+
+End Function
+
+Public Function GetAttachmentFullyQualifiedPath( _
+    ByVal attachment_file_name As String _
+) As String
+
+    Dim workbookFolder As String
+    Dim parentFolder As String
+    Dim attachmentPath As String
+
+    attachment_file_name = Trim$(attachment_file_name)
+
+    If Len(attachment_file_name) = 0 Then
+        Err.Raise vbObjectError + 1000, _
+                  "GetAttachmentFullyQualifiedPath", _
+                  "The attachment file name cannot be blank."
+    End If
+
+    workbookFolder = ThisWorkbook.path
+
+    If Len(workbookFolder) = 0 Then
+        Err.Raise vbObjectError + 1001, _
+                  "GetAttachmentFullyQualifiedPath", _
+                  "The workbook must be saved before an attachment path can be determined."
+    End If
+
+    parentFolder = GetParentFolder(workbookFolder)
+
+    attachmentPath = parentFolder & "\Attachments\" & attachment_file_name
+
+    GetAttachmentFullyQualifiedPath = ConvertMappedDrivePathToUNC(attachmentPath)
+
+End Function
+
+Private Function GetParentFolder(ByVal folderPath As String) As String
+
+    Dim fso As Object
+    
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    GetParentFolder = fso.GetParentFolderName(folderPath)
+
+End Function
 
 
 
@@ -842,7 +1005,7 @@ End Function
 
 
 
-Public Sub Testing()
+Public Sub testing()
     Dim a(1) As String
     a(0) = "asfd"
     a(1) = "a;sldkfj"

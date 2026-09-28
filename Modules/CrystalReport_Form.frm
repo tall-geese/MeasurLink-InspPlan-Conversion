@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} CrystalReport_Form 
    Caption         =   "Create Crystal Reports"
-   ClientHeight    =   7635
-   ClientLeft      =   -45
-   ClientTop       =   -300
-   ClientWidth     =   9990
+   ClientHeight    =   7290
+   ClientLeft      =   -420
+   ClientTop       =   -1800
+   ClientWidth     =   10095
    OleObjectBlob   =   "CrystalReport_Form.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -24,6 +24,14 @@ Attribute VB_Exposed = False
 
 
 
+
+Private Sub Label4_Click()
+
+End Sub
+
+Private Sub Option_FA_ALL_Click()
+
+End Sub
 
 Private Sub Parts_ClearSingle_Click()
     If Me.PartNumbers_ListBox.ListIndex <> -1 Then
@@ -68,6 +76,7 @@ Private Sub Submit_Button_Click()
     coll.Add Me.Option_FA_FIRST
     coll.Add Me.Option_FI_ALL
     coll.Add Me.Option_IP_ALL
+    coll.Add Me.option_GAUGES
     
     customer = Me.Customer_TextBox.Value
     ReDim Preserve params(0)
@@ -113,3 +122,6 @@ Private Sub Submit_Button_Click()
 
 End Sub
 
+Private Sub UserForm_Click()
+
+End Sub

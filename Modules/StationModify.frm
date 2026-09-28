@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} StationModify 
    Caption         =   "Modify Available Cells and Stations"
-   ClientHeight    =   7515
-   ClientLeft      =   -405
-   ClientTop       =   -1500
-   ClientWidth     =   11115
+   ClientHeight    =   7200
+   ClientLeft      =   -795
+   ClientTop       =   -3000
+   ClientWidth     =   11175
    OleObjectBlob   =   "StationModify.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

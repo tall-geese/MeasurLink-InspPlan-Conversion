@@ -24,6 +24,10 @@ Attribute VB_Exposed = True
 
 Public Function GetRevision() As String
     GetRevision = Me.Range("C10").Value
+    If GetRevision = vbNullString Then
+        MsgBox "Revision Field must be filled out", vbInformation
+        Err.Raise Number:=vbObjectError + 1210, Description:="No revision entered on StartHere page"
+    End If
 End Function
 
 

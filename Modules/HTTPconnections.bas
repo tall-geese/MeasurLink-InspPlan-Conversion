@@ -344,6 +344,29 @@ crystalReportsErr:
 End Function
 
 
+Public Function AddAttachments(payload As String, api_key As String) As String
+    
+    On Error GoTo addAttachmentsError:
+
+    Dim resp As String
+    resp = send_http(url:=DataSources.JPMCML_ATTACHMENTS_ADD, method:=DataSources.HTTP_POST, payload:=payload, api_key:=api_key)
+
+    AddAttachments = resp
+    
+    Exit Function
+
+addAttachmentsError:
+        
+    If Err.Number = vbObjectError + 6010 Or Err.Number = vbObjectError + 6404 Then 'Server Down / Part,Feature Combo not found
+        MsgBox Err.Description, vbExclamation
+        
+    ElseIf Err.Number = vbObjectError + 6400 Or Err.Number = vbObjectError + 6000 Then  'Feature not found for PartNum OR bad File Type OR FileNotFound, Internal Server Error
+        MsgBox Err.Description, vbCritical
+        
+    Else   'Unhandle Exceptions
+        Err.Raise Number:=vbObjectError + 6200, Description:="Unexpected Exception Occured Func: HTTPConnections.AddAttachments()" & vbCrLf & vbCrLf & Err.Description
+    End If
+End Function
 
 
 

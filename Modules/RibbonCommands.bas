@@ -866,7 +866,33 @@ Public Sub ParseArray_ForINSERT(json_parts_info As Object)
     api_key = Get_API_Key()
     resp = HTTPconnections.AddCustomFields(payload:=backup, api_key:=api_key)
     
+    'Create the changelog entry
     If resp <> vbNullString Then
+        Dim json_reply As Object
+        Set json_reply = JsonConverter.ParseJson(resp)
+        
+        Dim changeEntry As String
+        If json_reply.Count > 1 Then
+            Dim out() As String
+            For Each part In json_reply
+                If (Not out) = -1 Then
+                    ReDim Preserve out(0)
+                    out(0) = part("name") & ": " & part("change_event_id")
+                Else
+                    ReDim Preserve out(UBound(out) + 1)
+                    out(UBound(out)) = part("name") & ": " & part("change_event_id")
+                End If
+                
+                changeEntry = "Added Custom Fields for the following Parts and Change Event IDs. " & Join(out, ", ") _
+                    & ". You can view the change by going to the following address in your web browser.   http://jpmcml:8000/fields/logs/{event_id}/ "
+            Next part
+        Else
+        
+            changeEntry = "=HYPERLINK(""http://jpmcml:8000/fields/logs/" & json_reply(1)("change_event_id") & "/"", ""Added Custom Fields for " & json_reply(1)("name") & """)"
+        End If
+        
+        Worksheets("Change Log").AddChangeEntry changeEntry, customFieldsChange:=True
+    
         MsgBox "Custom Fields Added Successfully!", vbInformation
     End If
     
@@ -948,7 +974,33 @@ next_part:
     api_key = Get_API_Key()
     resp = HTTPconnections.UpdateCustomFields(payload:=payload, api_key:=api_key)
     
+    'Create the changelog entry
     If resp <> vbNullString Then
+        Dim json_reply As Object
+        Set json_reply = JsonConverter.ParseJson(resp)
+        
+        Dim changeEntry As String
+        If json_reply.Count > 1 Then
+            Dim out() As String
+            For Each part In json_reply
+                If (Not out) = -1 Then
+                    ReDim Preserve out(0)
+                    out(0) = part("name") & ": " & part("change_event_id")
+                Else
+                    ReDim Preserve out(UBound(out) + 1)
+                    out(UBound(out)) = part("name") & ": " & part("change_event_id")
+                End If
+                
+                changeEntry = "Updated Custom Fields for the following Parts and Change Event IDs. " & Join(out, ", ") _
+                    & ". You can view the change by going to the following address in your web browser.   http://jpmcml:8000/fields/logs/{event_id}/ "
+            Next part
+        Else
+        
+            changeEntry = "=HYPERLINK(""http://jpmcml:8000/fields/logs/" & json_reply(1)("change_event_id") & "/"", ""Updated Custom Fields for " & json_reply(1)("name") & """)"
+        End If
+        
+        Worksheets("Change Log").AddChangeEntry changeEntry, customFieldsChange:=True
+    
         MsgBox "Custom Fields Updated Successfully!", vbInformation
     End If
     
@@ -1142,6 +1194,112 @@ Public Sub Submit_Crystal_Reports(customer As String, parts() As Variant, params
 End Sub
 
 
+
+'******************  Add Feature Image Attachments   ***********************
+Public Sub ImageAttachments_OnAction(ByRef control As Office.IRibbonControl)
+    
+    'get the API key, check that it isnt equal to null
+    'Get the customer name and check that is isnt nothing
+    'Get the revision and thelist of part numbers with the _Rev concat'ed onto them
+    
+    Dim cust As String, parts() As String, api_key As String, payloadDict As Dictionary, payloadJSON As String, _
+        respJSON As String, resp As Object, rev As String
+    
+    api_key = Get_API_Key()
+    cust = Sheets("START HERE").GetCustomerName()
+    If cust = vbNullString Then
+        MsgBox "Customer Name field is Empty", vbCritical
+        Exit Sub
+    End If
+    rev = Sheets("START HERE").GetRevision()
+    
+    parts = Worksheets("Variables").GetPartNumberOrNumbers()
+    If (Not parts) = -1 Then
+        MsgBox "No Part Numbers found or selected"
+        Exit Sub
+    End If
+    
+    On Error GoTo debug_Error_Handle
+    
+    Set payloadDict = Worksheets("PartLib Table").Get_Features_And_Attachments(parts, rev)
+    
+    If payloadDict("parts").Count = 0 Then
+        MsgBox "Didn't find any attachments to add. " & vbCrLf & "Check that you Features / Attachments aren't being conditionally hidden", vbInformation
+        Exit Sub
+    End If
+    
+    Dim userResp As Integer
+    userResp = MsgBox("Do you want to make sure that the Attachments don't already exist for those Features?" & vbCrLf & vbCrLf _
+                    & "Click NO if just want to append All Attachments", vbYesNo, "Verify Unique Attachments")
+    
+    If userResp = vbYes Then
+        payloadDict.Add "append_unique_attachments_only", True
+    End If
+    
+    payloadJSON = JsonConverter.ConvertToJson(payloadDict)
+    Debug.Print (payloadJSON)
+    respJSON = HTTPconnections.AddAttachments(payloadJSON, api_key)
+    
+    If respJSON = vbNullString Then Exit Sub
+    Set resp = JsonConverter.ParseJson(respJSON)
+    
+    Debug.Print (returnJSON)
+    
+    Dim changeEntry As String
+    If resp("parts").Count > 1 Then
+        Dim out() As String
+        For Each part In resp("parts")
+            If (Not out) = -1 Then
+                ReDim Preserve out(0)
+                out(0) = part("part_name") & ": " & part("change_event_id")
+            Else
+                ReDim Preserve out(UBound(out) + 1)
+                out(UBound(out)) = part("part_name") & ": " & part("change_event_id")
+            End If
+            
+            changeEntry = "Appended Attachments for the following Parts and Change Event IDs. " & Join(out, ", ") _
+                & Replace(". You can view the change by going to the following address in your web browser.   {url}{event_id}/ ", "{url}", DataSources.JPMCML_ATTACHMENTS_LOGS)
+        Next part
+    Else
+    
+        changeEntry = Replace("=HYPERLINK(""{url}" & resp("parts")(1)("change_event_id") & "/"", ""Appended Attachments for " & resp("parts")(1)("part_name") & """)", _
+                        "{url}", DataSources.JPMCML_ATTACHMENTS_LOGS)
+    End If
+    
+    Worksheets("Change Log").AddChangeEntry changeEntry, attachmentsChange:=True
+
+    MsgBox "Appended Attachments Successfully!", vbInformation
+        
+    Exit Sub
+
+debug_Error_Handle:
+    If Err.Number = (vbObjectError + 4112) Then
+        Debug.Print "Exception caught in PartLib Table.GetFeatures_SubsetOrAll()"
+    
+    ElseIf Err.Number = (vbObjectError + 4111) Then
+        Debug.Print "Exception caught in PartLib Table.Get_Features_And_Attachments()"
+    
+    ElseIf Err.Number = (vbObjectError + 4111) Then
+        Debug.Print "Exception caught in PartLib Table.Get_Features_And_Attachments()"
+        
+    ElseIf Err.Number = (vbObjectError + 6200) Then
+        Debug.Print "Unexpected Exception caught in RibbonCommands.AddAttachments()"
+        MsgBox Err.Description, vbCritical
+        
+    ElseIf Err.Number = (vbObjectError + 1210) Then
+        Debug.Print "Exception caught in START HERE.GetRevision()"
+        
+    ElseIf Err.Number = (vbObjectError + 4130) Then
+        'User canceled Selecting Features, do nothing
+        MsgBox "No Feautres Selected", vbInformation
+        On Error GoTo -1
+        Exit Sub
+    
+    Else
+        Debug.Print "Unexpected Exception"
+    End If
+    
+End Sub
 
 
 

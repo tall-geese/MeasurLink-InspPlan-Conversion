@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} StationMapping 
    Caption         =   "StationMapping"
-   ClientHeight    =   11655
-   ClientLeft      =   -45
-   ClientTop       =   -300
-   ClientWidth     =   8850
+   ClientHeight    =   11175
+   ClientLeft      =   -420
+   ClientTop       =   -1800
+   ClientWidth     =   8835
    OleObjectBlob   =   "StationMapping.frx":0000
    StartUpPosition =   1  'CenterOwner
 End

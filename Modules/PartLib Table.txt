@@ -19,7 +19,8 @@ Option Compare Text
 
 Sub test()
     Dim a As Range
-    Set a = Me.Range("A5").hasfor
+    Debug.Print Me.Range("C15").Value
+    
 
 
 End Sub
@@ -1497,6 +1498,250 @@ sortErr:
     MsgBox "Error on Sorting", vbCritical
     GoTo 10
 End Sub
+
+
+
+
+
+' Called By RibbonCommands.ImageAttachments_OnAction()
+Public Function DuplicateFeaturesPresent() As Boolean
+
+    Dim cell As Range
+
+        'Grab the Index column, which should always have values and offset it to the Feature Column, which could have hidden values
+    Dim workingRng As Range
+    Set workingRng = Range("A4:A" & Range("A4").End(xlDown).Row).offset(0, 2)
+
+    'Iterate through the cells, for each one, use CountIF to see if the value in that cell appears more than once in the range
+    For Each cell In workingRng
+        If Not IsError(cell.Value2) Then '
+            If Len(cell.Value2) > 0 Then
+                If Application.CountIf(workingRng, cell.Value2) > 1 Then
+                    DuplicateFeaturesPresent = True
+                    Exit Function
+                End If
+            End If
+        End If
+
+    Next cell
+
+End Function
+
+
+
+' Called By RibbonCommands.ImageAttachments_OnAction()
+Public Function GetFeatures_SubsetOrAll() As Integer() ' ->  Returns a List of Rows of the Selected Features
+    
+    Me.Outline.ShowLevels RowLevels:=2
+    Dim featureAddresses() As Integer
+    Dim workingRange As Range
+    Dim subCell As Range
+    
+    'If part numbers aren't unique
+    If DuplicateFeaturesPresent() Then
+        MsgBox "Non-Unique Feature Names Found on PartLibTable Sheet", vbInformation
+        Exit Function
+    End If
+
+    Dim firstFeature As Range
+    Set firstFeature = Range("C4")
+    
+    'No Features, raise error
+    If firstFeature.Formula2 = vbNullString Then
+        Err.Raise vbObjectError + 1101, Description:="The first Feature is missing. Please fill out Feature in the PartLib Table sheet"
+    End If
+
+    'only a single Feature found, return and array with just the First Row
+    If firstFeature.offset(1, 0).Formula2 = vbNullString Then
+        GetFeatures_SubsetOrAll = Array(firstFeature.Row)
+        Exit Function
+    End If
+
+    'Multiple Features found, collect all feature rows
+    Dim result As Integer
+    result = MsgBox("Multiple Features found" & vbCrLf & "Do you want to add Attachments for All Features?", vbYesNoCancel)
+    If result = vbCancel Then 'User wants to back out
+        GetFeatures_SubsetOrAll = featureAddresses
+    ElseIf result = vbYes Then 'User wants every feature
+        Set workingRange = Range("C4:C" & Range("C4").End(xlDown).Row)
+        For Each subCell In workingRange
+            If IsError(subCell.Value) Then GoTo feature_Name_Error
+            If subCell.Value <> vbNullString Then   ' Don't include conditionally hidden features, these aren't a part of that part's library
+                If (Not featureAddresses) = -1 Then
+                    ReDim Preserve featureAddresses(0)
+                    featureAddresses(0) = subCell.Row
+                Else
+                    ReDim Preserve featureAddresses(UBound(featureAddresses) + 1)
+                    featureAddresses(UBound(featureAddresses)) = subCell.Row
+                End If
+            End If
+        Next subCell
+    Else 'Otherwise the User wants to use a subset of all the Features
+        Me.Activate
+        Dim featureRange As Range
+        Dim i As Integer
+        cells(4, 3).Activate
+        On Error GoTo feature_Input_Box_Cancelled
+        Set featureRange = Application.InputBox("Select Feature to Append Attachments to", "Select Features", Type:=8)
+        On Error GoTo 0
+        If featureRange Is Nothing Then Exit Function
+        If featureRange.Worksheet.name <> "PartLib Table" Then Exit Function
+        
+        Dim addys() As String
+        If InStr(featureRange.Address, ",") > 0 Then 'If multiple areas are chosen, split them up
+            addys = Split(featureRange.Address, ",")
+        Else
+            ReDim Preserve addys(0) 'Otherwise just set the one area
+            addys(0) = featureRange.Address
+        End If
+        
+        'Address validation
+        For i = 0 To UBound(addys)
+            If InStr(addys(i), ":") > 0 Then
+                If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 6 Then Exit Function 'If $A$X:$A$X, not all in the A Column
+            Else
+                If Len(addys(i)) - Len(Replace(addys(i), "$C$", "")) <> 3 Then Exit Function 'IF $C$6, not in the C column
+            End If
+        Next i
+        
+        'Array Creation
+        For i = 0 To UBound(addys)
+            Dim tempRange As Range
+            Set tempRange = Range(addys(i))
+            For Each subCell In tempRange
+                If IsError(subCell.Value) Then GoTo feature_Name_Error
+                'Only add in the Features that aren't being conditionally hidden
+                If subCell.Value <> vbNullString Then
+                    If (Not featureAddresses) = -1 Then
+                        ReDim Preserve featureAddresses(0)
+                        featureAddresses(0) = subCell.Row
+                    Else
+                        ReDim Preserve featureAddresses(UBound(featureAddresses) + 1)
+                        featureAddresses(UBound(featureAddresses)) = subCell.Row
+                    End If
+                End If
+            Next subCell
+        Next i
+
+    End If
+
+    GetFeatures_SubsetOrAll = featureAddresses
+    
+    Exit Function
+    
+feature_Name_Error:
+    MsgBox "Could not interpret the value for the Feature Name in address " & subCell.Address & vbCrLf & "Please fix this error and run again", vbCritical
+    Err.Raise Number:=(vbObjectError + 4112), Description:="error Value in Feature Name cell"
+feature_Input_Box_Cancelled:
+    'User cancelled feature selection
+    Err.Clear
+    On Error GoTo -1
+    Exit Function
+
+End Function
+
+
+' Called By RibbonCommands.ImageAttachments_OnAction()
+Public Function Get_Features_And_Attachments(partNums() As String, rev As String) As Dictionary
+    'Create the Dict object that will eventually be our payload to send to /attachments/add/
+    
+    Dim attachFolderPath As String, fso As FileSystemObject
+    Set fso = New Scripting.FileSystemObject
+    attachFolderPath = fso.BuildPath(fso.GetParentFolderName(ThisWorkbook.path), "Attachments")
+
+    Me.Activate
+    Dim featureRows() As Integer
+    featureRows = GetFeatures_SubsetOrAll()
+    
+        
+        'User canceled prompt to select Features
+    If (Not featureRows) = -1 Then GoTo no_features_Selected
+
+    Dim attColumn As Integer, nameColumn As Integer
+    attColumn = GetCol("Attached Image(s) [Double Click]")
+    nameColumn = GetCol("Characteristic Name")
+
+    Dim outDict As Scripting.Dictionary
+    Set outDict = New Scripting.Dictionary
+    
+    Dim parts As Collection
+    Set parts = New Collection
+
+    Dim i As Integer, j As Integer
+    For i = 0 To UBound(partNums)
+        'We're doing things in Reverse order, in case information is missing
+        'So if we find any attachments for a feature, add them.
+            'Then if we have any features needed to be added to the part, we add the part, etc.
+        
+        
+        'Worksheets("START HERE").Range("C8").Value = partNums(i)
+        Worksheets("START HERE").SetPartNumber (partNums(i)) 'Set the partNum, so that triggers conditional hiding on features
+        Dim partFeatures As Collection
+        Set partFeatures = New Collection
+
+        For j = 0 To UBound(featureRows)
+            Dim featName As String, attachments As String, featureDict As Scripting.Dictionary
+            If IsError(cells(featureRows(j), nameColumn).Value) Then GoTo feature_Name_Error_Val
+            featName = cells(featureRows(j), nameColumn).Value
+            If IsError(cells(featureRows(j), attColumn).Value) Then GoTo attachment_Error_Val
+            attachments = cells(featureRows(j), attColumn).Value
+
+            If featName <> vbNullString And attachments <> vbNullString Then
+                'Do something with the attachments here
+                Dim arrAttachments() As String
+                Set featureDict = New Scripting.Dictionary
+                featureDict.Add "feature_name", featName
+                arrAttachments = Split(attachments, "|")
+                
+                Dim k As Integer ' Go through the attachments and create their true file path, relative to this workbook
+                For k = 0 To UBound(arrAttachments)
+                    arrAttachments(k) = ThisWorkbook.ConvertMappedDrivePathToUNC(fso.BuildPath(attachFolderPath, arrAttachments(k)))
+                    If Not fso.FileExists(arrAttachments(k)) Then GoTo attachment_File_Not_Found
+                Next k
+                
+                
+                featureDict.Add "attachments", arrAttachments  'TODO: need to put in the fully qualified path for the attachments here
+
+                partFeatures.Add featureDict
+            End If
+
+        Next j
+        
+        If partFeatures.Count > 0 Then
+            Dim partDict As Dictionary
+            Set partDict = New Scripting.Dictionary
+            partDict.Add "part_name", partNums(i) & "_" & rev
+            partDict.Add "part_features", partFeatures
+            parts.Add partDict
+        End If
+
+    Next i
+
+    outDict.Add "parts", parts
+    Set Get_Features_And_Attachments = outDict
+    
+    Exit Function
+    
+attachment_File_Not_Found:
+    MsgBox "Couldn't find the file of the specified path" & vbCrLf & arrAttachments(k) & vbCrLf & vbCrLf & "This Workbook may be in the wrong directory or the file may no longer exist"
+    Err.Raise vbObjectError + 4111, Description:="AttachmentFile Not Found"
+        
+feature_Name_Error_Val:
+    MsgBox "Cannot read Feature Name, error value in " & Me.cells(featureRows(j), nameColumn).Address & vbCrLf & "Correct this and try again", vbCritical
+    Err.Raise vbObjectError + 4111, Description:="error value in Attachment when reading cell"
+    
+attachment_Error_Val:
+    MsgBox "Cannot read Attachment, error value in " & Me.cells(featureRows(j), attColumn).Address & vbCrLf & "Correct this and try again", vbCritical
+    Err.Raise vbObjectError + 4111, Description:="error value in Attachment when reading cell"
+
+no_features_Selected:
+    Err.Raise Number:=vbObjectError + 4130, Description:="user cancelled selecting Features"
+
+End Function
+
+
+
+
 
     
         '*********   Deprecated  ***************

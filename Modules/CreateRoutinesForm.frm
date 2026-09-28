@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} CreateRoutinesForm 
    Caption         =   "Create Routines"
-   ClientHeight    =   9840
-   ClientLeft      =   -360
-   ClientTop       =   -1770
-   ClientWidth     =   7965
+   ClientHeight    =   9600
+   ClientLeft      =   -720
+   ClientTop       =   -3270
+   ClientWidth     =   7860
    OleObjectBlob   =   "CreateRoutinesForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -36,10 +36,10 @@ Private Sub CreateRoutinesButton_Click()
     If Me.MillingOptionButton.Value = True Then
         opTag = "MILL"
         GoTo 10
-    If Me.AddMillOptionButton.Value = True Then
+    ElseIf Me.AddMillOptionButton.Value = True Then
         opTag = "ADDMILL"
         GoTo 10
-    If Me.AdditiveOptionButton.Value = True Then
+    ElseIf Me.AdditiveOptionButton.Value = True Then
         opTag = "ADDITIVE"
         GoTo 10
     ElseIf Me.SwissOptionButton.Value = True Then

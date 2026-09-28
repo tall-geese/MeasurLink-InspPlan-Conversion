@@ -1,0 +1,159 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "Sheet19"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+
+Public Sub AddChangeEntry(changeDesc As String, _
+                            Optional routineChange As Boolean = False, Optional inspMethodChange As Boolean = False, _
+                            Optional toleranceChange As Boolean = False, Optional customFieldsChange As Boolean = False, _
+                            Optional attachmentsChange As Boolean = False)
+    
+'---- Public method, callable by other features in the Routine Map to Record a Change when the QE use them ------
+    
+    '_Args_
+    'changeDesc - Formula going into the Change Description column, so this can also be formula functions like HYPERLINK()
+    
+    Dim firstEmpty As Range
+
+    Set firstEmpty = Me.Range("A4:A250").Find(What:="", _
+                                  LookIn:=xlValues, _
+                                  LookAt:=xlWhole, _
+                                  SearchDirection:=xlNext)
+
+'    If Not firstEmpty Is Nothing Then
+'        MsgBox firstEmpty.Address
+'    Else
+'        MsgBox "No empty cell found."
+'    End If
+    
+    Me.Unprotect "3063bqa"
+    Application.EnableEvents = False
+    
+    firstEmpty.offset(0, 3).Value = changeDesc
+    If routineChange Then firstEmpty.offset(0, Columns("E").column - 1).Value = "ü"
+    If inspMethodChange Then firstEmpty.offset(0, Columns("F").column - 1).Value = "ü"
+    If toleranceChange Then firstEmpty.offset(0, Columns("G").column - 1).Value = "ü"
+    If customFieldsChange Then firstEmpty.offset(0, Columns("H").column - 1).Value = "ü"
+    If attachmentsChange Then firstEmpty.offset(0, Columns("I").column - 1).Value = "ü"
+    
+    Set_Name_And_Date (firstEmpty.Row)
+    
+    
+    Application.EnableEvents = True
+    Me.Protect "3063bqa", AllowFormattingRows:=True
+    
+    Exit Sub
+    
+change_log_err:
+    Err.Raise Number:=vbObjectError + 4100, Description:="Failed to set new Change Log entry"
+    Application.EnableEvents = True
+    Me.Protect "3063bqa", AllowFormattingRows:=True
+                            
+End Sub
+
+
+
+Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
+    'Limit Target count to 1
+    If Target.Count > 1 Then Exit Sub
+    'Isolate Target to a specific range
+    If Intersect(Target, Range("Mfg")) Is Nothing Then Exit Sub
+    'Check value of target
+    If Target.Value <> "ü" Then
+        Target.Value = "ü" 'Sets target Value = "ü"
+        Cancel = True
+        Exit Sub
+    End If
+    If Target.Value = "ü" Then
+        Target.ClearContents 'Sets Target Value = ""
+        Cancel = True
+        Exit Sub
+    End If
+End Sub
+
+
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    'If the change is limited to a single cell and happens to fall within a specified range, then we can set the Name and Date columns in that row....
+'Name: ChgLog_OpenCells
+    'Limit Target count to 1
+    If Target.Count > 1 Then
+        'if we DELETED values from a merged cell, then we end up here
+            'but we still want to apply the removal of the date and name if its applicable
+        If Target.MergeCells Then
+            Dim lastRow As Integer
+            For Each cell In Target.cells
+                If cell.Row = lastRow Then GoTo cont_target_cells
+                lastRow = cell.Row
+                If Application.WorksheetFunction.CountA(Range("D" & cell.Row & ":I" & cell.Row)) = 0 Then
+                    UnSet_Name_And_Date (cell.Row)
+                End If
+                
+cont_target_cells:
+            Next cell
+        End If
+        Exit Sub
+    End If
+
+    'Isolate Target to a specific range
+    If Intersect(Target, Range("ChgLog_OpenCells")) Is Nothing Then Exit Sub
+    'Check value of target
+    
+    If Target.Value = vbNullString Then
+        'If the target's row has nothing in it,
+        If Application.WorksheetFunction.CountA(Range("D" & Target.Row & ":I" & Target.Row)) = 0 Then
+            UnSet_Name_And_Date (Target.Row)
+            Exit Sub
+        Else
+            Exit Sub
+        End If
+    End If
+    
+    
+    'Otherwise we have a valid Change
+    Set_Name_And_Date (Target.Row)
+
+End Sub
+
+
+Private Sub Set_Name_And_Date(changed_row_num As Integer)
+    'Can be used by either Worksheet_Change or another function that sets log information
+
+    Application.EnableEvents = False
+    Me.Unprotect "3063bqa"
+    
+    cells(changed_row_num, 3).Value = Environ("username") 'set Na+me
+    cells(changed_row_num, 2).Value = Date 'set Date
+
+    Application.EnableEvents = True
+    Me.Protect "3063bqa", AllowFormattingRows:=True
+End Sub
+
+Private Sub UnSet_Name_And_Date(changed_row_num As Integer)
+    'Can be used by either Worksheet_Change or another function that sets log information
+
+    Application.EnableEvents = False
+    Me.Unprotect "3063bqa"
+    
+    cells(changed_row_num, 3).Value = "" 'unset Name
+    cells(changed_row_num, 2).Value = "" 'unset Date
+
+    Application.EnableEvents = True
+    Me.Protect "3063bqa", AllowFormattingRows:=True
+End Sub
+
+
+
+'TODO:
+    ' Need a SubRoutine that will take a variety of information and then set a new ChangeLog Entry based on what is sees
+    ' We should keep this scope pretty open as we may need ot leverage this for other features in the future we don't know about yet
+    
+ 
+ 
+ 
+ 
